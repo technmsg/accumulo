@@ -25,7 +25,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
-import java.util.UUID;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.locks.ReadWriteLock;
@@ -61,7 +60,7 @@ public class TabletServerLogger {
   private final TabletServer tserver;
   
   // The current log set: always updated to a new set with every change of loggers
-  private final List<RemoteLogger> loggers = new ArrayList<RemoteLogger>();
+  private final List<IRemoteLogger> loggers = new ArrayList<IRemoteLogger>();
   
   // The current generation of logSet.
   // Because multiple threads can be using a log set at one time, a log
@@ -134,7 +133,7 @@ public class TabletServerLogger {
     this.maxSize = maxSize;
   }
   
-  private int initializeLoggers(final List<RemoteLogger> copy) throws IOException {
+  private int initializeLoggers(final List<IRemoteLogger> copy) throws IOException {
     final int[] result = {-1};
     testLockAndRun(logSetLock, new TestCallWithWriteLock() {
       boolean test() {
@@ -165,7 +164,7 @@ public class TabletServerLogger {
   public void getLoggers(Set<String> loggersOut) {
     logSetLock.readLock().lock();
     try {
-      for (RemoteLogger logger : loggers) {
+      for (IRemoteLogger logger : loggers) {
         loggersOut.add(logger.getLogger());
       }
     } finally {
@@ -183,35 +182,39 @@ public class TabletServerLogger {
     }
     
     try {
-      while (true) {
-        Set<String> loggerAddresses = tserver.getLoggers();
-        if (!loggerAddresses.isEmpty()) {
-          for (String logger : loggerAddresses) {
-            try {
-              loggers.add(new RemoteLogger(logger, UUID.randomUUID(), tserver.getSystemConfiguration()));
-            } catch (LoggerClosedException t) {
-              close();
-              break;
-            } catch (Exception t) {
-              close();
-              log.warn("Unable to connect to " + logger + ": " + t);
-              break;
+      if (tserver.getSystemConfiguration().getBoolean(Property.TSERV_USE_DFS_WAL)) {
+        DfsLogger alog = new DfsLogger(tserver.getServerConfig());
+        alog.open();
+        loggers.add(alog);
+      } else {
+        while (true) {
+          Set<String> loggerAddresses = tserver.getLoggers();
+          if (!loggerAddresses.isEmpty()) {
+            for (String logger : loggerAddresses) {
+              try {
+                RemoteLogger alog = new RemoteLogger(logger, tserver.getSystemConfiguration());
+                alog.open();
+                loggers.add(alog);
+              } catch (LoggerClosedException t) {
+                close();
+                break;
+              } catch (Exception t) {
+                close();
+                log.warn("Unable to connect to " + logger + ": " + t);
+                break;
+              }
             }
-          }
-          
-          if (loggers.size() == loggerAddresses.size())
-            break;
-          if (loggers.size() > 0) {
-            // something is screwy, loggers.size() should be 0 or loggerAddresses.size()..
-            throw new RuntimeException("Unexpected number of loggers " + loggers.size() + " " + loggerAddresses.size());
+            
+            if (loggers.size() == loggerAddresses.size())
+              break;
+            UtilWaitThread.sleep(1000);
           }
         }
-        UtilWaitThread.sleep(1000);
       }
       logSetId.incrementAndGet();
       return;
     } catch (Exception t) {
-      throw new IOException(t);
+      throw new RuntimeException(t);
     }
   }
   
@@ -229,7 +232,7 @@ public class TabletServerLogger {
       throw new IllegalStateException("close should be called with write lock held!");
     }
     try {
-      for (RemoteLogger logger : loggers) {
+      for (IRemoteLogger logger : loggers) {
         try {
           logger.close();
         } catch (LoggerClosedException ex) {
@@ -246,7 +249,7 @@ public class TabletServerLogger {
   }
   
   interface Writer {
-    LoggerOperation write(RemoteLogger logger, int seq) throws Exception;
+    LoggerOperation write(IRemoteLogger logger, int seq) throws Exception;
   }
   
   private int write(CommitSession commitSession, boolean mincFinish, Writer writer) throws IOException {
@@ -265,7 +268,7 @@ public class TabletServerLogger {
     while (!success) {
       try {
         // get a reference to the loggers that no other thread can touch
-        ArrayList<RemoteLogger> copy = new ArrayList<RemoteLogger>();
+        ArrayList<IRemoteLogger> copy = new ArrayList<IRemoteLogger>();
         currentLogSet = initializeLoggers(copy);
         
         // add the logger to the log set for the memory in the tablet,
@@ -294,7 +297,7 @@ public class TabletServerLogger {
           if (seq < 0)
             throw new RuntimeException("Logger sequence generator wrapped!  Onos!!!11!eleven");
           ArrayList<LoggerOperation> queuedOperations = new ArrayList<LoggerOperation>(copy.size());
-          for (RemoteLogger wal : copy) {
+          for (IRemoteLogger wal : copy) {
             LoggerOperation lop = writer.write(wal, seq);
             if (lop != null)
               queuedOperations.add(lop);
@@ -309,7 +312,7 @@ public class TabletServerLogger {
         }
       } catch (Exception t) {
         if (attempt == 0) {
-          log.info("Log write failed: another thread probably closed the log");
+          log.info("Log write failed: another thread probably closed the log", t);
         } else {
           log.error("Unexpected error writing to log, retrying attempt " + (attempt + 1), t);
           UtilWaitThread.sleep(100);
@@ -356,7 +359,7 @@ public class TabletServerLogger {
       return -1;
     return write(commitSession, false, new Writer() {
       @Override
-      public LoggerOperation write(RemoteLogger logger, int ignored) throws Exception {
+      public LoggerOperation write(IRemoteLogger logger, int ignored) throws Exception {
         logger.defineTablet(commitSession.getWALogSeq(), commitSession.getLogId(), commitSession.getExtent());
         return null;
       }
@@ -368,7 +371,7 @@ public class TabletServerLogger {
       return -1;
     int seq = write(commitSession, false, new Writer() {
       @Override
-      public LoggerOperation write(RemoteLogger logger, int ignored) throws Exception {
+      public LoggerOperation write(IRemoteLogger logger, int ignored) throws Exception {
         return logger.log(tabletSeq, commitSession.getLogId(), m);
       }
     });
@@ -388,7 +391,7 @@ public class TabletServerLogger {
     
     int seq = write(loggables.keySet(), false, new Writer() {
       @Override
-      public LoggerOperation write(RemoteLogger logger, int ignored) throws Exception {
+      public LoggerOperation write(IRemoteLogger logger, int ignored) throws Exception {
         List<TabletMutations> copy = new ArrayList<TabletMutations>(loggables.size());
         for (Entry<CommitSession,List<Mutation>> entry : loggables.entrySet()) {
           CommitSession cs = entry.getKey();
@@ -419,7 +422,7 @@ public class TabletServerLogger {
     
     int seq = write(commitSession, true, new Writer() {
       @Override
-      public LoggerOperation write(RemoteLogger logger, int ignored) throws Exception {
+      public LoggerOperation write(IRemoteLogger logger, int ignored) throws Exception {
         logger.minorCompactionFinished(walogSeq, commitSession.getLogId(), fullyQualifiedFileName);
         return null;
       }
@@ -435,7 +438,7 @@ public class TabletServerLogger {
       return -1;
     write(commitSession, false, new Writer() {
       @Override
-      public LoggerOperation write(RemoteLogger logger, int ignored) throws Exception {
+      public LoggerOperation write(IRemoteLogger logger, int ignored) throws Exception {
         logger.minorCompactionStarted(seq, commitSession.getLogId(), fullyQualifiedFileName);
         return null;
       }

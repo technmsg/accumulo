@@ -148,6 +148,7 @@ public enum Property {
   TSERV_HOLD_TIME_SUICIDE("tserver.hold.time.max", "5m", PropertyType.TIMEDURATION,
       "The maximum time for a tablet server to be in the \"memory full\" state.  If the tablet server cannot write out memory"
           + " in this much time, it will assume there is some failure local to its node, and quit.  A value of zero is equivalent to forever."),
+  TSERV_USE_DFS_WAL("tserver.use.dfs.wal", "false", PropertyType.BOOLEAN, "Use the distributed file system for write-ahead loggging."),
   
   // properties that are specific to logger server behavior
   LOGGER_PREFIX("logger.", null, PropertyType.PREFIX, "Properties in this category affect the behavior of the write-ahead logger servers"),

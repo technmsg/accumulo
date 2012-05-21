@@ -43,10 +43,6 @@ import org.apache.accumulo.core.util.UtilWaitThread;
 import org.apache.accumulo.server.client.HdfsZooInstance;
 import org.apache.accumulo.server.conf.ServerConfiguration;
 import org.apache.accumulo.server.conf.ZooConfiguration;
-import org.apache.accumulo.server.logger.LogEvents;
-import org.apache.accumulo.server.logger.LogFileKey;
-import org.apache.accumulo.server.logger.LogFileValue;
-import org.apache.accumulo.server.logger.LogWriter;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.io.SequenceFile;
@@ -113,7 +109,7 @@ public class TestLogWriter {
       if (fs.exists(mylog))
         break;
     }
-    assertTrue(fs.exists(mylog));
+    assertTrue(fs.exists(new Path(mylog + ".recovered")));
     Mutation m = new Mutation(new Text("row1"));
     m.put(new Text("cf"), new Text("cq"), new Value("value".getBytes()));
     try {

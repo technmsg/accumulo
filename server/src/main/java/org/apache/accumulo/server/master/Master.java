@@ -145,6 +145,8 @@ import org.apache.accumulo.server.security.SecurityConstants;
 import org.apache.accumulo.server.security.SecurityUtil;
 import org.apache.accumulo.server.security.ZKAuthenticator;
 import org.apache.accumulo.server.tabletserver.TabletTime;
+import org.apache.accumulo.server.tabletserver.log.DfsLogger.ServerConfig;
+import org.apache.accumulo.server.tabletserver.log.IRemoteLogger;
 import org.apache.accumulo.server.tabletserver.log.RemoteLogger;
 import org.apache.accumulo.server.trace.TraceFileSystem;
 import org.apache.accumulo.server.util.AddressUtil;
@@ -1370,7 +1372,7 @@ public class Master implements LiveTServerSet.Listener, LoggerWatcher, TableObse
             
             if (goal == TabletGoalState.HOSTED) {
               if (state != TabletState.HOSTED && !tls.walogs.isEmpty()) {
-                if (!recovery.recover(SecurityConstants.getSystemCredentials(), tls.extent, tls.walogs, Master.this)) {
+                if (!recovery.recover(getServerConfig(), tls.extent, tls.walogs, Master.this)) {
                   continue;
                 }
               }
@@ -1460,6 +1462,28 @@ public class Master implements LiveTServerSet.Listener, LoggerWatcher, TableObse
       }
     }
     
+    /**
+     * @return
+     */
+    private ServerConfig getServerConfig() {
+      return new ServerConfig() {
+        @Override
+        public AccumuloConfiguration getConfiguration() {
+          return getSystemConfiguration();
+        }
+
+        @Override
+        public FileSystem getFileSystem() {
+          return fs;
+        }
+
+        @Override
+        public List<String> getCurrentLoggers() {
+          return new ArrayList<String>(Master.this.getLoggers().values());
+        }
+      };
+    }
+
     private void sendSplitRequest(MergeInfo info, TabletState state, TabletLocationState tls) {
       // Already split?
       if (!info.getState().equals(MergeState.SPLITTING))
@@ -2198,7 +2222,7 @@ public class Master implements LiveTServerSet.Listener, LoggerWatcher, TableObse
   @Override
   public void newLogger(String address) {
     try {
-      RemoteLogger remote = new RemoteLogger(address, getSystemConfiguration());
+      IRemoteLogger remote = new RemoteLogger(address, getSystemConfiguration());
       for (String onDisk : remote.getClosedLogs()) {
         Path path = new Path(ServerConstants.getRecoveryDir(), onDisk + ".failed");
         if (fs.exists(path)) {

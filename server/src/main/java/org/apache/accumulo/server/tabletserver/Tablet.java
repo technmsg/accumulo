@@ -110,6 +110,7 @@ import org.apache.accumulo.server.tabletserver.InMemoryMap.MemoryIterator;
 import org.apache.accumulo.server.tabletserver.TabletServer.TservConstraintEnv;
 import org.apache.accumulo.server.tabletserver.TabletServerResourceManager.TabletResourceManager;
 import org.apache.accumulo.server.tabletserver.TabletStatsKeeper.Operation;
+import org.apache.accumulo.server.tabletserver.log.IRemoteLogger;
 import org.apache.accumulo.server.tabletserver.log.MutationReceiver;
 import org.apache.accumulo.server.tabletserver.log.RemoteLogger;
 import org.apache.accumulo.server.tabletserver.mastermessage.TabletStatusMessage;
@@ -206,7 +207,7 @@ public class Tablet {
       return Tablet.this;
     }
     
-    public boolean beginUpdatingLogsUsed(ArrayList<RemoteLogger> copy, boolean mincFinish) {
+    public boolean beginUpdatingLogsUsed(ArrayList<IRemoteLogger> copy, boolean mincFinish) {
       return Tablet.this.beginUpdatingLogsUsed(memTable, copy, mincFinish);
     }
     
@@ -1223,12 +1224,12 @@ public class Tablet {
     return datafiles;
   }
   
-  private static Set<RemoteLogger> getCurrentLoggers(List<LogEntry> entries) {
-    Set<RemoteLogger> result = new HashSet<RemoteLogger>();
+  private static Set<IRemoteLogger> getCurrentLoggers(List<LogEntry> entries) {
+    Set<IRemoteLogger> result = new HashSet<IRemoteLogger>();
     for (LogEntry logEntry : entries) {
       for (String log : logEntry.logSet) {
         String[] parts = log.split("/", 2);
-        result.add(new RemoteLogger(parts[0], parts[1], null));
+        result.add(new RemoteLogger(parts[0], parts[1]));
       }
     }
     return result;
@@ -2232,7 +2233,7 @@ public class Tablet {
   private synchronized MinorCompactionTask prepareForMinC(long flushId) {
     CommitSession oldCommitSession = tabletMemory.prepareForMinC();
     otherLogs = currentLogs;
-    currentLogs = new HashSet<RemoteLogger>();
+    currentLogs = new HashSet<IRemoteLogger>();
     
     String mergeFile = datafileManager.reserveMergingMinorCompactionFile();
     
@@ -3616,7 +3617,7 @@ public class Tablet {
     }
   }
   
-  private Set<RemoteLogger> currentLogs = new HashSet<RemoteLogger>();
+  private Set<IRemoteLogger> currentLogs = new HashSet<IRemoteLogger>();
   
   private Set<String> beginClearingUnusedLogs() {
     Set<String> doomed = new HashSet<String>();
@@ -3631,12 +3632,12 @@ public class Tablet {
       if (removingLogs)
         throw new IllegalStateException("Attempted to clear logs when removal of logs in progress");
       
-      for (RemoteLogger logger : otherLogs) {
+      for (IRemoteLogger logger : otherLogs) {
         otherLogsCopy.add(logger.toString());
         doomed.add(logger.toString());
       }
       
-      for (RemoteLogger logger : currentLogs) {
+      for (IRemoteLogger logger : currentLogs) {
         currentLogsCopy.add(logger.toString());
         doomed.remove(logger.toString());
       }
@@ -3664,7 +3665,7 @@ public class Tablet {
     logLock.unlock();
   }
   
-  private Set<RemoteLogger> otherLogs = Collections.emptySet();
+  private Set<IRemoteLogger> otherLogs = Collections.emptySet();
   private boolean removingLogs = false;
   
   // this lock is basically used to synchronize writing of log info to !METADATA
@@ -3674,7 +3675,7 @@ public class Tablet {
     return currentLogs.size();
   }
   
-  private boolean beginUpdatingLogsUsed(InMemoryMap memTable, Collection<RemoteLogger> more, boolean mincFinish) {
+  private boolean beginUpdatingLogsUsed(InMemoryMap memTable, Collection<IRemoteLogger> more, boolean mincFinish) {
     
     boolean releaseLock = true;
     
@@ -3711,7 +3712,7 @@ public class Tablet {
         
         int numAdded = 0;
         int numContained = 0;
-        for (RemoteLogger logger : more) {
+        for (IRemoteLogger logger : more) {
           if (addToOther) {
             if (otherLogs.add(logger))
               numAdded++;

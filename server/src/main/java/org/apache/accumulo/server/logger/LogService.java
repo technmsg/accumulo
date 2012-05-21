@@ -65,7 +65,6 @@ import org.apache.accumulo.server.logger.LogWriter.LogWriteException;
 import org.apache.accumulo.server.security.Authenticator;
 import org.apache.accumulo.server.security.SecurityUtil;
 import org.apache.accumulo.server.security.ZKAuthenticator;
-import org.apache.accumulo.server.trace.TraceFileSystem;
 import org.apache.accumulo.server.util.FileSystemMonitor;
 import org.apache.accumulo.server.util.Halt;
 import org.apache.accumulo.server.util.TServerUtils;
@@ -122,6 +121,7 @@ public class LogService implements MutationLogger.Iface, Watcher {
 
     LogService logService;
     Instance instance = HdfsZooInstance.getInstance();
+    CachedConfiguration.getInstance().set("dfs.support.append", "true");
     ServerConfiguration conf = new ServerConfiguration(instance);
     FileSystem fs = FileUtil.getFileSystem(CachedConfiguration.getInstance(), conf.getConfiguration());
     Accumulo.init(fs, conf, "logger");
@@ -145,7 +145,8 @@ public class LogService implements MutationLogger.Iface, Watcher {
     AccumuloConfiguration acuConf = config.getConfiguration();
     FileSystemMonitor.start(acuConf, Property.LOGGER_MONITOR_FS);
     
-    fs = TraceFileSystem.wrap(fs);
+    // Log recovery requires a reference to the real file system
+    // fs = TraceFileSystem.wrap(fs);
     final Set<String> rootDirs = new HashSet<String>();
     for (String root : acuConf.get(Property.LOGGER_DIR).split(",")) {
       if (!root.startsWith("/"))

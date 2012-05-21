@@ -159,9 +159,10 @@ import org.apache.accumulo.server.tabletserver.Tablet.TConstraintViolationExcept
 import org.apache.accumulo.server.tabletserver.Tablet.TabletClosedException;
 import org.apache.accumulo.server.tabletserver.TabletServerResourceManager.TabletResourceManager;
 import org.apache.accumulo.server.tabletserver.TabletStatsKeeper.Operation;
+import org.apache.accumulo.server.tabletserver.log.DfsLogger;
+import org.apache.accumulo.server.tabletserver.log.IRemoteLogger;
 import org.apache.accumulo.server.tabletserver.log.LoggerStrategy;
 import org.apache.accumulo.server.tabletserver.log.MutationReceiver;
-import org.apache.accumulo.server.tabletserver.log.RemoteLogger;
 import org.apache.accumulo.server.tabletserver.log.RoundRobinLoggerStrategy;
 import org.apache.accumulo.server.tabletserver.log.TabletServerLogger;
 import org.apache.accumulo.server.tabletserver.mastermessage.MasterMessage;
@@ -897,7 +898,7 @@ public class TabletServer extends AbstractMetricsImpl implements org.apache.accu
         
         ScanSession scanSession = (ScanSession) sessionManager.getSession(scanID);
         String oldThreadName = Thread.currentThread().getName();
-
+        
         try {
           runState.set(ScanRunState.RUNNING);
           Thread.currentThread().setName(
@@ -962,7 +963,7 @@ public class TabletServer extends AbstractMetricsImpl implements org.apache.accu
           Thread.currentThread().setName("Client: " + session.client + " User: " + session.user + " Start: " + session.startTime + " Table: ");
           if (isCancelled() || session == null)
             return;
-
+          
           long maxResultsSize = acuConf.getMemoryInBytes(Property.TABLE_SCAN_MAXMEM);
           long bytesAdded = 0;
           long maxScanTime = 4000;
@@ -2543,25 +2544,21 @@ public class TabletServer extends AbstractMetricsImpl implements org.apache.accu
     return result;
   }
   
-  public void addLoggersToMetadata(List<RemoteLogger> logs, KeyExtent extent, int id) {
+  public void addLoggersToMetadata(List<IRemoteLogger> logs, KeyExtent extent, int id) {
     log.info("Adding " + logs.size() + " logs for extent " + extent + " as alias " + id);
     
-    List<MetadataTable.LogEntry> entries = new ArrayList<MetadataTable.LogEntry>();
     long now = RelativeTime.currentTimeMillis();
     List<String> logSet = new ArrayList<String>();
-    for (RemoteLogger log : logs)
+    for (IRemoteLogger log : logs)
       logSet.add(log.toString());
-    for (RemoteLogger log : logs) {
-      MetadataTable.LogEntry entry = new MetadataTable.LogEntry();
-      entry.extent = extent;
-      entry.tabletId = id;
-      entry.timestamp = now;
-      entry.server = log.getLogger();
-      entry.filename = log.getFileName();
-      entry.logSet = logSet;
-      entries.add(entry);
-    }
-    MetadataTable.addLogEntries(SecurityConstants.getSystemCredentials(), entries, getLock());
+    MetadataTable.LogEntry entry = new MetadataTable.LogEntry();
+    entry.extent = extent;
+    entry.tabletId = id;
+    entry.timestamp = now;
+    entry.server = logs.get(0).getLogger();
+    entry.filename = logs.get(0).getFileName();
+    entry.logSet = logSet;
+    MetadataTable.addLogEntry(SecurityConstants.getSystemCredentials(), entry, getLock());
   }
   
   private int startServer(AccumuloConfiguration conf, Property portHint, TProcessor processor, String threadName) throws UnknownHostException {
@@ -3332,12 +3329,33 @@ public class TabletServer extends AbstractMetricsImpl implements org.apache.accu
     return METRICS_PREFIX;
   }
   
-  // public AccumuloConfiguration getTableConfiguration(String tableId) {
-  // return ServerConfiguration.getTableConfiguration(instance, tableId);
-  // }
-
   public TableConfiguration getTableConfiguration(KeyExtent extent) {
     return ServerConfiguration.getTableConfiguration(instance, extent.getTableId().toString());
+  }
+
+  public DfsLogger.ServerConfig getServerConfig() {
+    return new DfsLogger.ServerConfig() {
+      
+      @Override
+      public FileSystem getFileSystem() {
+        return fs;
+      }
+      
+      @Override
+      public List<String> getCurrentLoggers() {
+        try {
+          return new ArrayList<String>(getLoggers());
+        } catch (Exception ex) {
+          log.warn(ex, ex);
+          return Collections.emptyList();
+        }
+      }
+      
+      @Override
+      public AccumuloConfiguration getConfiguration() {
+        return getSystemConfiguration();
+      }
+    };
   }
 
 }

@@ -184,4 +184,12 @@ public class Constants {
     return getMetadataTableDir(conf) + ZROOT_TABLET;
   }
   
+  /**
+   * @param conf
+   * @return
+   */
+  public static String getWalDirectory(AccumuloConfiguration conf) {
+    return getBaseDir(conf) + "/wal";
+  }
+  
 }

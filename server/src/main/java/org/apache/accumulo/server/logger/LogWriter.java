@@ -62,17 +62,15 @@ import org.apache.accumulo.core.util.UtilWaitThread;
 import org.apache.accumulo.server.logger.metrics.LogWriterMetrics;
 import org.apache.accumulo.server.trace.TraceFileSystem;
 import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.FSDataInputStream;
 import org.apache.hadoop.fs.FSDataOutputStream;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.hdfs.DistributedFileSystem;
 import org.apache.hadoop.io.MapFile;
 import org.apache.hadoop.io.SequenceFile;
 import org.apache.hadoop.io.SequenceFile.CompressionType;
-import org.apache.hadoop.io.SequenceFile.Metadata;
-import org.apache.hadoop.io.SequenceFile.Reader;
-import org.apache.hadoop.io.SequenceFile.Writer;
 import org.apache.hadoop.io.WritableName;
-import org.apache.hadoop.io.compress.DefaultCodec;
 import org.apache.thrift.TException;
 
 
@@ -234,6 +232,81 @@ class LogWriter implements MutationLogger.Iface {
     throw new FileNotFoundException("No file " + localLog + " found in " + roots);
   }
   
+  interface LogEntryReader {
+    
+    Pair<LogFileKey,LogFileValue> next() throws IOException;
+    
+    void close() throws IOException;
+
+    long getPosition() throws IOException;
+  }
+  
+  static abstract class BaseFileReader implements LogEntryReader {
+    
+    public Pair<LogFileKey,LogFileValue> next() throws IOException {
+      LogFileKey key = new LogFileKey();
+      LogFileValue value = new LogFileValue();
+      fetchOne(key, value);
+      return new Pair<LogFileKey,LogFileValue>(key, value);
+    }
+    
+    abstract void fetchOne(LogFileKey key, LogFileValue value) throws IOException;
+
+  }
+  
+  static class SequenceFileReader extends BaseFileReader {
+    
+    SequenceFile.Reader file;
+    
+    SequenceFileReader(SequenceFile.Reader file) {
+      this.file = file;
+    }
+    
+    @Override
+    public long getPosition() throws IOException {
+      return file.getPosition();
+    }
+    
+    @Override
+    public void close() throws IOException {
+      file.close();
+    }
+    
+    @Override
+    void fetchOne(LogFileKey key, LogFileValue value) throws IOException {
+      if (file.next(key, value))
+        throw new EOFException("EOF");
+    }
+  }
+  
+  static class FileReader extends BaseFileReader {
+    
+    FSDataInputStream file;
+    
+    FileReader(FSDataInputStream file) {
+      this.file = file;
+    }
+    
+    public void close() throws IOException {
+      file.close();
+    }
+
+    @Override
+    public long getPosition() {
+      try {
+        return file.getPos();
+      } catch (IOException ex) {
+        throw new RuntimeException(ex);
+      }
+    }
+    
+    @Override
+    void fetchOne(LogFileKey key, LogFileValue value) throws IOException {
+      key.readFields(file);
+      value.readFields(file);
+    }
+  }
+
   @Override
   public LogCopyInfo startCopy(TInfo info, AuthInfo credentials, final String localLog, final String fullyQualifiedFileName, final boolean sort) {
     log.info("Copying " + localLog + " to " + fullyQualifiedFileName);
@@ -246,14 +319,49 @@ class LogWriter implements MutationLogger.Iface {
       log.error("Unexpected error thrown", e);
       throw new RuntimeException(e);
     }
+    LogEntryReader reader;
     File file;
+    long result;
     try {
-      file = new File(findLocalFilename(localLog));
-      log.info(file.getAbsoluteFile().toString());
-    } catch (FileNotFoundException ex) {
+      try {
+        file = new File(findLocalFilename(localLog));
+        log.info(file.getAbsoluteFile().toString());
+        result = file.length();
+        FileSystem local = FileSystem.getLocal(fs.getConf()).getRaw();
+        log.info("opened " + file + " of length " + result);
+        reader = new SequenceFileReader(new SequenceFile.Reader(local, new Path(file.getAbsolutePath()), local.getConf()));
+      } catch (FileNotFoundException ex) {
+        Path p = new Path(Constants.getWalDirectory(acuConf), localLog);
+        log.info("Looking for " + p);
+        if (!fs.exists(p))
+          throw new RuntimeException(ex);
+        while (fs instanceof DistributedFileSystem) {
+          DistributedFileSystem dfs = (DistributedFileSystem) fs;
+          try {
+            dfs.recoverLease(p);
+            log.debug("recovered lease on " + p);
+            break;
+          } catch (IOException e) {
+            try {
+              log.debug("error recovering lease on " + p, e);
+              dfs.append(p).close();
+              log.debug("lease recovered using append on " + p);
+              break;
+            } catch (IOException ie) {
+              UtilWaitThread.sleep(1000);
+              log.debug("retrying lease recovery on " + p);
+              continue;
+            }
+          }
+        }
+        reader = new FileReader(fs.open(p));
+        log.info("opened " + p + " of length " + fs.getFileStatus(p).getLen());
+        result = fs.getFileStatus(p).getLen();
+      }
+    } catch (IOException ex) {
       throw new RuntimeException(ex);
     }
-    long result = file.length();
+    final LogEntryReader finalReader = reader;
     
     copyThreadPool.execute(new Runnable() {
       @Override
@@ -261,11 +369,7 @@ class LogWriter implements MutationLogger.Iface {
         Thread.currentThread().setName("Copying " + localLog + " to shared file system");
         for (int i = 0; i < 3; i++) {
           try {
-            if (sort) {
-              copySortLog(localLog, fullyQualifiedFileName);
-            } else {
-              copyLog(localLog, fullyQualifiedFileName);
-            }
+            copySortLog(finalReader, fullyQualifiedFileName);
             return;
           } catch (IOException e) {
             log.error("error during copy", e);
@@ -283,41 +387,34 @@ class LogWriter implements MutationLogger.Iface {
           metrics.add(LogWriterMetrics.copy, (t2 - t1));
       }
       
-      private void copySortLog(String localLog, String fullyQualifiedFileName) throws IOException {
+      private void copySortLog(LogEntryReader reader, String fullyQualifiedFileName) throws IOException {
         final long SORT_BUFFER_SIZE = acuConf.getMemoryInBytes(Property.LOGGER_SORT_BUFFER_SIZE);
         
-        FileSystem local = TraceFileSystem.wrap(FileSystem.getLocal(fs.getConf()).getRaw());
         Path dest = new Path(fullyQualifiedFileName + ".recovered");
         log.debug("Sorting log file to DSF " + dest);
         fs.mkdirs(dest);
         int part = 0;
         
-        Reader reader = new SequenceFile.Reader(local, new Path(findLocalFilename(localLog)), fs.getConf());
         try {
           final ArrayList<Pair<LogFileKey,LogFileValue>> kv = new ArrayList<Pair<LogFileKey,LogFileValue>>();
-          long memorySize = 0;
+          long start = reader.getPosition();
           while (true) {
-            final long position = reader.getPosition();
-            final LogFileKey key = new LogFileKey();
-            final LogFileValue value = new LogFileValue();
             try {
-              if (!reader.next(key, value))
-                break;
+              kv.add(reader.next());
             } catch (EOFException e) {
-              log.warn("Unexpected end of file reading write ahead log " + localLog);
               break;
             }
-            kv.add(new Pair<LogFileKey,LogFileValue>(key, value));
-            memorySize += reader.getPosition() - position;
+            long memorySize = reader.getPosition() - start;
             if (memorySize > SORT_BUFFER_SIZE) {
               writeSortedEntries(dest, part++, kv);
               kv.clear();
-              memorySize = 0;
+              start = reader.getPosition();
             }
           }
 
           if (!kv.isEmpty())
             writeSortedEntries(dest, part++, kv);
+          log.debug("Input file for " + dest + " was " + reader.getPosition() + " bytes long");
           fs.create(new Path(dest, "finished")).close();
         } finally {
           reader.close();
@@ -352,35 +449,6 @@ class LogWriter implements MutationLogger.Iface {
         }
       }
       
-      private void copyLog(final String localLog, final String fullyQualifiedFileName) throws IOException {
-        Path dest = new Path(fullyQualifiedFileName + ".copy");
-        log.debug("Copying log file to DSF " + dest);
-        fs.delete(dest, true);
-        LogFileKey key = new LogFileKey();
-        LogFileValue value = new LogFileValue();
-        Writer writer = null;
-        Reader reader = null;
-        try {
-          short replication = (short) acuConf.getCount(Property.LOGGER_RECOVERY_FILE_REPLICATION);
-          writer = SequenceFile.createWriter(fs, fs.getConf(), dest, LogFileKey.class, LogFileValue.class, fs.getConf().getInt("io.file.buffer.size", 4096),
-              replication, fs.getDefaultBlockSize(), SequenceFile.CompressionType.BLOCK, new DefaultCodec(), null, new Metadata());
-          FileSystem local = TraceFileSystem.wrap(FileSystem.getLocal(fs.getConf()).getRaw());
-          reader = new SequenceFile.Reader(local, new Path(findLocalFilename(localLog)), fs.getConf());
-          while (reader.next(key, value)) {
-            writer.append(key, value);
-          }
-        } catch (IOException ex) {
-          log.warn("May have a partial copy of a recovery file: " + localLog, ex);
-        } finally {
-          if (reader != null)
-            reader.close();
-          if (writer != null)
-            writer.close();
-        }
-        // Make file appear in the shared file system as the target name only after it is completely copied
-        fs.rename(dest, new Path(fullyQualifiedFileName));
-        log.info("Copying " + localLog + " complete");
-      }
     });
     return new LogCopyInfo(result, null);
   }

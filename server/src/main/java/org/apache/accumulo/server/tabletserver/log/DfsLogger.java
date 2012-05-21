@@ -1,4 +1,4 @@
-/*
+/**
  * Licensed to the Apache Software Foundation (ASF) under one or more
  * contributor license agreements.  See the NOTICE file distributed with
  * this work for additional information regarding copyright ownership.
@@ -16,27 +16,42 @@
  */
 package org.apache.accumulo.server.tabletserver.log;
 
+import static org.apache.accumulo.server.logger.LogEvents.COMPACTION_FINISH;
+import static org.apache.accumulo.server.logger.LogEvents.COMPACTION_START;
+import static org.apache.accumulo.server.logger.LogEvents.DEFINE_TABLET;
+import static org.apache.accumulo.server.logger.LogEvents.MANY_MUTATIONS;
+import static org.apache.accumulo.server.logger.LogEvents.OPEN;
+
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Random;
+import java.util.UUID;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.LinkedBlockingQueue;
 
+import org.apache.accumulo.core.Constants;
 import org.apache.accumulo.core.conf.AccumuloConfiguration;
 import org.apache.accumulo.core.conf.Property;
 import org.apache.accumulo.core.data.KeyExtent;
 import org.apache.accumulo.core.data.Mutation;
 import org.apache.accumulo.core.security.thrift.ThriftSecurityException;
 import org.apache.accumulo.core.tabletserver.thrift.LogCopyInfo;
-import org.apache.accumulo.core.tabletserver.thrift.LogFile;
 import org.apache.accumulo.core.tabletserver.thrift.LoggerClosedException;
 import org.apache.accumulo.core.tabletserver.thrift.MutationLogger;
 import org.apache.accumulo.core.tabletserver.thrift.NoSuchLogIDException;
 import org.apache.accumulo.core.tabletserver.thrift.TabletMutations;
 import org.apache.accumulo.core.util.Daemon;
 import org.apache.accumulo.core.util.ThriftUtil;
+import org.apache.accumulo.server.logger.LogFileKey;
+import org.apache.accumulo.server.logger.LogFileValue;
 import org.apache.accumulo.server.security.SecurityConstants;
+import org.apache.accumulo.server.tabletserver.log.RemoteLogger.LogWork;
+import org.apache.accumulo.server.tabletserver.log.RemoteLogger.LoggerOperation;
+import org.apache.hadoop.fs.FSDataOutputStream;
+import org.apache.hadoop.fs.FileSystem;
+import org.apache.hadoop.fs.Path;
 import org.apache.log4j.Logger;
 import org.apache.thrift.TException;
 
@@ -44,65 +59,35 @@ import org.apache.thrift.TException;
  * Wrap a connection to a logger.
  * 
  */
-public class RemoteLogger implements IRemoteLogger {
-  private static Logger log = Logger.getLogger(RemoteLogger.class);
+public class DfsLogger implements IRemoteLogger {
+  private static Logger log = Logger.getLogger(DfsLogger.class);
   
+  public interface ServerConfig {
+    AccumuloConfiguration getConfiguration();
+    
+    FileSystem getFileSystem();
+    
+    List<String> getCurrentLoggers();
+  }
+
   private LinkedBlockingQueue<LogWork> workQueue = new LinkedBlockingQueue<LogWork>();
   
   private String closeLock = new String("foo");
   
   private static final LogWork CLOSED_MARKER = new LogWork(null, null);
   
+  private static final LogFileValue EMPTY = new LogFileValue();
+  
   private boolean closed = false;
 
-  public static class LoggerOperation {
-    private LogWork work;
-    
-    public LoggerOperation(LogWork work) {
-      this.work = work;
-    }
-    
-    public void await() throws NoSuchLogIDException, LoggerClosedException, TException {
-      try {
-        work.latch.await();
-      } catch (InterruptedException e) {
-        throw new RuntimeException(e);
-      }
-      
-      if (work.exception != null) {
-        if (work.exception instanceof NoSuchLogIDException)
-          throw (NoSuchLogIDException) work.exception;
-        else if (work.exception instanceof LoggerClosedException)
-          throw (LoggerClosedException) work.exception;
-        else if (work.exception instanceof TException)
-          throw (TException) work.exception;
-        else if (work.exception instanceof RuntimeException)
-          throw (RuntimeException) work.exception;
-        else
-          throw new RuntimeException(work.exception);
-      }
-    }
-  }
-
-  static class LogWork {
-    List<TabletMutations> mutations;
-    CountDownLatch latch;
-    volatile Exception exception;
-    
-    public LogWork(List<TabletMutations> mutations, CountDownLatch latch) {
-      this.mutations = mutations;
-      this.latch = latch;
-    }
-  }
-  
   private class LogWriterTask implements Runnable {
 
     @Override
     public void run() {
-      try {
-        ArrayList<LogWork> work = new ArrayList<LogWork>();
-        ArrayList<TabletMutations> mutations = new ArrayList<TabletMutations>();
-        while (true) {
+      ArrayList<LogWork> work = new ArrayList<LogWork>();
+      ArrayList<TabletMutations> mutations = new ArrayList<TabletMutations>();
+      while (true) {
+        try {
           
           work.clear();
           mutations.clear();
@@ -114,13 +99,31 @@ public class RemoteLogger implements IRemoteLogger {
             if (logWork != CLOSED_MARKER)
               mutations.addAll(logWork.mutations);
           
-          synchronized (RemoteLogger.this) {
+          synchronized (DfsLogger.this) {
             try {
-              client.logManyTablets(null, logFile.id, mutations);
+              for (TabletMutations mutation : mutations) {
+                LogFileKey key = new LogFileKey();
+                key.event = MANY_MUTATIONS;
+                key.seq = mutation.seq;
+                key.tid = mutation.tabletID;
+                LogFileValue value = new LogFileValue();
+                Mutation[] m = new Mutation[mutation.mutations.size()];
+                for (int i = 0; i < m.length; i++)
+                  m[i] = new Mutation(mutation.mutations.get(i));
+                value.mutations = m;
+                write(key, value);
+              }
             } catch (Exception e) {
+              log.error(e, e);
               for (LogWork logWork : work)
                 if (logWork != CLOSED_MARKER)
                   logWork.exception = e;
+            }
+          }
+          synchronized (closeLock) {
+            if (!closed) {
+              logFile.flush();
+              logFile.sync();
             }
           }
           
@@ -131,11 +134,16 @@ public class RemoteLogger implements IRemoteLogger {
             else
               logWork.latch.countDown();
           
-          if (sawClosedMarker)
+          if (sawClosedMarker) {
+            synchronized (closeLock) {
+              closeLock.notifyAll();
+            }
             break;
+          }
+
+        } catch (Exception e) {
+          log.error(e.getMessage(), e);
         }
-      } catch (Exception e) {
-        log.error(e.getMessage(), e);
       }
     }
   }
@@ -162,40 +170,43 @@ public class RemoteLogger implements IRemoteLogger {
     return getFileName().hashCode();
   }
   
-  private final String logger;
-  private LogFile logFile = null;
-  private MutationLogger.Iface client = null;
+  private ServerConfig conf;
+  private FSDataOutputStream logFile;
+  private Path logPath;
   
-  public RemoteLogger(String address, AccumuloConfiguration conf) throws ThriftSecurityException, LoggerClosedException, TException,
-      IOException {
-    
-    logger = address;
-    try {
-      client = ThriftUtil.getClient(new MutationLogger.Client.Factory(), address, Property.LOGGER_PORT, Property.TSERV_LOGGER_TIMEOUT, conf);
-    } catch (TException te) {
-      ThriftUtil.returnClient(client);
-      client = null;
-      throw te;
-    }
+  public DfsLogger(ServerConfig conf) throws IOException {
+    this.conf = conf;
   }
   
-  public void open() throws IOException {
+  public DfsLogger(ServerConfig conf, String filename) throws IOException {
+    this.conf = conf;
+    this.logPath = new Path(Constants.getWalDirectory(conf.getConfiguration()), filename);
+  }
+
+  public synchronized void open() throws IOException {
+    String filename = UUID.randomUUID().toString();
+    logPath = new Path(Constants.getWalDirectory(conf.getConfiguration()), filename);
     try {
-      logFile = client.create(null, SecurityConstants.getSystemCredentials(), "");
-    } catch (Exception e) {
-      throw new IOException(e);
+      short replication = (short) conf.getConfiguration().getCount(Property.LOGGER_RECOVERY_FILE_REPLICATION);
+      if (replication == 0)
+        replication = (short) conf.getFileSystem().getDefaultReplication();
+      logFile = conf.getFileSystem().create(logPath, replication);
+      LogFileKey key = new LogFileKey();
+      key.event = OPEN;
+      key.tserverSession = filename;
+      key.filename = filename;
+      write(key, EMPTY);
+      log.debug("Got new write-ahead log: " + this);
+    } catch (IOException ex) {
+      if (logFile != null)
+        logFile.close();
+      logFile = null;
+      throw ex;
     }
-    log.debug("Got new write-ahead log: " + this);
+    
     Thread t = new Daemon(new LogWriterTask());
     t.setName("Accumulo WALog thread " + toString());
     t.start();
-  }
-
-  // Fake placeholder for logs used during recovery
-  public RemoteLogger(String logger, String filename) {
-    this.client = null;
-    this.logger = logger;
-    this.logFile = new LogFile(filename, -1);
   }
   
   /* (non-Javadoc)
@@ -211,7 +222,7 @@ public class RemoteLogger implements IRemoteLogger {
    */
   @Override
   public String getLogger() {
-    return logger;
+    return "";
   }
   
   /* (non-Javadoc)
@@ -219,14 +230,14 @@ public class RemoteLogger implements IRemoteLogger {
    */
   @Override
   public String getFileName() {
-    return logFile.name;
+    return logPath.getName();
   }
   
   /* (non-Javadoc)
    * @see org.apache.accumulo.server.tabletserver.log.IRemoteLogger#close()
    */
   @Override
-  public synchronized void close() throws NoSuchLogIDException, LoggerClosedException, TException {
+  public void close() throws NoSuchLogIDException, LoggerClosedException, TException {
     
     synchronized (closeLock) {
       if (closed)
@@ -238,16 +249,20 @@ public class RemoteLogger implements IRemoteLogger {
       // thread to do work
       closed = true;
       workQueue.add(CLOSED_MARKER);
+      while (!workQueue.isEmpty())
+        try {
+          closeLock.wait();
+        } catch (InterruptedException e) {
+          log.info("Interrupted");
+        }
     }
 
-    try {
-      if (client != null)
-        client.close(null, logFile.id);
-    } finally {
-      MutationLogger.Iface tmp = client;
-      client = null;
-      ThriftUtil.returnClient(tmp);
-    }
+    if (logFile != null)
+      try {
+        logFile.close();
+      } catch (IOException ex) {
+        throw new RuntimeException(ex);
+      }
   }
   
   /* (non-Javadoc)
@@ -255,9 +270,35 @@ public class RemoteLogger implements IRemoteLogger {
    */
   @Override
   public synchronized void defineTablet(int seq, int tid, KeyExtent tablet) throws NoSuchLogIDException, LoggerClosedException, TException {
-    client.defineTablet(null, logFile.id, seq, tid, tablet.toThrift());
+    // write this log to the METADATA table
+    final LogFileKey key = new LogFileKey();
+    key.event = DEFINE_TABLET;
+    key.seq = seq;
+    key.tid = tid;
+    key.tablet = tablet;
+    write(key, EMPTY);
+    try {
+      logFile.flush();
+      logFile.sync();
+    } catch (IOException ex) {
+      throw new RuntimeException(ex);
+    }
   }
   
+  /**
+   * @param key
+   * @param empty2
+   * @throws IOException
+   */
+  private synchronized void write(LogFileKey key, LogFileValue value) {
+    try {
+      key.write(logFile);
+      value.write(logFile);
+    } catch (IOException ex) {
+      throw new RuntimeException(ex);
+    }
+  }
+
   /* (non-Javadoc)
    * @see org.apache.accumulo.server.tabletserver.log.IRemoteLogger#log(int, int, org.apache.accumulo.core.data.Mutation)
    */
@@ -274,7 +315,7 @@ public class RemoteLogger implements IRemoteLogger {
     LogWork work = new LogWork(mutations, new CountDownLatch(1));
     
     synchronized (closeLock) {
-      // use a differnt lock for close check so that adding to work queue does not need
+      // use a different lock for close check so that adding to work queue does not need
       // to wait on walog I/O operations
 
       if (closed)
@@ -290,7 +331,11 @@ public class RemoteLogger implements IRemoteLogger {
    */
   @Override
   public synchronized void minorCompactionFinished(int seq, int tid, String fqfn) throws NoSuchLogIDException, LoggerClosedException, TException {
-    client.minorCompactionFinished(null, logFile.id, seq, tid, fqfn);
+    LogFileKey key = new LogFileKey();
+    key.event = COMPACTION_FINISH;
+    key.seq = seq;
+    key.tid = tid;
+    write(key, EMPTY);
   }
   
   /* (non-Javadoc)
@@ -298,7 +343,12 @@ public class RemoteLogger implements IRemoteLogger {
    */
   @Override
   public synchronized void minorCompactionStarted(int seq, int tid, String fqfn) throws NoSuchLogIDException, LoggerClosedException, TException {
-    client.minorCompactionStarted(null, logFile.id, seq, tid, fqfn);
+    LogFileKey key = new LogFileKey();
+    key.event = COMPACTION_START;
+    key.seq = seq;
+    key.tid = tid;
+    key.filename = fqfn;
+    write(key, EMPTY);
   }
   
   /* (non-Javadoc)
@@ -306,7 +356,20 @@ public class RemoteLogger implements IRemoteLogger {
    */
   @Override
   public synchronized LogCopyInfo startCopy(String name, String fullyQualifiedFileName) throws ThriftSecurityException, TException {
-    return client.startCopy(null, SecurityConstants.getSystemCredentials(), name, fullyQualifiedFileName, true);
+    MutationLogger.Iface client = null;
+    try {
+      List<String> currentLoggers = conf.getCurrentLoggers();
+      if (currentLoggers.isEmpty())
+        throw new RuntimeException("No loggers for recovery");
+      Random random = new Random();
+      int choice = random.nextInt(currentLoggers.size());
+      String address = currentLoggers.get(choice);
+      client = ThriftUtil.getClient(new MutationLogger.Client.Factory(), address, Property.LOGGER_PORT, Property.TSERV_LOGGER_TIMEOUT, conf.getConfiguration());
+      return client.startCopy(null, SecurityConstants.getSystemCredentials(), name, fullyQualifiedFileName, true);
+    } finally {
+      if (client != null)
+        ThriftUtil.returnClient(client);
+    }
   }
   
   /* (non-Javadoc)
@@ -314,7 +377,7 @@ public class RemoteLogger implements IRemoteLogger {
    */
   @Override
   public synchronized List<String> getClosedLogs() throws ThriftSecurityException, TException {
-    return client.getClosedLogs(null, SecurityConstants.getSystemCredentials());
+    return Collections.emptyList();
   }
   
   /* (non-Javadoc)
@@ -322,7 +385,6 @@ public class RemoteLogger implements IRemoteLogger {
    */
   @Override
   public synchronized void removeFile(List<String> files) throws ThriftSecurityException, TException {
-    client.remove(null, SecurityConstants.getSystemCredentials(), files);
   }
   
 }

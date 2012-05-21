@@ -28,16 +28,13 @@ import org.apache.accumulo.core.conf.AccumuloConfiguration;
 import org.apache.accumulo.core.conf.Property;
 import org.apache.accumulo.core.data.KeyExtent;
 import org.apache.accumulo.core.master.thrift.RecoveryStatus;
-import org.apache.accumulo.core.security.thrift.AuthInfo;
 import org.apache.accumulo.core.tabletserver.thrift.LogCopyInfo;
-import org.apache.accumulo.core.util.CachedConfiguration;
-import org.apache.accumulo.core.util.StringUtil;
 import org.apache.accumulo.core.util.UtilWaitThread;
 import org.apache.accumulo.server.ServerConstants;
+import org.apache.accumulo.server.tabletserver.log.DfsLogger;
+import org.apache.accumulo.server.tabletserver.log.IRemoteLogger;
 import org.apache.accumulo.server.tabletserver.log.RemoteLogger;
-import org.apache.accumulo.server.trace.TraceFileSystem;
 import org.apache.accumulo.server.zookeeper.ZooCache;
-import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.ContentSummary;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
@@ -122,11 +119,15 @@ public class CoordinateRecoveryTask implements Runnable {
       config = conf;
     }
     
-    private void startCopy() throws Exception {
+    private void startCopy(DfsLogger.ServerConfig conf) throws Exception {
       log.debug("Starting log recovery: " + logFile);
       try {
         // Ask the logging server to put the file in HDFS
-        RemoteLogger logger = new RemoteLogger(logFile.server, config);
+        IRemoteLogger logger;
+        if (logFile.server.length() > 0)
+          logger = new RemoteLogger(logFile.server, config);
+        else
+          logger = new DfsLogger(conf);
         String base = logFile.unsortedFileName();
         log.debug("Starting to copy " + logFile.file + " from " + logFile.server);
         LogCopyInfo lci = logger.startCopy(logFile.file, base);
@@ -147,7 +148,7 @@ public class CoordinateRecoveryTask implements Runnable {
         return true;
       }
       
-      if (zcache.get(loggerZNode) == null) {
+      if (loggerZNode != null && loggerZNode.length() > 0 && zcache.get(loggerZNode) == null) {
         log.debug("zknode " + loggerZNode + " is gone, copy " + logFile.file + " from " + logFile.server + " assumed dead");
         return true;
       }
@@ -215,7 +216,7 @@ public class CoordinateRecoveryTask implements Runnable {
     zcache = new ZooCache();
   }
   
-  public boolean recover(AuthInfo credentials, KeyExtent extent, Collection<Collection<String>> entries, JobComplete notify) {
+  public boolean recover(DfsLogger.ServerConfig server, KeyExtent extent, Collection<Collection<String>> entries, JobComplete notify) {
     boolean finished = true;
     log.debug("Log entries: " + entries);
     for (Collection<String> set : entries) {
@@ -250,7 +251,7 @@ public class CoordinateRecoveryTask implements Runnable {
             }
           }
           if (job != null) {
-            job.startCopy();
+            job.startCopy(server);
           }
         } catch (Exception ex) {
           log.warn("exception starting recovery " + ex);
