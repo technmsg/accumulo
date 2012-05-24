@@ -29,13 +29,10 @@ import org.apache.accumulo.core.conf.AccumuloConfiguration;
 import org.apache.accumulo.core.conf.Property;
 import org.apache.accumulo.core.data.KeyExtent;
 import org.apache.accumulo.core.master.thrift.RecoveryStatus;
-import org.apache.accumulo.core.tabletserver.thrift.LogCopyInfo;
 import org.apache.accumulo.core.util.UtilWaitThread;
 import org.apache.accumulo.server.ServerConstants;
 import org.apache.accumulo.server.tabletserver.log.DfsLogger;
 import org.apache.accumulo.server.tabletserver.log.IRemoteLogger;
-import org.apache.accumulo.server.tabletserver.log.RemoteLogger;
-import org.apache.accumulo.server.zookeeper.ZooCache;
 import org.apache.hadoop.fs.ContentSummary;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
@@ -49,8 +46,6 @@ public class CoordinateRecoveryTask implements Runnable {
   private Map<String,RecoveryJob> processing = new HashMap<String,RecoveryJob>();
   
   private boolean stop = false;
-  
-  private ZooCache zcache;
   
   private static String fullName(String name) {
     return ServerConstants.getRecoveryDir() + "/" + name;
@@ -103,10 +98,9 @@ public class CoordinateRecoveryTask implements Runnable {
   private class RecoveryJob {
     final LogFile logFile;
     final long copyStartTime;
-    long copySize = 0;
+    double copySize = 0;
     JobComplete notify = null;
     final AccumuloConfiguration config;
-    String loggerZNode;
     
     RecoveryJob(LogFile entry, JobComplete callback, AccumuloConfiguration conf) throws Exception {
       logFile = entry;
@@ -119,17 +113,10 @@ public class CoordinateRecoveryTask implements Runnable {
       log.debug("Starting log recovery: " + logFile);
       try {
         // Ask the logging server to put the file in HDFS
-        IRemoteLogger logger;
-        if (logFile.server.length() > 0)
-          logger = new RemoteLogger(logFile.server, config);
-        else
-          logger = new DfsLogger(conf);
-        String base = logFile.unsortedFileName();
+        IRemoteLogger logger = new DfsLogger(conf);
         String source = Constants.getWalDirectory(config) + "/" + logFile.file;
         String dest = Constants.getRecoveryDir(config) + "/" + logFile.file;
-        LogCopyInfo lci = logger.startCopy(source, dest);
-        copySize = lci.fileSize;
-        loggerZNode = lci.loggerZNode;
+        copySize = logger.startCopy(source, dest);
       } catch (Throwable t) {
         log.warn("Unable to recover " + logFile + "(" + t + ")", t);
         fail();
@@ -145,11 +132,6 @@ public class CoordinateRecoveryTask implements Runnable {
         return true;
       }
       
-      if (loggerZNode != null && loggerZNode.length() > 0 && zcache.get(loggerZNode) == null) {
-        log.debug("zknode " + loggerZNode + " is gone, copy " + logFile.file + " from " + logFile.server + " assumed dead");
-        return true;
-      }
-
       if (elapsedMillis() > config.getTimeInMillis(Property.MASTER_RECOVERY_MAXTIME)) {
         log.warn("Recovery taking too long, giving up");
         return true;
@@ -210,7 +192,6 @@ public class CoordinateRecoveryTask implements Runnable {
   public CoordinateRecoveryTask(FileSystem fs, AccumuloConfiguration conf) {
     this.fs = fs;
     this.config = conf;
-    zcache = new ZooCache();
   }
   
   public boolean recover(DfsLogger.ServerConfig server, KeyExtent extent, Collection<Collection<String>> entries, JobComplete notify) {

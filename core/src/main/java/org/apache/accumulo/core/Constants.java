@@ -62,7 +62,6 @@ public class Constants {
   
   public static final String ZDEAD = "/dead";
   public static final String ZDEADTSERVERS = "/dead/tservers";
-  public static final String ZDEADLOGGERS = "/dead/loggers";
   
   public static final String ZLOGGERS = "/loggers";
   

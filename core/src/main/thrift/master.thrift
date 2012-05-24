@@ -50,10 +50,6 @@ struct RecoveryStatus {
     6:double copyProgress
 }
 
-struct LoggerStatus {
-    1:string logger
-}
-
 struct TabletServerStatus {
     1:map<string, TableInfo> tableMap
     2:i64 lastContact
@@ -95,13 +91,11 @@ struct MasterMonitorInfo {
     2:list<TabletServerStatus> tServerInfo
     3:map<string, byte> badTServers
     4:list<RecoveryStatus> recovery
-    5:list<LoggerStatus> loggers
     6:MasterState state
     8:MasterGoalState goalState
     7:i32 unassignedTablets
     9:set<string> serversShuttingDown
     10:list<DeadServer> deadTabletServers
-    11:list<DeadServer> deadLoggers
 }
 
 struct TabletSplit {

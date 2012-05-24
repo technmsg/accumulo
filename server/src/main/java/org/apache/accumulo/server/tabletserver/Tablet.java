@@ -112,7 +112,6 @@ import org.apache.accumulo.server.tabletserver.TabletServerResourceManager.Table
 import org.apache.accumulo.server.tabletserver.TabletStatsKeeper.Operation;
 import org.apache.accumulo.server.tabletserver.log.IRemoteLogger;
 import org.apache.accumulo.server.tabletserver.log.MutationReceiver;
-import org.apache.accumulo.server.tabletserver.log.RemoteLogger;
 import org.apache.accumulo.server.tabletserver.mastermessage.TabletStatusMessage;
 import org.apache.accumulo.server.tabletserver.metrics.TabletServerMinCMetrics;
 import org.apache.accumulo.server.trace.TraceFileSystem;
@@ -1224,17 +1223,6 @@ public class Tablet {
     return datafiles;
   }
   
-  private static Set<IRemoteLogger> getCurrentLoggers(List<LogEntry> entries) {
-    Set<IRemoteLogger> result = new HashSet<IRemoteLogger>();
-    for (LogEntry logEntry : entries) {
-      for (String log : logEntry.logSet) {
-        String[] parts = log.split("/", 2);
-        result.add(new RemoteLogger(parts[0], parts[1]));
-      }
-    }
-    return result;
-  }
-  
   private static List<LogEntry> lookupLogEntries(KeyExtent ke, SortedMap<Key,Value> tabletsKeyValues) {
     List<LogEntry> logEntries = new ArrayList<LogEntry>();
     
@@ -1468,7 +1456,6 @@ public class Tablet {
           throw new RuntimeException(t);
         }
       }
-      currentLogs = getCurrentLoggers(logEntries);
       log.info("Write-Ahead Log recovery complete for " + this.extent + " (" + count[0] + " mutations applied, " + tabletMemory.getNumEntries()
           + " entries created)");
     }

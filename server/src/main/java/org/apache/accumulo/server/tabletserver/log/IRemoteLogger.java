@@ -21,13 +21,8 @@ import java.util.List;
 
 import org.apache.accumulo.core.data.KeyExtent;
 import org.apache.accumulo.core.data.Mutation;
-import org.apache.accumulo.core.security.thrift.ThriftSecurityException;
-import org.apache.accumulo.core.tabletserver.thrift.LogCopyInfo;
-import org.apache.accumulo.core.tabletserver.thrift.LoggerClosedException;
-import org.apache.accumulo.core.tabletserver.thrift.NoSuchLogIDException;
 import org.apache.accumulo.core.tabletserver.thrift.TabletMutations;
-import org.apache.accumulo.server.tabletserver.log.RemoteLogger.LoggerOperation;
-import org.apache.thrift.TException;
+import org.apache.accumulo.server.tabletserver.log.DfsLogger.LoggerOperation;
 
 /**
  * 
@@ -44,23 +39,23 @@ public interface IRemoteLogger {
   
   public abstract String getFileName();
   
-  public abstract void close() throws NoSuchLogIDException, LoggerClosedException, TException;
+  public abstract void close() throws IOException;
   
-  public abstract void defineTablet(int seq, int tid, KeyExtent tablet) throws NoSuchLogIDException, LoggerClosedException, TException;
+  public abstract void defineTablet(int seq, int tid, KeyExtent tablet) throws IOException;
   
-  public abstract LoggerOperation log(int seq, int tid, Mutation mutation) throws NoSuchLogIDException, LoggerClosedException, TException;
+  public abstract LoggerOperation log(int seq, int tid, Mutation mutation) throws IOException;
   
-  public abstract LoggerOperation logManyTablets(List<TabletMutations> mutations) throws NoSuchLogIDException, LoggerClosedException, TException;
+  public abstract LoggerOperation logManyTablets(List<TabletMutations> mutations) throws IOException;
   
-  public abstract void minorCompactionFinished(int seq, int tid, String fqfn) throws NoSuchLogIDException, LoggerClosedException, TException;
+  public abstract void minorCompactionFinished(int seq, int tid, String fqfn) throws IOException;
   
-  public abstract void minorCompactionStarted(int seq, int tid, String fqfn) throws NoSuchLogIDException, LoggerClosedException, TException;
+  public abstract void minorCompactionStarted(int seq, int tid, String fqfn) throws IOException;
   
-  public abstract LogCopyInfo startCopy(String name, String fullyQualifiedFileName) throws ThriftSecurityException, TException;
+  public abstract double startCopy(String name, String fullyQualifiedFileName) throws IOException;
   
-  public abstract List<String> getClosedLogs() throws ThriftSecurityException, TException;
+  public abstract List<String> getClosedLogs() throws IOException;
   
-  public abstract void removeFile(List<String> files) throws ThriftSecurityException, TException;
+  public abstract void removeFile(List<String> files) throws IOException;
   
   public abstract void open() throws IOException;
 

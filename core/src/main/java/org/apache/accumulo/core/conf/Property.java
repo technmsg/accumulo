@@ -58,8 +58,6 @@ public enum Property {
   MASTER_CLIENTPORT("master.port.client", "9999", PropertyType.PORT, "The port used for handling client connections on the master"),
   MASTER_TABLET_BALANCER("master.tablet.balancer", "org.apache.accumulo.server.master.balancer.DefaultLoadBalancer", PropertyType.CLASSNAME,
       "The balancer class that accumulo will use to make tablet assignment and migration decisions."),
-  MASTER_LOGGER_BALANCER("master.logger.balancer", "org.apache.accumulo.server.master.balancer.SimpleLoggerBalancer", PropertyType.CLASSNAME,
-      "The balancer class that accumulo will use to make logger assignment decisions."),
   MASTER_RECOVERY_MAXAGE("master.recovery.max.age", "60m", PropertyType.TIMEDURATION, "Recovery files older than this age will be removed."),
   MASTER_RECOVERY_MAXTIME("master.recovery.time.max", "30m", PropertyType.TIMEDURATION, "The maximum time to attempt recovery before giving up"),
   MASTER_BULK_RETRIES("master.bulk.retries", "3", PropertyType.COUNT, "The number of attempts to bulk-load a file before giving up."),
@@ -152,7 +150,6 @@ public enum Property {
       "The size of the HDFS blocks used to write to the Write-Ahead log.  If zero, it will be 110% of tserver.walog.max.size (that is, try to use just one block)"),
   TSERV_WAL_REPLICATION("tserver.wal.replication", "0", PropertyType.COUNT,
       "The replication to use when writing the Write-Ahead log to HDFS. If zero, it will use the HDFS default replication setting."),
-  TSERV_USE_DFS_WAL("tserver.use.dfs.wal", "false", PropertyType.BOOLEAN, "Use the distributed file system for write-ahead loggging."),
   TSERV_RECOVERY_MAX_CONCURRENT("tserver.recovery.concurrent.max", "2", PropertyType.COUNT, "The maximum number of threads to use to sort logs during recovery"),
   TSERV_SORT_BUFFER_SIZE("tserver.sort.buffer.size", "200M", PropertyType.MEMORY, "The amount of memory to use when sorting logs during recovery."),
   

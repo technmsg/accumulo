@@ -137,8 +137,6 @@ public class MasterServlet extends BasicServlet {
       masterStatus.addSortableColumn("#&nbsp;Online<br />Tablet&nbsp;Servers", new NumberType<Integer>((int) (slaves.size() * 0.8 + 1.0), slaves.size(),
           (int) (slaves.size() * 0.6 + 1.0), slaves.size()), "Number of tablet servers currently available");
       masterStatus.addSortableColumn("#&nbsp;Total<br />Tablet&nbsp;Servers", new NumberType<Integer>(), "The total number of tablet servers configured");
-      masterStatus.addSortableColumn("Loggers", new NumberType<Integer>((int) (slaves.size() * .8), Integer.MAX_VALUE, 1, Integer.MAX_VALUE),
-          "The number of write-ahead loggers.  This should be approximately the same as the number of tablet servers (and greater than zero).");
       masterStatus.addSortableColumn("Last&nbsp;GC", null, "The last time files were cleaned-up from HDFS.");
       masterStatus.addSortableColumn("#&nbsp;Tablets", new NumberType<Integer>(0, Integer.MAX_VALUE, 2, Integer.MAX_VALUE), null);
       masterStatus.addSortableColumn("#&nbsp;Unassigned<br />Tablets", new NumberType<Integer>(0, 0), null);
@@ -156,7 +154,6 @@ public class MasterServlet extends BasicServlet {
       row.add(masters.size() == 0 ? "<div class='error'>Down</div>" : AddressUtil.parseAddress(masters.get(0), 0).getHostName());
       row.add(Monitor.getMmi().tServerInfo.size());
       row.add(slaves.size());
-      row.add(Monitor.getMmi().loggers.size());
       row.add("<a href='/gc'>" + gcStatus + "</a>");
       row.add(Monitor.getTotalTabletCount());
       row.add(Monitor.getMmi().unassignedTablets);

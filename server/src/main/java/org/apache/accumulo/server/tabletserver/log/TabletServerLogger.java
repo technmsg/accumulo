@@ -34,13 +34,12 @@ import org.apache.accumulo.core.conf.Property;
 import org.apache.accumulo.core.data.KeyExtent;
 import org.apache.accumulo.core.data.Mutation;
 import org.apache.accumulo.core.data.thrift.TMutation;
-import org.apache.accumulo.core.tabletserver.thrift.LoggerClosedException;
 import org.apache.accumulo.core.tabletserver.thrift.TabletMutations;
 import org.apache.accumulo.core.util.UtilWaitThread;
 import org.apache.accumulo.server.tabletserver.Tablet;
 import org.apache.accumulo.server.tabletserver.Tablet.CommitSession;
 import org.apache.accumulo.server.tabletserver.TabletServer;
-import org.apache.accumulo.server.tabletserver.log.RemoteLogger.LoggerOperation;
+import org.apache.accumulo.server.tabletserver.log.DfsLogger.LoggerOperation;
 import org.apache.log4j.Logger;
 
 /**
@@ -182,35 +181,9 @@ public class TabletServerLogger {
     }
     
     try {
-      if (tserver.getSystemConfiguration().getBoolean(Property.TSERV_USE_DFS_WAL)) {
-        DfsLogger alog = new DfsLogger(tserver.getServerConfig());
-        alog.open();
-        loggers.add(alog);
-      } else {
-        while (true) {
-          Set<String> loggerAddresses = tserver.getLoggers();
-          if (!loggerAddresses.isEmpty()) {
-            for (String logger : loggerAddresses) {
-              try {
-                RemoteLogger alog = new RemoteLogger(logger, tserver.getSystemConfiguration());
-                alog.open();
-                loggers.add(alog);
-              } catch (LoggerClosedException t) {
-                close();
-                break;
-              } catch (Exception t) {
-                close();
-                log.warn("Unable to connect to " + logger + ": " + t);
-                break;
-              }
-            }
-            
-            if (loggers.size() == loggerAddresses.size())
-              break;
-            UtilWaitThread.sleep(1000);
-          }
-        }
-      }
+      DfsLogger alog = new DfsLogger(tserver.getServerConfig());
+      alog.open();
+      loggers.add(alog);
       logSetId.incrementAndGet();
       return;
     } catch (Exception t) {
@@ -235,8 +208,6 @@ public class TabletServerLogger {
       for (IRemoteLogger logger : loggers) {
         try {
           logger.close();
-        } catch (LoggerClosedException ex) {
-          // expected
         } catch (Throwable ex) {
           log.error("Unable to cleanly close logger " + logger.getLogger() + ": " + ex);
         }

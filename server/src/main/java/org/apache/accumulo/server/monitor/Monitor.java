@@ -56,7 +56,6 @@ import org.apache.accumulo.server.monitor.servlets.DefaultServlet;
 import org.apache.accumulo.server.monitor.servlets.GcStatusServlet;
 import org.apache.accumulo.server.monitor.servlets.JSONServlet;
 import org.apache.accumulo.server.monitor.servlets.LogServlet;
-import org.apache.accumulo.server.monitor.servlets.LoggersServlet;
 import org.apache.accumulo.server.monitor.servlets.MasterServlet;
 import org.apache.accumulo.server.monitor.servlets.OperationServlet;
 import org.apache.accumulo.server.monitor.servlets.ProblemServlet;
@@ -476,7 +475,6 @@ public class Monitor {
     server.addServlet(MasterServlet.class, "/master");
     server.addServlet(TablesServlet.class, "/tables");
     server.addServlet(TServersServlet.class, "/tservers");
-    server.addServlet(LoggersServlet.class, "/loggers");
     server.addServlet(ProblemServlet.class, "/problems");
     server.addServlet(GcStatusServlet.class, "/gc");
     server.addServlet(LogServlet.class, "/log");

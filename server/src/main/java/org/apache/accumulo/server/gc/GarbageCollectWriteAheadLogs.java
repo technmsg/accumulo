@@ -18,40 +18,21 @@ package org.apache.accumulo.server.gc;
 
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.Iterator;
-import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicInteger;
 
 import org.apache.accumulo.cloudtrace.instrument.Span;
 import org.apache.accumulo.cloudtrace.instrument.Trace;
-import org.apache.accumulo.core.Constants;
 import org.apache.accumulo.core.conf.AccumuloConfiguration;
-import org.apache.accumulo.core.conf.Property;
 import org.apache.accumulo.core.gc.thrift.GCStatus;
 import org.apache.accumulo.core.gc.thrift.GcCycleStats;
-import org.apache.accumulo.core.tabletserver.thrift.MutationLogger;
-import org.apache.accumulo.core.tabletserver.thrift.MutationLogger.Iface;
-import org.apache.accumulo.core.util.ThriftUtil;
-import org.apache.accumulo.core.zookeeper.ZooUtil;
-import org.apache.accumulo.server.ServerConstants;
-import org.apache.accumulo.server.client.HdfsZooInstance;
 import org.apache.accumulo.server.security.SecurityConstants;
 import org.apache.accumulo.server.util.MetadataTable;
 import org.apache.accumulo.server.util.MetadataTable.LogEntry;
-import org.apache.accumulo.server.zookeeper.IZooReaderWriter;
-import org.apache.accumulo.server.zookeeper.ZooReaderWriter;
-import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
-import org.apache.hadoop.fs.Path;
 import org.apache.log4j.Logger;
-import org.apache.thrift.TException;
-import org.apache.thrift.transport.TTransportException;
 import org.apache.zookeeper.KeeperException;
 
 
@@ -112,58 +93,7 @@ public class GarbageCollectWriteAheadLogs {
   }
   
   private int removeFiles(Map<String,ArrayList<String>> serverToFileMap, final GCStatus status) {
-    final AtomicInteger count = new AtomicInteger();
-    ExecutorService threadPool = java.util.concurrent.Executors.newCachedThreadPool();
-    
-    for (final Entry<String,ArrayList<String>> serverFiles : serverToFileMap.entrySet()) {
-      final String server = serverFiles.getKey();
-      final List<String> files = serverFiles.getValue();
-      threadPool.submit(new Runnable() {
-        @Override
-        public void run() {
-          try {
-            Iface logger = ThriftUtil.getClient(new MutationLogger.Client.Factory(), server, Property.LOGGER_PORT, Property.TSERV_LOGGER_TIMEOUT, conf);
-            try {
-              count.addAndGet(files.size());
-              log.debug(String.format("removing %d files from %s", files.size(), server));
-              if (files.size() > 0) {
-                log.debug("deleting files on logger " + server);
-                for (String file : files) {
-                  log.debug("Deleting " + file);
-                }
-                logger.remove(null, SecurityConstants.getSystemCredentials(), files);
-                synchronized (status.currentLog) {
-                  status.currentLog.deleted += files.size();
-                }
-              }
-            } finally {
-              ThriftUtil.returnClient(logger);
-            }
-            log.info(String.format("Removed %d files from %s", files.size(), server));
-            for (String file : files) {
-              try {
-                for (FileStatus match : fs.globStatus(new Path(ServerConstants.getRecoveryDir(), file + "*"))) {
-                  fs.delete(match.getPath(), true);
-                }
-              } catch (IOException ex) {
-                log.warn("Error deleting recovery data: ", ex);
-              }
-            }
-          } catch (TTransportException err) {
-            log.info("Ignoring communication error talking to logger " + serverFiles.getKey() + " (probably a timeout)");
-          } catch (TException err) {
-            log.info("Ignoring exception talking to logger " + serverFiles.getKey() + "(" + err + ")");
-          }
-        }
-      });
-      
-    }
-    threadPool.shutdown();
-    while (!threadPool.isShutdown())
-      try {
-        threadPool.awaitTermination(1, TimeUnit.SECONDS);
-      } catch (InterruptedException e) {}
-    return count.get();
+    return 0;
   }
   
   private static Map<String,ArrayList<String>> mapServersToFiles(Map<String,String> fileToServerMap) {
@@ -195,29 +125,6 @@ public class GarbageCollectWriteAheadLogs {
   
   private int scanServers(Map<String,String> fileToServerMap) throws Exception {
     int count = 0;
-    IZooReaderWriter zk = ZooReaderWriter.getInstance();
-    String loggersDir = ZooUtil.getRoot(HdfsZooInstance.getInstance()) + Constants.ZLOGGERS;
-    List<String> servers = zk.getChildren(loggersDir, null);
-    Collections.shuffle(servers);
-    for (String server : servers) {
-      String address = "no-data";
-      count++;
-      try {
-        byte[] data = zk.getData(loggersDir + "/" + server, null);
-        address = new String(data);
-        Iface logger = ThriftUtil.getClient(new MutationLogger.Client.Factory(), address, Property.LOGGER_PORT, Property.TSERV_LOGGER_TIMEOUT, conf);
-        for (String log : logger.getClosedLogs(null, SecurityConstants.getSystemCredentials())) {
-          fileToServerMap.put(log, address);
-        }
-        ThriftUtil.returnClient(logger);
-      } catch (TException err) {
-        log.warn("Ignoring exception talking to logger " + address);
-      }
-      if (SimpleGarbageCollector.almostOutOfMemory()) {
-        log.warn("Running out of memory collecting write-ahead log file names from loggers, continuing with a partial list");
-        break;
-      }
-    }
     return count;
   }
   

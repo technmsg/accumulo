@@ -27,7 +27,6 @@ import org.apache.accumulo.core.client.Instance;
 import org.apache.accumulo.core.client.impl.Tables;
 import org.apache.accumulo.core.master.thrift.Compacting;
 import org.apache.accumulo.core.master.thrift.DeadServer;
-import org.apache.accumulo.core.master.thrift.LoggerStatus;
 import org.apache.accumulo.core.master.thrift.TableInfo;
 import org.apache.accumulo.core.master.thrift.TabletServerStatus;
 import org.apache.accumulo.server.client.HdfsZooInstance;
@@ -109,12 +108,6 @@ public class XMLServlet extends BasicServlet {
       sb.append(String.format("<badTabletServer id='%s' status='%s'/>\n", entry.getKey(), TabletServerState.getStateById(entry.getValue())));
     }
     sb.append("\n</badTabletServers>\n");
-    
-    sb.append("\n<loggers>\n");
-    for (LoggerStatus entry : Monitor.getMmi().loggers) {
-      sb.append(String.format("<logger id='%s'/>\n", entry.logger));
-    }
-    sb.append("\n</loggers>\n");
     
     sb.append("\n<tabletServersShuttingDown>\n");
     for (String server : Monitor.getMmi().serversShuttingDown) {

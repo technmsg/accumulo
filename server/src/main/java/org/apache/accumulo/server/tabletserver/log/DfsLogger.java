@@ -37,10 +37,6 @@ import org.apache.accumulo.core.conf.AccumuloConfiguration;
 import org.apache.accumulo.core.conf.Property;
 import org.apache.accumulo.core.data.KeyExtent;
 import org.apache.accumulo.core.data.Mutation;
-import org.apache.accumulo.core.security.thrift.ThriftSecurityException;
-import org.apache.accumulo.core.tabletserver.thrift.LogCopyInfo;
-import org.apache.accumulo.core.tabletserver.thrift.LoggerClosedException;
-import org.apache.accumulo.core.tabletserver.thrift.NoSuchLogIDException;
 import org.apache.accumulo.core.tabletserver.thrift.TabletClientService.Iface;
 import org.apache.accumulo.core.tabletserver.thrift.TabletMutations;
 import org.apache.accumulo.core.util.Daemon;
@@ -49,13 +45,10 @@ import org.apache.accumulo.server.logger.LogFileKey;
 import org.apache.accumulo.server.logger.LogFileValue;
 import org.apache.accumulo.server.master.state.TServerInstance;
 import org.apache.accumulo.server.security.SecurityConstants;
-import org.apache.accumulo.server.tabletserver.log.RemoteLogger.LogWork;
-import org.apache.accumulo.server.tabletserver.log.RemoteLogger.LoggerOperation;
 import org.apache.hadoop.fs.FSDataOutputStream;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.log4j.Logger;
-import org.apache.thrift.TException;
 
 /**
  * Wrap a connection to a logger.
@@ -72,11 +65,11 @@ public class DfsLogger implements IRemoteLogger {
     Set<TServerInstance> getCurrentTServers();
   }
 
-  private LinkedBlockingQueue<LogWork> workQueue = new LinkedBlockingQueue<LogWork>();
+  private LinkedBlockingQueue<DfsLogger.LogWork> workQueue = new LinkedBlockingQueue<DfsLogger.LogWork>();
   
   private String closeLock = new String("foo");
   
-  private static final LogWork CLOSED_MARKER = new LogWork(null, null);
+  private static final DfsLogger.LogWork CLOSED_MARKER = new DfsLogger.LogWork(null, null);
   
   private static final LogFileValue EMPTY = new LogFileValue();
   
@@ -86,7 +79,7 @@ public class DfsLogger implements IRemoteLogger {
 
     @Override
     public void run() {
-      ArrayList<LogWork> work = new ArrayList<LogWork>();
+      ArrayList<DfsLogger.LogWork> work = new ArrayList<DfsLogger.LogWork>();
       while (true) {
         work.clear();
         
@@ -104,19 +97,19 @@ public class DfsLogger implements IRemoteLogger {
               logFile.sync();
             } catch (IOException ex) {
               log.warn("Exception syncing " + ex);
-              for (LogWork logWork : work) {
+              for (DfsLogger.LogWork logWork : work) {
                 logWork.exception = ex;
               }
             }
           } else {
-            for (LogWork logWork : work) {
-              logWork.exception = new LoggerClosedException();
+            for (DfsLogger.LogWork logWork : work) {
+              logWork.exception = new IOException("logger closed");
             }
           }
         }
         
         boolean sawClosedMarker = false;
-        for (LogWork logWork : work)
+        for (DfsLogger.LogWork logWork : work)
           if (logWork == CLOSED_MARKER)
             sawClosedMarker = true;
           else
@@ -128,6 +121,42 @@ public class DfsLogger implements IRemoteLogger {
           }
           break;
         }
+      }
+    }
+  }
+
+  static class LogWork {
+    List<TabletMutations> mutations;
+    CountDownLatch latch;
+    volatile Exception exception;
+    
+    public LogWork(List<TabletMutations> mutations, CountDownLatch latch) {
+      this.mutations = mutations;
+      this.latch = latch;
+    }
+  }
+
+  public static class LoggerOperation {
+    private LogWork work;
+    
+    public LoggerOperation(LogWork work) {
+      this.work = work;
+    }
+    
+    public void await() throws IOException {
+      try {
+        work.latch.await();
+      } catch (InterruptedException e) {
+        throw new RuntimeException(e);
+      }
+      
+      if (work.exception != null) {
+        if (work.exception instanceof IOException)
+          throw (IOException) work.exception;
+        else if (work.exception instanceof RuntimeException)
+          throw (RuntimeException) work.exception;
+        else
+          throw new RuntimeException(work.exception);
       }
     }
   }
@@ -229,7 +258,7 @@ public class DfsLogger implements IRemoteLogger {
    * @see org.apache.accumulo.server.tabletserver.log.IRemoteLogger#close()
    */
   @Override
-  public void close() throws NoSuchLogIDException, LoggerClosedException, TException {
+  public void close() throws IOException {
     
     synchronized (closeLock) {
       if (closed)
@@ -254,7 +283,7 @@ public class DfsLogger implements IRemoteLogger {
         logFile.close();
       } catch (IOException ex) {
         log.error(ex);
-        throw new LoggerClosedException();
+        throw new IOException("Log file closed");
       }
   }
   
@@ -262,7 +291,7 @@ public class DfsLogger implements IRemoteLogger {
    * @see org.apache.accumulo.server.tabletserver.log.IRemoteLogger#defineTablet(int, int, org.apache.accumulo.core.data.KeyExtent)
    */
   @Override
-  public synchronized void defineTablet(int seq, int tid, KeyExtent tablet) throws NoSuchLogIDException, LoggerClosedException, TException {
+  public synchronized void defineTablet(int seq, int tid, KeyExtent tablet) throws IOException {
     // write this log to the METADATA table
     final LogFileKey key = new LogFileKey();
     key.event = DEFINE_TABLET;
@@ -275,7 +304,7 @@ public class DfsLogger implements IRemoteLogger {
       logFile.sync();
     } catch (IOException ex) {
       log.error(ex);
-      throw new LoggerClosedException();
+      throw ex;
     }
   }
   
@@ -293,7 +322,7 @@ public class DfsLogger implements IRemoteLogger {
    * @see org.apache.accumulo.server.tabletserver.log.IRemoteLogger#log(int, int, org.apache.accumulo.core.data.Mutation)
    */
   @Override
-  public LoggerOperation log(int seq, int tid, Mutation mutation) throws NoSuchLogIDException, LoggerClosedException, TException {
+  public LoggerOperation log(int seq, int tid, Mutation mutation) throws IOException {
     return logManyTablets(Collections.singletonList(new TabletMutations(tid, seq, Collections.singletonList(mutation.toThrift()))));
   }
   
@@ -301,8 +330,8 @@ public class DfsLogger implements IRemoteLogger {
    * @see org.apache.accumulo.server.tabletserver.log.IRemoteLogger#logManyTablets(java.util.List)
    */
   @Override
-  public LoggerOperation logManyTablets(List<TabletMutations> mutations) throws NoSuchLogIDException, LoggerClosedException, TException {
-    LogWork work = new LogWork(mutations, new CountDownLatch(1));
+  public LoggerOperation logManyTablets(List<TabletMutations> mutations) throws IOException {
+    DfsLogger.LogWork work = new DfsLogger.LogWork(mutations, new CountDownLatch(1));
     
     synchronized (DfsLogger.this) {
       try {
@@ -329,7 +358,7 @@ public class DfsLogger implements IRemoteLogger {
       // to wait on walog I/O operations
 
       if (closed)
-        throw new LoggerClosedException();
+        throw new IOException("logger closed");
       workQueue.add(work);
     }
 
@@ -340,7 +369,7 @@ public class DfsLogger implements IRemoteLogger {
    * @see org.apache.accumulo.server.tabletserver.log.IRemoteLogger#minorCompactionFinished(int, int, java.lang.String)
    */
   @Override
-  public synchronized void minorCompactionFinished(int seq, int tid, String fqfn) throws NoSuchLogIDException, LoggerClosedException, TException {
+  public synchronized void minorCompactionFinished(int seq, int tid, String fqfn) throws IOException {
     LogFileKey key = new LogFileKey();
     key.event = COMPACTION_FINISH;
     key.seq = seq;
@@ -349,7 +378,7 @@ public class DfsLogger implements IRemoteLogger {
       write(key, EMPTY);
     } catch (IOException ex) {
       log.error(ex);
-      throw new LoggerClosedException();
+      throw ex;
     }
   }
   
@@ -357,7 +386,7 @@ public class DfsLogger implements IRemoteLogger {
    * @see org.apache.accumulo.server.tabletserver.log.IRemoteLogger#minorCompactionStarted(int, int, java.lang.String)
    */
   @Override
-  public synchronized void minorCompactionStarted(int seq, int tid, String fqfn) throws NoSuchLogIDException, LoggerClosedException, TException {
+  public synchronized void minorCompactionStarted(int seq, int tid, String fqfn) throws IOException {
     LogFileKey key = new LogFileKey();
     key.event = COMPACTION_START;
     key.seq = seq;
@@ -367,7 +396,7 @@ public class DfsLogger implements IRemoteLogger {
       write(key, EMPTY);
     } catch (IOException ex) {
       log.error(ex);
-      throw new LoggerClosedException();
+      throw ex;
     }
   }
   
@@ -375,7 +404,7 @@ public class DfsLogger implements IRemoteLogger {
    * @see org.apache.accumulo.server.tabletserver.log.IRemoteLogger#startCopy(java.lang.String, java.lang.String)
    */
   @Override
-  public synchronized LogCopyInfo startCopy(String source, String dest) throws ThriftSecurityException, TException {
+  public synchronized double startCopy(String source, String dest) throws IOException {
     Iface client = null;
     try {
       Set<TServerInstance> current = conf.getCurrentTServers();
@@ -384,12 +413,13 @@ public class DfsLogger implements IRemoteLogger {
       Random random = new Random();
       int choice = random.nextInt(current.size());
       TServerInstance instance = current.toArray(new TServerInstance[] {})[choice];
-      client = ThriftUtil.getTServerClient(instance.hostPort(), conf.getConfiguration());
-      log.info("Asking " + instance.hostPort() + " to copy/sort from " + source + " to " + dest);
-      LogCopyInfo result = new LogCopyInfo();
-      client.sortLog(null, SecurityConstants.getSystemCredentials(), source, dest);
-      result.fileSize = conf.getConfiguration().getMemoryInBytes(Property.TSERV_WALOG_MAX_SIZE);
-      return result;
+      try {
+        client = ThriftUtil.getTServerClient(instance.hostPort(), conf.getConfiguration());
+        log.info("Asking " + instance.hostPort() + " to copy/sort from " + source + " to " + dest);
+        return client.sortLog(null, SecurityConstants.getSystemCredentials(), source, dest);
+      } catch (Exception ex) {
+        throw new IOException(ex);
+      }
     } finally {
       if (client != null)
         ThriftUtil.returnClient(client);
@@ -400,7 +430,7 @@ public class DfsLogger implements IRemoteLogger {
    * @see org.apache.accumulo.server.tabletserver.log.IRemoteLogger#getClosedLogs()
    */
   @Override
-  public synchronized List<String> getClosedLogs() throws ThriftSecurityException, TException {
+  public synchronized List<String> getClosedLogs() throws IOException {
     return Collections.emptyList();
   }
   
@@ -408,7 +438,7 @@ public class DfsLogger implements IRemoteLogger {
    * @see org.apache.accumulo.server.tabletserver.log.IRemoteLogger#removeFile(java.util.List)
    */
   @Override
-  public synchronized void removeFile(List<String> files) throws ThriftSecurityException, TException {
+  public synchronized void removeFile(List<String> files) throws IOException {
   }
   
 }
