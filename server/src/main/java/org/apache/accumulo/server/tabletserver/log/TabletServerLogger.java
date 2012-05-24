@@ -182,7 +182,7 @@ public class TabletServerLogger {
     
     try {
       DfsLogger alog = new DfsLogger(tserver.getServerConfig());
-      alog.open();
+      alog.open(tserver.getClientAddressString());
       loggers.add(alog);
       logSetId.incrementAndGet();
       return;

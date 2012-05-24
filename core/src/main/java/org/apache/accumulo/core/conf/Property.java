@@ -152,27 +152,12 @@ public enum Property {
       "The replication to use when writing the Write-Ahead log to HDFS. If zero, it will use the HDFS default replication setting."),
   TSERV_RECOVERY_MAX_CONCURRENT("tserver.recovery.concurrent.max", "2", PropertyType.COUNT, "The maximum number of threads to use to sort logs during recovery"),
   TSERV_SORT_BUFFER_SIZE("tserver.sort.buffer.size", "200M", PropertyType.MEMORY, "The amount of memory to use when sorting logs during recovery."),
+  TSERV_ARCHIVE_WALOGS("tserver.archive.walogs", "false", PropertyType.BOOLEAN, "Keep copies of the WALOGs for debugging purposes"),
   
   // properties that are specific to logger server behavior
   LOGGER_PREFIX("logger.", null, PropertyType.PREFIX, "Properties in this category affect the behavior of the write-ahead logger servers"),
-  LOGGER_PORT("logger.port.client", "11224", PropertyType.PORT, "The port used for write-ahead logger services"),
-  LOGGER_COPY_THREADPOOL_SIZE("logger.copy.threadpool.size", "2", PropertyType.COUNT,
-      "size of the thread pool used to copy files from the local log area to HDFS"),
   LOGGER_DIR("logger.dir.walog", "walogs", PropertyType.PATH,
       "The directory used to store write-ahead logs on the local filesystem. It is possible to specify a comma-separated list of directories."),
-  LOGGER_PORTSEARCH("logger.port.search", "false", PropertyType.BOOLEAN, "if the port above is in use, search higher ports until one is available"),
-  LOGGER_ARCHIVE("logger.archive", "false", PropertyType.BOOLEAN, "determines if logs are archived in hdfs"),
-  LOGGER_ARCHIVE_REPLICATION("logger.archive.replication", "0", PropertyType.COUNT,
-      "determines the replication factor for walogs archived in hdfs, set to zero to use default"),
-  LOGGER_MONITOR_FS(
-      "logger.monitor.fs",
-      "true",
-      PropertyType.BOOLEAN,
-      "When enabled the logger will monitor file systems and kill itself when one switches from rw to ro.  This is usually and indication that Linux has detected a bad disk."),
-  LOGGER_RECOVERY_FILE_REPLICATION("logger.recovery.file.replication", "1", PropertyType.COUNT,
-      "When a logger puts a WALOG into HDFS, it will use this as the replication factor."),
-  LOGGER_MINTHREADS("logger.server.threads.minimum", "2", PropertyType.COUNT, "The miniumum number of threads to use to handle incoming requests."),
-  LOGGER_THREADCHECK("logger.server.threadcheck.time", "1s", PropertyType.TIMEDURATION, "The time between adjustments of the server thread pool."),
   
   // accumulo garbage collector properties
   GC_PREFIX("gc.", null, PropertyType.PREFIX, "Properties in this category affect the behavior of the accumulo garbage collector."),
@@ -345,8 +330,7 @@ public enum Property {
   }
   
   private static final EnumSet<Property> fixedProperties = EnumSet.of(Property.TSERV_CLIENTPORT, Property.TSERV_NATIVEMAP_ENABLED,
-      Property.TSERV_SCAN_MAX_OPENFILES, Property.TSERV_LOGGER_COUNT,
-      Property.LOGGER_PORT, Property.MASTER_CLIENTPORT, Property.GC_PORT);
+      Property.TSERV_SCAN_MAX_OPENFILES, Property.TSERV_LOGGER_COUNT, Property.MASTER_CLIENTPORT, Property.GC_PORT);
   
   public static boolean isFixedZooPropertyKey(Property key) {
     return fixedProperties.contains(key);

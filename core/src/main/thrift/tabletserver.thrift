@@ -147,6 +147,7 @@ service TabletClientService extends client.ClientService {
   
   list<ActiveScan> getActiveScans(2:cloudtrace.TInfo tinfo, 1:security.AuthInfo credentials) throws (1:security.ThriftSecurityException sec)
   double sortLog(1:cloudtrace.TInfo tinfo, 2:security.AuthInfo credentials, 3:string lock, 4:string path) throws (1:security.ThriftSecurityException sec);
+  oneway void removeLogs(1:cloudtrace.TInfo tinfo, 2:security.AuthInfo credentials, 3:list<string> filenames) throws (1:security.ThriftSecurityException sec);
 }
 
 typedef i32 TabletID

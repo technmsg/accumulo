@@ -57,6 +57,6 @@ public interface IRemoteLogger {
   
   public abstract void removeFile(List<String> files) throws IOException;
   
-  public abstract void open() throws IOException;
+  public abstract void open(String address) throws IOException;
 
 }

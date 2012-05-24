@@ -2074,6 +2074,49 @@ public class TabletServer extends AbstractMetricsImpl implements org.apache.accu
       }
     }
     
+    /*
+     * (non-Javadoc)
+     * 
+     * @see org.apache.accumulo.core.tabletserver.thrift.TabletClientService.Iface#removeLogs(org.apache.accumulo.cloudtrace.thrift.TInfo,
+     * org.apache.accumulo.core.security.thrift.AuthInfo, java.util.List)
+     */
+    @Override
+    public void removeLogs(TInfo tinfo, AuthInfo credentials, List<String> filenames) throws ThriftSecurityException, TException {
+      Path logDir = new Path(Constants.getWalDirectory(acuConf), getClientAddressString());
+      Set<String> loggers = new HashSet<String>();
+      logger.getLoggers(loggers);
+      nextFile:
+      for (String filename : filenames) {
+        for (String logger : loggers) {
+          if (logger.contains(filename))
+            continue nextFile;
+        }
+        // this check is not strictly necessary
+        synchronized (onlineTablets) {
+          for (Entry<KeyExtent,Tablet> entry : onlineTablets.entrySet()) {
+            for (String current : entry.getValue().getCurrentLogs()) {
+              if (current.contains(filename)) {
+                log.error("Attempting to remove a write-ahead log that is in use.  This should never happen!");
+                log.info("Attempted to delete " + filename + " from tablet " + entry.getKey());
+                continue nextFile;
+              }
+            }
+          }
+        }
+        try {
+          if (acuConf.getBoolean(Property.TSERV_ARCHIVE_WALOGS)) {
+            log.info("Archiving walog " + filename);
+            fs.rename(new Path(logDir, filename), new Path(Constants.getBaseDir(acuConf) + "/walogArchive", filename));
+          } else {
+            log.info("Deleting walog " + filename);
+            fs.delete(new Path(logDir, filename), true);
+          }
+        } catch (IOException e) {
+          log.warn("Error attempting to delete write-ahead log " + filename + ": " + e);
+        }
+      }
+    }
+    
   }
   
   private class SplitRunner implements Runnable {

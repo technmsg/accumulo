@@ -78,10 +78,6 @@ public class CoordinateRecoveryTask implements Runnable {
     String failedFileName() {
       return fullName(file + "/failed");
     }
-    
-    public String unsortedFileName() {
-      return fullName(file);
-    }
   }
   
   interface JobComplete {
@@ -98,7 +94,6 @@ public class CoordinateRecoveryTask implements Runnable {
   private class RecoveryJob {
     final LogFile logFile;
     final long copyStartTime;
-    double copySize = 0;
     JobComplete notify = null;
     final AccumuloConfiguration config;
     
@@ -114,9 +109,11 @@ public class CoordinateRecoveryTask implements Runnable {
       try {
         // Ask the logging server to put the file in HDFS
         IRemoteLogger logger = new DfsLogger(conf);
-        String source = Constants.getWalDirectory(config) + "/" + logFile.file;
+        String source = Constants.getWalDirectory(config) + "/" + logFile.server + "/" + logFile.file;
+        if (logFile.server.contains(":"))
+          source = Constants.getWalDirectory(config) + "/" + logFile.file;
         String dest = Constants.getRecoveryDir(config) + "/" + logFile.file;
-        copySize = logger.startCopy(source, dest);
+        logger.startCopy(source, dest);
       } catch (Throwable t) {
         log.warn("Unable to recover " + logFile + "(" + t + ")", t);
         fail();
@@ -166,14 +163,13 @@ public class CoordinateRecoveryTask implements Runnable {
     }
     
     synchronized public String toString() {
-      return String.format("Copying %s from %s (for %f seconds) %2.1f", logFile.file, logFile.server, elapsedMillis() / 1000., copiedSoFar() * 100. / copySize);
+      return String.format("Copying %s from %s (for %f seconds) %2.1f", logFile.file, logFile.server, elapsedMillis() / 1000., copiedSoFar() * 100.);
     }
     
-    synchronized long copiedSoFar() {
+    synchronized double copiedSoFar() {
       try {
         ContentSummary contentSummary = fs.getContentSummary(new Path(logFile.recoveryFileName()));
-        // map files are bigger than sequence files
-        return (long) (contentSummary.getSpaceConsumed() * .8);
+        return contentSummary.getSpaceConsumed() / (double) config.getMemoryInBytes(Property.TSERV_WALOG_MAX_SIZE);
       } catch (Exception ex) {
         return 0;
       }
@@ -181,7 +177,7 @@ public class CoordinateRecoveryTask implements Runnable {
     
     synchronized public RecoveryStatus getStatus() throws IOException {
       try {
-        return new RecoveryStatus(logFile.server, logFile.file, 0., 0., (int) (System.currentTimeMillis() - copyStartTime), (copiedSoFar() / (double) copySize));
+        return new RecoveryStatus(logFile.server, logFile.file, 0., 0., (int) (System.currentTimeMillis() - copyStartTime), copiedSoFar());
       } catch (Exception e) {
         return new RecoveryStatus(logFile.server, logFile.file, 1.0, 1.0, (int) (System.currentTimeMillis() - copyStartTime), 1.0);
       }

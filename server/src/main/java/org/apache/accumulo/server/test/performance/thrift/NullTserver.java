@@ -197,8 +197,17 @@ public class NullTserver {
      */
     @Override
     public double sortLog(TInfo tinfo, AuthInfo credentials, String lock, String path) throws ThriftSecurityException, TException {
-      // TODO Auto-generated method stub
       return 0;
+    }
+    
+    /*
+     * (non-Javadoc)
+     * 
+     * @see org.apache.accumulo.core.tabletserver.thrift.TabletClientService.Iface#removeLogs(org.apache.accumulo.cloudtrace.thrift.TInfo,
+     * org.apache.accumulo.core.security.thrift.AuthInfo, java.util.List)
+     */
+    @Override
+    public void removeLogs(TInfo tinfo, AuthInfo credentials, List<String> filenames) throws ThriftSecurityException, TException {
     }
   }
   

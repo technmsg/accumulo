@@ -110,6 +110,7 @@ import org.apache.accumulo.server.tabletserver.InMemoryMap.MemoryIterator;
 import org.apache.accumulo.server.tabletserver.TabletServer.TservConstraintEnv;
 import org.apache.accumulo.server.tabletserver.TabletServerResourceManager.TabletResourceManager;
 import org.apache.accumulo.server.tabletserver.TabletStatsKeeper.Operation;
+import org.apache.accumulo.server.tabletserver.log.DfsLogger;
 import org.apache.accumulo.server.tabletserver.log.IRemoteLogger;
 import org.apache.accumulo.server.tabletserver.log.MutationReceiver;
 import org.apache.accumulo.server.tabletserver.mastermessage.TabletStatusMessage;
@@ -1456,6 +1457,15 @@ public class Tablet {
           throw new RuntimeException(t);
         }
       }
+      // make some closed references that represent the recovered logs
+      currentLogs = new HashSet<IRemoteLogger>();
+      for (LogEntry logEntry : logEntries) {
+        for (String log : logEntry.logSet) {
+          String[] parts = log.split("/", 2);
+          currentLogs.add(new DfsLogger(tabletServer.getServerConfig(), parts[1]));
+        }
+      }
+      
       log.info("Write-Ahead Log recovery complete for " + this.extent + " (" + count[0] + " mutations applied, " + tabletMemory.getNumEntries()
           + " entries created)");
     }
@@ -3606,6 +3616,14 @@ public class Tablet {
   
   private Set<IRemoteLogger> currentLogs = new HashSet<IRemoteLogger>();
   
+  synchronized public Set<String> getCurrentLogs() {
+    Set<String> result = new HashSet<String>();
+    for (IRemoteLogger log : currentLogs) {
+      result.add(log.toString());
+    }
+    return result;
+  }
+
   private Set<String> beginClearingUnusedLogs() {
     Set<String> doomed = new HashSet<String>();
     

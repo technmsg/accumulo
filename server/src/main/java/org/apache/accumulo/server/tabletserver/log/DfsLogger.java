@@ -24,6 +24,7 @@ import static org.apache.accumulo.server.logger.LogEvents.OPEN;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Random;
@@ -40,6 +41,7 @@ import org.apache.accumulo.core.data.Mutation;
 import org.apache.accumulo.core.tabletserver.thrift.TabletClientService.Iface;
 import org.apache.accumulo.core.tabletserver.thrift.TabletMutations;
 import org.apache.accumulo.core.util.Daemon;
+import org.apache.accumulo.core.util.StringUtil;
 import org.apache.accumulo.core.util.ThriftUtil;
 import org.apache.accumulo.server.logger.LogFileKey;
 import org.apache.accumulo.server.logger.LogFileValue;
@@ -186,6 +188,7 @@ public class DfsLogger implements IRemoteLogger {
   private ServerConfig conf;
   private FSDataOutputStream logFile;
   private Path logPath;
+  private String logger;
   
   public DfsLogger(ServerConfig conf) throws IOException {
     this.conf = conf;
@@ -196,10 +199,11 @@ public class DfsLogger implements IRemoteLogger {
     this.logPath = new Path(Constants.getWalDirectory(conf.getConfiguration()), filename);
   }
 
-  public synchronized void open() throws IOException {
+  public synchronized void open(String address) throws IOException {
     String filename = UUID.randomUUID().toString();
+    logger = StringUtil.join(Arrays.asList(address.split(":")), "+");
 
-    logPath = new Path(Constants.getWalDirectory(conf.getConfiguration()), filename);
+    logPath = new Path(Constants.getWalDirectory(conf.getConfiguration()) + "/" + logger + "/" + filename);
     try {
       FileSystem fs = conf.getFileSystem();
       short replication = (short) conf.getConfiguration().getCount(Property.TSERV_WAL_REPLICATION);
@@ -243,7 +247,7 @@ public class DfsLogger implements IRemoteLogger {
    */
   @Override
   public String getLogger() {
-    return "";
+    return logger;
   }
   
   /* (non-Javadoc)
