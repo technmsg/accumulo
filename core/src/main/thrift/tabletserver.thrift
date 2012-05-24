@@ -146,6 +146,7 @@ service TabletClientService extends client.ClientService {
   oneway void fastHalt(3:cloudtrace.TInfo tinfo, 1:security.AuthInfo credentials, 2:string lock);
   
   list<ActiveScan> getActiveScans(2:cloudtrace.TInfo tinfo, 1:security.AuthInfo credentials) throws (1:security.ThriftSecurityException sec)
+  double sortLog(1:cloudtrace.TInfo tinfo, 2:security.AuthInfo credentials, 3:string lock, 4:string path) throws (1:security.ThriftSecurityException sec);
 }
 
 // LogID should be cryptographically unguessable

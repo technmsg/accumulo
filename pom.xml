@@ -66,6 +66,23 @@
     <defaultGoal>package</defaultGoal>
     <plugins>
       <plugin>
+        <groupId>org.codehaus.mojo</groupId>
+        <artifactId>buildnumber-maven-plugin</artifactId>
+        <version>1.1</version>
+        <executions>
+          <execution>
+            <phase>validate</phase>
+            <goals>
+              <goal>create</goal>
+            </goals>
+          </execution>
+        </executions>
+        <configuration>
+          <doCheck>false</doCheck>
+          <doUpdate>false</doUpdate>
+        </configuration>
+      </plugin>
+      <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-enforcer-plugin</artifactId>
         <executions>
@@ -207,6 +224,7 @@
               </manifest>
               <manifestEntries>
                 <Implementation-Build>${buildNumber}</Implementation-Build>
+                <Implementation-Branch>${scmBranch}</Implementation-Branch>
                 <Implementation-Timestamp>${timestamp}</Implementation-Timestamp>
               </manifestEntries>
             </archive>
@@ -334,6 +352,23 @@
 
   <reporting>
     <plugins>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-changes-plugin</artifactId>
+        <version>2.7.1</version>
+        <configuration>
+          <onlyCurrentVersion>true</onlyCurrentVersion>
+          <statusIds>closed,resolved</statusIds>
+          <maxEntries>10000</maxEntries>
+        </configuration>
+        <reportSets>
+          <reportSet>
+            <reports>
+              <report>jira-report</report>
+            </reports>
+          </reportSet>
+        </reportSets>
+      </plugin>
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-jxr-plugin</artifactId>
@@ -628,7 +663,7 @@
   <description>Apache Accumulo is a sorted, distributed key/value store based on Google's BigTable design. It is built on top of Apache Hadoop, Zookeeper, and Thrift. It features a few novel improvements on the BigTable design in the form of cell-level access labels and a server-side programming mechanism that can modify key/value pairs at various points in the data management process.</description>
 
   <issueManagement>
-    <system>Apache's JIRA issue tracker</system>
+    <system>JIRA</system>
     <url>https://issues.apache.org/jira/browse/ACCUMULO</url>
   </issueManagement>
 

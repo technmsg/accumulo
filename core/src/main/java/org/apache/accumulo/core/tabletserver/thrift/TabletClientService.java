@@ -74,6 +74,8 @@ import org.slf4j.LoggerFactory;
 
     public List<ActiveScan> getActiveScans(org.apache.accumulo.cloudtrace.thrift.TInfo tinfo, org.apache.accumulo.core.security.thrift.AuthInfo credentials) throws org.apache.accumulo.core.security.thrift.ThriftSecurityException, org.apache.thrift.TException;
 
+    public double sortLog(org.apache.accumulo.cloudtrace.thrift.TInfo tinfo, org.apache.accumulo.core.security.thrift.AuthInfo credentials, String lock, String path) throws org.apache.accumulo.core.security.thrift.ThriftSecurityException, org.apache.thrift.TException;
+
   }
 
   public interface AsyncIface extends org.apache.accumulo.core.client.impl.thrift.ClientService .AsyncIface {
@@ -127,6 +129,8 @@ import org.slf4j.LoggerFactory;
     public void fastHalt(org.apache.accumulo.cloudtrace.thrift.TInfo tinfo, org.apache.accumulo.core.security.thrift.AuthInfo credentials, String lock, org.apache.thrift.async.AsyncMethodCallback<AsyncClient.fastHalt_call> resultHandler) throws org.apache.thrift.TException;
 
     public void getActiveScans(org.apache.accumulo.cloudtrace.thrift.TInfo tinfo, org.apache.accumulo.core.security.thrift.AuthInfo credentials, org.apache.thrift.async.AsyncMethodCallback<AsyncClient.getActiveScans_call> resultHandler) throws org.apache.thrift.TException;
+
+    public void sortLog(org.apache.accumulo.cloudtrace.thrift.TInfo tinfo, org.apache.accumulo.core.security.thrift.AuthInfo credentials, String lock, String path, org.apache.thrift.async.AsyncMethodCallback<AsyncClient.sortLog_call> resultHandler) throws org.apache.thrift.TException;
 
   }
 
@@ -963,6 +967,48 @@ import org.slf4j.LoggerFactory;
         throw result.sec;
       }
       throw new org.apache.thrift.TApplicationException(org.apache.thrift.TApplicationException.MISSING_RESULT, "getActiveScans failed: unknown result");
+    }
+
+    public double sortLog(org.apache.accumulo.cloudtrace.thrift.TInfo tinfo, org.apache.accumulo.core.security.thrift.AuthInfo credentials, String lock, String path) throws org.apache.accumulo.core.security.thrift.ThriftSecurityException, org.apache.thrift.TException
+    {
+      send_sortLog(tinfo, credentials, lock, path);
+      return recv_sortLog();
+    }
+
+    public void send_sortLog(org.apache.accumulo.cloudtrace.thrift.TInfo tinfo, org.apache.accumulo.core.security.thrift.AuthInfo credentials, String lock, String path) throws org.apache.thrift.TException
+    {
+      oprot_.writeMessageBegin(new org.apache.thrift.protocol.TMessage("sortLog", org.apache.thrift.protocol.TMessageType.CALL, ++seqid_));
+      sortLog_args args = new sortLog_args();
+      args.setTinfo(tinfo);
+      args.setCredentials(credentials);
+      args.setLock(lock);
+      args.setPath(path);
+      args.write(oprot_);
+      oprot_.writeMessageEnd();
+      oprot_.getTransport().flush();
+    }
+
+    public double recv_sortLog() throws org.apache.accumulo.core.security.thrift.ThriftSecurityException, org.apache.thrift.TException
+    {
+      org.apache.thrift.protocol.TMessage msg = iprot_.readMessageBegin();
+      if (msg.type == org.apache.thrift.protocol.TMessageType.EXCEPTION) {
+        org.apache.thrift.TApplicationException x = org.apache.thrift.TApplicationException.read(iprot_);
+        iprot_.readMessageEnd();
+        throw x;
+      }
+      if (msg.seqid != seqid_) {
+        throw new org.apache.thrift.TApplicationException(org.apache.thrift.TApplicationException.BAD_SEQUENCE_ID, "sortLog failed: out of sequence response");
+      }
+      sortLog_result result = new sortLog_result();
+      result.read(iprot_);
+      iprot_.readMessageEnd();
+      if (result.isSetSuccess()) {
+        return result.success;
+      }
+      if (result.sec != null) {
+        throw result.sec;
+      }
+      throw new org.apache.thrift.TApplicationException(org.apache.thrift.TApplicationException.MISSING_RESULT, "sortLog failed: unknown result");
     }
 
   }
@@ -1983,6 +2029,47 @@ import org.slf4j.LoggerFactory;
       }
     }
 
+    public void sortLog(org.apache.accumulo.cloudtrace.thrift.TInfo tinfo, org.apache.accumulo.core.security.thrift.AuthInfo credentials, String lock, String path, org.apache.thrift.async.AsyncMethodCallback<sortLog_call> resultHandler) throws org.apache.thrift.TException {
+      checkReady();
+      sortLog_call method_call = new sortLog_call(tinfo, credentials, lock, path, resultHandler, this, protocolFactory, transport);
+      this.currentMethod = method_call;
+      manager.call(method_call);
+    }
+
+    public static class sortLog_call extends org.apache.thrift.async.TAsyncMethodCall {
+      private org.apache.accumulo.cloudtrace.thrift.TInfo tinfo;
+      private org.apache.accumulo.core.security.thrift.AuthInfo credentials;
+      private String lock;
+      private String path;
+      public sortLog_call(org.apache.accumulo.cloudtrace.thrift.TInfo tinfo, org.apache.accumulo.core.security.thrift.AuthInfo credentials, String lock, String path, org.apache.thrift.async.AsyncMethodCallback<sortLog_call> resultHandler, org.apache.thrift.async.TAsyncClient client, org.apache.thrift.protocol.TProtocolFactory protocolFactory, org.apache.thrift.transport.TNonblockingTransport transport) throws org.apache.thrift.TException {
+        super(client, protocolFactory, transport, resultHandler, false);
+        this.tinfo = tinfo;
+        this.credentials = credentials;
+        this.lock = lock;
+        this.path = path;
+      }
+
+      public void write_args(org.apache.thrift.protocol.TProtocol prot) throws org.apache.thrift.TException {
+        prot.writeMessageBegin(new org.apache.thrift.protocol.TMessage("sortLog", org.apache.thrift.protocol.TMessageType.CALL, 0));
+        sortLog_args args = new sortLog_args();
+        args.setTinfo(tinfo);
+        args.setCredentials(credentials);
+        args.setLock(lock);
+        args.setPath(path);
+        args.write(prot);
+        prot.writeMessageEnd();
+      }
+
+      public double getResult() throws org.apache.accumulo.core.security.thrift.ThriftSecurityException, org.apache.thrift.TException {
+        if (getState() != org.apache.thrift.async.TAsyncMethodCall.State.RESPONSE_READ) {
+          throw new IllegalStateException("Method call not finished!");
+        }
+        org.apache.thrift.transport.TMemoryInputTransport memoryTransport = new org.apache.thrift.transport.TMemoryInputTransport(getFrameBuffer().array());
+        org.apache.thrift.protocol.TProtocol prot = client.getProtocolFactory().getProtocol(memoryTransport);
+        return (new Client(prot)).recv_sortLog();
+      }
+    }
+
   }
 
   public static class Processor extends org.apache.accumulo.core.client.impl.thrift.ClientService.Processor implements org.apache.thrift.TProcessor {
@@ -2016,6 +2103,7 @@ import org.slf4j.LoggerFactory;
       processMap_.put("halt", new halt());
       processMap_.put("fastHalt", new fastHalt());
       processMap_.put("getActiveScans", new getActiveScans());
+      processMap_.put("sortLog", new sortLog());
     }
 
     private Iface iface_;
@@ -2826,6 +2914,45 @@ import org.slf4j.LoggerFactory;
           return;
         }
         oprot.writeMessageBegin(new org.apache.thrift.protocol.TMessage("getActiveScans", org.apache.thrift.protocol.TMessageType.REPLY, seqid));
+        result.write(oprot);
+        oprot.writeMessageEnd();
+        oprot.getTransport().flush();
+      }
+
+    }
+
+    private class sortLog implements ProcessFunction {
+      public void process(int seqid, org.apache.thrift.protocol.TProtocol iprot, org.apache.thrift.protocol.TProtocol oprot) throws org.apache.thrift.TException
+      {
+        sortLog_args args = new sortLog_args();
+        try {
+          args.read(iprot);
+        } catch (org.apache.thrift.protocol.TProtocolException e) {
+          iprot.readMessageEnd();
+          org.apache.thrift.TApplicationException x = new org.apache.thrift.TApplicationException(org.apache.thrift.TApplicationException.PROTOCOL_ERROR, e.getMessage());
+          oprot.writeMessageBegin(new org.apache.thrift.protocol.TMessage("sortLog", org.apache.thrift.protocol.TMessageType.EXCEPTION, seqid));
+          x.write(oprot);
+          oprot.writeMessageEnd();
+          oprot.getTransport().flush();
+          return;
+        }
+        iprot.readMessageEnd();
+        sortLog_result result = new sortLog_result();
+        try {
+          result.success = iface_.sortLog(args.tinfo, args.credentials, args.lock, args.path);
+          result.setSuccessIsSet(true);
+        } catch (org.apache.accumulo.core.security.thrift.ThriftSecurityException sec) {
+          result.sec = sec;
+        } catch (Throwable th) {
+          LOGGER.error("Internal error processing sortLog", th);
+          org.apache.thrift.TApplicationException x = new org.apache.thrift.TApplicationException(org.apache.thrift.TApplicationException.INTERNAL_ERROR, "Internal error processing sortLog");
+          oprot.writeMessageBegin(new org.apache.thrift.protocol.TMessage("sortLog", org.apache.thrift.protocol.TMessageType.EXCEPTION, seqid));
+          x.write(oprot);
+          oprot.writeMessageEnd();
+          oprot.getTransport().flush();
+          return;
+        }
+        oprot.writeMessageBegin(new org.apache.thrift.protocol.TMessage("sortLog", org.apache.thrift.protocol.TMessageType.REPLY, seqid));
         result.write(oprot);
         oprot.writeMessageEnd();
         oprot.getTransport().flush();
@@ -23280,6 +23407,957 @@ import org.slf4j.LoggerFactory;
       } else {
         sb.append(this.success);
       }
+      first = false;
+      if (!first) sb.append(", ");
+      sb.append("sec:");
+      if (this.sec == null) {
+        sb.append("null");
+      } else {
+        sb.append(this.sec);
+      }
+      first = false;
+      sb.append(")");
+      return sb.toString();
+    }
+
+    public void validate() throws org.apache.thrift.TException {
+      // check for required fields
+    }
+
+    private void writeObject(java.io.ObjectOutputStream out) throws java.io.IOException {
+      try {
+        write(new org.apache.thrift.protocol.TCompactProtocol(new org.apache.thrift.transport.TIOStreamTransport(out)));
+      } catch (org.apache.thrift.TException te) {
+        throw new java.io.IOException(te);
+      }
+    }
+
+    private void readObject(java.io.ObjectInputStream in) throws java.io.IOException, ClassNotFoundException {
+      try {
+        read(new org.apache.thrift.protocol.TCompactProtocol(new org.apache.thrift.transport.TIOStreamTransport(in)));
+      } catch (org.apache.thrift.TException te) {
+        throw new java.io.IOException(te);
+      }
+    }
+
+  }
+
+  public static class sortLog_args implements org.apache.thrift.TBase<sortLog_args, sortLog_args._Fields>, java.io.Serializable, Cloneable   {
+    private static final org.apache.thrift.protocol.TStruct STRUCT_DESC = new org.apache.thrift.protocol.TStruct("sortLog_args");
+
+    private static final org.apache.thrift.protocol.TField TINFO_FIELD_DESC = new org.apache.thrift.protocol.TField("tinfo", org.apache.thrift.protocol.TType.STRUCT, (short)1);
+    private static final org.apache.thrift.protocol.TField CREDENTIALS_FIELD_DESC = new org.apache.thrift.protocol.TField("credentials", org.apache.thrift.protocol.TType.STRUCT, (short)2);
+    private static final org.apache.thrift.protocol.TField LOCK_FIELD_DESC = new org.apache.thrift.protocol.TField("lock", org.apache.thrift.protocol.TType.STRING, (short)3);
+    private static final org.apache.thrift.protocol.TField PATH_FIELD_DESC = new org.apache.thrift.protocol.TField("path", org.apache.thrift.protocol.TType.STRING, (short)4);
+
+    public org.apache.accumulo.cloudtrace.thrift.TInfo tinfo;
+    public org.apache.accumulo.core.security.thrift.AuthInfo credentials;
+    public String lock;
+    public String path;
+
+    /** The set of fields this struct contains, along with convenience methods for finding and manipulating them. */
+    public enum _Fields implements org.apache.thrift.TFieldIdEnum {
+      TINFO((short)1, "tinfo"),
+      CREDENTIALS((short)2, "credentials"),
+      LOCK((short)3, "lock"),
+      PATH((short)4, "path");
+
+      private static final Map<String, _Fields> byName = new HashMap<String, _Fields>();
+
+      static {
+        for (_Fields field : EnumSet.allOf(_Fields.class)) {
+          byName.put(field.getFieldName(), field);
+        }
+      }
+
+      /**
+       * Find the _Fields constant that matches fieldId, or null if its not found.
+       */
+      public static _Fields findByThriftId(int fieldId) {
+        switch(fieldId) {
+          case 1: // TINFO
+            return TINFO;
+          case 2: // CREDENTIALS
+            return CREDENTIALS;
+          case 3: // LOCK
+            return LOCK;
+          case 4: // PATH
+            return PATH;
+          default:
+            return null;
+        }
+      }
+
+      /**
+       * Find the _Fields constant that matches fieldId, throwing an exception
+       * if it is not found.
+       */
+      public static _Fields findByThriftIdOrThrow(int fieldId) {
+        _Fields fields = findByThriftId(fieldId);
+        if (fields == null) throw new IllegalArgumentException("Field " + fieldId + " doesn't exist!");
+        return fields;
+      }
+
+      /**
+       * Find the _Fields constant that matches name, or null if its not found.
+       */
+      public static _Fields findByName(String name) {
+        return byName.get(name);
+      }
+
+      private final short _thriftId;
+      private final String _fieldName;
+
+      _Fields(short thriftId, String fieldName) {
+        _thriftId = thriftId;
+        _fieldName = fieldName;
+      }
+
+      public short getThriftFieldId() {
+        return _thriftId;
+      }
+
+      public String getFieldName() {
+        return _fieldName;
+      }
+    }
+
+    // isset id assignments
+
+    public static final Map<_Fields, org.apache.thrift.meta_data.FieldMetaData> metaDataMap;
+    static {
+      Map<_Fields, org.apache.thrift.meta_data.FieldMetaData> tmpMap = new EnumMap<_Fields, org.apache.thrift.meta_data.FieldMetaData>(_Fields.class);
+      tmpMap.put(_Fields.TINFO, new org.apache.thrift.meta_data.FieldMetaData("tinfo", org.apache.thrift.TFieldRequirementType.DEFAULT, 
+          new org.apache.thrift.meta_data.StructMetaData(org.apache.thrift.protocol.TType.STRUCT, org.apache.accumulo.cloudtrace.thrift.TInfo.class)));
+      tmpMap.put(_Fields.CREDENTIALS, new org.apache.thrift.meta_data.FieldMetaData("credentials", org.apache.thrift.TFieldRequirementType.DEFAULT, 
+          new org.apache.thrift.meta_data.StructMetaData(org.apache.thrift.protocol.TType.STRUCT, org.apache.accumulo.core.security.thrift.AuthInfo.class)));
+      tmpMap.put(_Fields.LOCK, new org.apache.thrift.meta_data.FieldMetaData("lock", org.apache.thrift.TFieldRequirementType.DEFAULT, 
+          new org.apache.thrift.meta_data.FieldValueMetaData(org.apache.thrift.protocol.TType.STRING)));
+      tmpMap.put(_Fields.PATH, new org.apache.thrift.meta_data.FieldMetaData("path", org.apache.thrift.TFieldRequirementType.DEFAULT, 
+          new org.apache.thrift.meta_data.FieldValueMetaData(org.apache.thrift.protocol.TType.STRING)));
+      metaDataMap = Collections.unmodifiableMap(tmpMap);
+      org.apache.thrift.meta_data.FieldMetaData.addStructMetaDataMap(sortLog_args.class, metaDataMap);
+    }
+
+    public sortLog_args() {
+    }
+
+    public sortLog_args(
+      org.apache.accumulo.cloudtrace.thrift.TInfo tinfo,
+      org.apache.accumulo.core.security.thrift.AuthInfo credentials,
+      String lock,
+      String path)
+    {
+      this();
+      this.tinfo = tinfo;
+      this.credentials = credentials;
+      this.lock = lock;
+      this.path = path;
+    }
+
+    /**
+     * Performs a deep copy on <i>other</i>.
+     */
+    public sortLog_args(sortLog_args other) {
+      if (other.isSetTinfo()) {
+        this.tinfo = new org.apache.accumulo.cloudtrace.thrift.TInfo(other.tinfo);
+      }
+      if (other.isSetCredentials()) {
+        this.credentials = new org.apache.accumulo.core.security.thrift.AuthInfo(other.credentials);
+      }
+      if (other.isSetLock()) {
+        this.lock = other.lock;
+      }
+      if (other.isSetPath()) {
+        this.path = other.path;
+      }
+    }
+
+    public sortLog_args deepCopy() {
+      return new sortLog_args(this);
+    }
+
+    @Override
+    public void clear() {
+      this.tinfo = null;
+      this.credentials = null;
+      this.lock = null;
+      this.path = null;
+    }
+
+    public org.apache.accumulo.cloudtrace.thrift.TInfo getTinfo() {
+      return this.tinfo;
+    }
+
+    public sortLog_args setTinfo(org.apache.accumulo.cloudtrace.thrift.TInfo tinfo) {
+      this.tinfo = tinfo;
+      return this;
+    }
+
+    public void unsetTinfo() {
+      this.tinfo = null;
+    }
+
+    /** Returns true if field tinfo is set (has been assigned a value) and false otherwise */
+    public boolean isSetTinfo() {
+      return this.tinfo != null;
+    }
+
+    public void setTinfoIsSet(boolean value) {
+      if (!value) {
+        this.tinfo = null;
+      }
+    }
+
+    public org.apache.accumulo.core.security.thrift.AuthInfo getCredentials() {
+      return this.credentials;
+    }
+
+    public sortLog_args setCredentials(org.apache.accumulo.core.security.thrift.AuthInfo credentials) {
+      this.credentials = credentials;
+      return this;
+    }
+
+    public void unsetCredentials() {
+      this.credentials = null;
+    }
+
+    /** Returns true if field credentials is set (has been assigned a value) and false otherwise */
+    public boolean isSetCredentials() {
+      return this.credentials != null;
+    }
+
+    public void setCredentialsIsSet(boolean value) {
+      if (!value) {
+        this.credentials = null;
+      }
+    }
+
+    public String getLock() {
+      return this.lock;
+    }
+
+    public sortLog_args setLock(String lock) {
+      this.lock = lock;
+      return this;
+    }
+
+    public void unsetLock() {
+      this.lock = null;
+    }
+
+    /** Returns true if field lock is set (has been assigned a value) and false otherwise */
+    public boolean isSetLock() {
+      return this.lock != null;
+    }
+
+    public void setLockIsSet(boolean value) {
+      if (!value) {
+        this.lock = null;
+      }
+    }
+
+    public String getPath() {
+      return this.path;
+    }
+
+    public sortLog_args setPath(String path) {
+      this.path = path;
+      return this;
+    }
+
+    public void unsetPath() {
+      this.path = null;
+    }
+
+    /** Returns true if field path is set (has been assigned a value) and false otherwise */
+    public boolean isSetPath() {
+      return this.path != null;
+    }
+
+    public void setPathIsSet(boolean value) {
+      if (!value) {
+        this.path = null;
+      }
+    }
+
+    public void setFieldValue(_Fields field, Object value) {
+      switch (field) {
+      case TINFO:
+        if (value == null) {
+          unsetTinfo();
+        } else {
+          setTinfo((org.apache.accumulo.cloudtrace.thrift.TInfo)value);
+        }
+        break;
+
+      case CREDENTIALS:
+        if (value == null) {
+          unsetCredentials();
+        } else {
+          setCredentials((org.apache.accumulo.core.security.thrift.AuthInfo)value);
+        }
+        break;
+
+      case LOCK:
+        if (value == null) {
+          unsetLock();
+        } else {
+          setLock((String)value);
+        }
+        break;
+
+      case PATH:
+        if (value == null) {
+          unsetPath();
+        } else {
+          setPath((String)value);
+        }
+        break;
+
+      }
+    }
+
+    public Object getFieldValue(_Fields field) {
+      switch (field) {
+      case TINFO:
+        return getTinfo();
+
+      case CREDENTIALS:
+        return getCredentials();
+
+      case LOCK:
+        return getLock();
+
+      case PATH:
+        return getPath();
+
+      }
+      throw new IllegalStateException();
+    }
+
+    /** Returns true if field corresponding to fieldID is set (has been assigned a value) and false otherwise */
+    public boolean isSet(_Fields field) {
+      if (field == null) {
+        throw new IllegalArgumentException();
+      }
+
+      switch (field) {
+      case TINFO:
+        return isSetTinfo();
+      case CREDENTIALS:
+        return isSetCredentials();
+      case LOCK:
+        return isSetLock();
+      case PATH:
+        return isSetPath();
+      }
+      throw new IllegalStateException();
+    }
+
+    @Override
+    public boolean equals(Object that) {
+      if (that == null)
+        return false;
+      if (that instanceof sortLog_args)
+        return this.equals((sortLog_args)that);
+      return false;
+    }
+
+    public boolean equals(sortLog_args that) {
+      if (that == null)
+        return false;
+
+      boolean this_present_tinfo = true && this.isSetTinfo();
+      boolean that_present_tinfo = true && that.isSetTinfo();
+      if (this_present_tinfo || that_present_tinfo) {
+        if (!(this_present_tinfo && that_present_tinfo))
+          return false;
+        if (!this.tinfo.equals(that.tinfo))
+          return false;
+      }
+
+      boolean this_present_credentials = true && this.isSetCredentials();
+      boolean that_present_credentials = true && that.isSetCredentials();
+      if (this_present_credentials || that_present_credentials) {
+        if (!(this_present_credentials && that_present_credentials))
+          return false;
+        if (!this.credentials.equals(that.credentials))
+          return false;
+      }
+
+      boolean this_present_lock = true && this.isSetLock();
+      boolean that_present_lock = true && that.isSetLock();
+      if (this_present_lock || that_present_lock) {
+        if (!(this_present_lock && that_present_lock))
+          return false;
+        if (!this.lock.equals(that.lock))
+          return false;
+      }
+
+      boolean this_present_path = true && this.isSetPath();
+      boolean that_present_path = true && that.isSetPath();
+      if (this_present_path || that_present_path) {
+        if (!(this_present_path && that_present_path))
+          return false;
+        if (!this.path.equals(that.path))
+          return false;
+      }
+
+      return true;
+    }
+
+    @Override
+    public int hashCode() {
+      return 0;
+    }
+
+    public int compareTo(sortLog_args other) {
+      if (!getClass().equals(other.getClass())) {
+        return getClass().getName().compareTo(other.getClass().getName());
+      }
+
+      int lastComparison = 0;
+      sortLog_args typedOther = (sortLog_args)other;
+
+      lastComparison = Boolean.valueOf(isSetTinfo()).compareTo(typedOther.isSetTinfo());
+      if (lastComparison != 0) {
+        return lastComparison;
+      }
+      if (isSetTinfo()) {
+        lastComparison = org.apache.thrift.TBaseHelper.compareTo(this.tinfo, typedOther.tinfo);
+        if (lastComparison != 0) {
+          return lastComparison;
+        }
+      }
+      lastComparison = Boolean.valueOf(isSetCredentials()).compareTo(typedOther.isSetCredentials());
+      if (lastComparison != 0) {
+        return lastComparison;
+      }
+      if (isSetCredentials()) {
+        lastComparison = org.apache.thrift.TBaseHelper.compareTo(this.credentials, typedOther.credentials);
+        if (lastComparison != 0) {
+          return lastComparison;
+        }
+      }
+      lastComparison = Boolean.valueOf(isSetLock()).compareTo(typedOther.isSetLock());
+      if (lastComparison != 0) {
+        return lastComparison;
+      }
+      if (isSetLock()) {
+        lastComparison = org.apache.thrift.TBaseHelper.compareTo(this.lock, typedOther.lock);
+        if (lastComparison != 0) {
+          return lastComparison;
+        }
+      }
+      lastComparison = Boolean.valueOf(isSetPath()).compareTo(typedOther.isSetPath());
+      if (lastComparison != 0) {
+        return lastComparison;
+      }
+      if (isSetPath()) {
+        lastComparison = org.apache.thrift.TBaseHelper.compareTo(this.path, typedOther.path);
+        if (lastComparison != 0) {
+          return lastComparison;
+        }
+      }
+      return 0;
+    }
+
+    public _Fields fieldForId(int fieldId) {
+      return _Fields.findByThriftId(fieldId);
+    }
+
+    public void read(org.apache.thrift.protocol.TProtocol iprot) throws org.apache.thrift.TException {
+      org.apache.thrift.protocol.TField field;
+      iprot.readStructBegin();
+      while (true)
+      {
+        field = iprot.readFieldBegin();
+        if (field.type == org.apache.thrift.protocol.TType.STOP) { 
+          break;
+        }
+        switch (field.id) {
+          case 1: // TINFO
+            if (field.type == org.apache.thrift.protocol.TType.STRUCT) {
+              this.tinfo = new org.apache.accumulo.cloudtrace.thrift.TInfo();
+              this.tinfo.read(iprot);
+            } else { 
+              org.apache.thrift.protocol.TProtocolUtil.skip(iprot, field.type);
+            }
+            break;
+          case 2: // CREDENTIALS
+            if (field.type == org.apache.thrift.protocol.TType.STRUCT) {
+              this.credentials = new org.apache.accumulo.core.security.thrift.AuthInfo();
+              this.credentials.read(iprot);
+            } else { 
+              org.apache.thrift.protocol.TProtocolUtil.skip(iprot, field.type);
+            }
+            break;
+          case 3: // LOCK
+            if (field.type == org.apache.thrift.protocol.TType.STRING) {
+              this.lock = iprot.readString();
+            } else { 
+              org.apache.thrift.protocol.TProtocolUtil.skip(iprot, field.type);
+            }
+            break;
+          case 4: // PATH
+            if (field.type == org.apache.thrift.protocol.TType.STRING) {
+              this.path = iprot.readString();
+            } else { 
+              org.apache.thrift.protocol.TProtocolUtil.skip(iprot, field.type);
+            }
+            break;
+          default:
+            org.apache.thrift.protocol.TProtocolUtil.skip(iprot, field.type);
+        }
+        iprot.readFieldEnd();
+      }
+      iprot.readStructEnd();
+
+      // check for required fields of primitive type, which can't be checked in the validate method
+      validate();
+    }
+
+    public void write(org.apache.thrift.protocol.TProtocol oprot) throws org.apache.thrift.TException {
+      validate();
+
+      oprot.writeStructBegin(STRUCT_DESC);
+      if (this.tinfo != null) {
+        oprot.writeFieldBegin(TINFO_FIELD_DESC);
+        this.tinfo.write(oprot);
+        oprot.writeFieldEnd();
+      }
+      if (this.credentials != null) {
+        oprot.writeFieldBegin(CREDENTIALS_FIELD_DESC);
+        this.credentials.write(oprot);
+        oprot.writeFieldEnd();
+      }
+      if (this.lock != null) {
+        oprot.writeFieldBegin(LOCK_FIELD_DESC);
+        oprot.writeString(this.lock);
+        oprot.writeFieldEnd();
+      }
+      if (this.path != null) {
+        oprot.writeFieldBegin(PATH_FIELD_DESC);
+        oprot.writeString(this.path);
+        oprot.writeFieldEnd();
+      }
+      oprot.writeFieldStop();
+      oprot.writeStructEnd();
+    }
+
+    @Override
+    public String toString() {
+      StringBuilder sb = new StringBuilder("sortLog_args(");
+      boolean first = true;
+
+      sb.append("tinfo:");
+      if (this.tinfo == null) {
+        sb.append("null");
+      } else {
+        sb.append(this.tinfo);
+      }
+      first = false;
+      if (!first) sb.append(", ");
+      sb.append("credentials:");
+      if (this.credentials == null) {
+        sb.append("null");
+      } else {
+        sb.append(this.credentials);
+      }
+      first = false;
+      if (!first) sb.append(", ");
+      sb.append("lock:");
+      if (this.lock == null) {
+        sb.append("null");
+      } else {
+        sb.append(this.lock);
+      }
+      first = false;
+      if (!first) sb.append(", ");
+      sb.append("path:");
+      if (this.path == null) {
+        sb.append("null");
+      } else {
+        sb.append(this.path);
+      }
+      first = false;
+      sb.append(")");
+      return sb.toString();
+    }
+
+    public void validate() throws org.apache.thrift.TException {
+      // check for required fields
+    }
+
+    private void writeObject(java.io.ObjectOutputStream out) throws java.io.IOException {
+      try {
+        write(new org.apache.thrift.protocol.TCompactProtocol(new org.apache.thrift.transport.TIOStreamTransport(out)));
+      } catch (org.apache.thrift.TException te) {
+        throw new java.io.IOException(te);
+      }
+    }
+
+    private void readObject(java.io.ObjectInputStream in) throws java.io.IOException, ClassNotFoundException {
+      try {
+        read(new org.apache.thrift.protocol.TCompactProtocol(new org.apache.thrift.transport.TIOStreamTransport(in)));
+      } catch (org.apache.thrift.TException te) {
+        throw new java.io.IOException(te);
+      }
+    }
+
+  }
+
+  public static class sortLog_result implements org.apache.thrift.TBase<sortLog_result, sortLog_result._Fields>, java.io.Serializable, Cloneable   {
+    private static final org.apache.thrift.protocol.TStruct STRUCT_DESC = new org.apache.thrift.protocol.TStruct("sortLog_result");
+
+    private static final org.apache.thrift.protocol.TField SUCCESS_FIELD_DESC = new org.apache.thrift.protocol.TField("success", org.apache.thrift.protocol.TType.DOUBLE, (short)0);
+    private static final org.apache.thrift.protocol.TField SEC_FIELD_DESC = new org.apache.thrift.protocol.TField("sec", org.apache.thrift.protocol.TType.STRUCT, (short)1);
+
+    public double success;
+    public org.apache.accumulo.core.security.thrift.ThriftSecurityException sec;
+
+    /** The set of fields this struct contains, along with convenience methods for finding and manipulating them. */
+    public enum _Fields implements org.apache.thrift.TFieldIdEnum {
+      SUCCESS((short)0, "success"),
+      SEC((short)1, "sec");
+
+      private static final Map<String, _Fields> byName = new HashMap<String, _Fields>();
+
+      static {
+        for (_Fields field : EnumSet.allOf(_Fields.class)) {
+          byName.put(field.getFieldName(), field);
+        }
+      }
+
+      /**
+       * Find the _Fields constant that matches fieldId, or null if its not found.
+       */
+      public static _Fields findByThriftId(int fieldId) {
+        switch(fieldId) {
+          case 0: // SUCCESS
+            return SUCCESS;
+          case 1: // SEC
+            return SEC;
+          default:
+            return null;
+        }
+      }
+
+      /**
+       * Find the _Fields constant that matches fieldId, throwing an exception
+       * if it is not found.
+       */
+      public static _Fields findByThriftIdOrThrow(int fieldId) {
+        _Fields fields = findByThriftId(fieldId);
+        if (fields == null) throw new IllegalArgumentException("Field " + fieldId + " doesn't exist!");
+        return fields;
+      }
+
+      /**
+       * Find the _Fields constant that matches name, or null if its not found.
+       */
+      public static _Fields findByName(String name) {
+        return byName.get(name);
+      }
+
+      private final short _thriftId;
+      private final String _fieldName;
+
+      _Fields(short thriftId, String fieldName) {
+        _thriftId = thriftId;
+        _fieldName = fieldName;
+      }
+
+      public short getThriftFieldId() {
+        return _thriftId;
+      }
+
+      public String getFieldName() {
+        return _fieldName;
+      }
+    }
+
+    // isset id assignments
+    private static final int __SUCCESS_ISSET_ID = 0;
+    private BitSet __isset_bit_vector = new BitSet(1);
+
+    public static final Map<_Fields, org.apache.thrift.meta_data.FieldMetaData> metaDataMap;
+    static {
+      Map<_Fields, org.apache.thrift.meta_data.FieldMetaData> tmpMap = new EnumMap<_Fields, org.apache.thrift.meta_data.FieldMetaData>(_Fields.class);
+      tmpMap.put(_Fields.SUCCESS, new org.apache.thrift.meta_data.FieldMetaData("success", org.apache.thrift.TFieldRequirementType.DEFAULT, 
+          new org.apache.thrift.meta_data.FieldValueMetaData(org.apache.thrift.protocol.TType.DOUBLE)));
+      tmpMap.put(_Fields.SEC, new org.apache.thrift.meta_data.FieldMetaData("sec", org.apache.thrift.TFieldRequirementType.DEFAULT, 
+          new org.apache.thrift.meta_data.FieldValueMetaData(org.apache.thrift.protocol.TType.STRUCT)));
+      metaDataMap = Collections.unmodifiableMap(tmpMap);
+      org.apache.thrift.meta_data.FieldMetaData.addStructMetaDataMap(sortLog_result.class, metaDataMap);
+    }
+
+    public sortLog_result() {
+    }
+
+    public sortLog_result(
+      double success,
+      org.apache.accumulo.core.security.thrift.ThriftSecurityException sec)
+    {
+      this();
+      this.success = success;
+      setSuccessIsSet(true);
+      this.sec = sec;
+    }
+
+    /**
+     * Performs a deep copy on <i>other</i>.
+     */
+    public sortLog_result(sortLog_result other) {
+      __isset_bit_vector.clear();
+      __isset_bit_vector.or(other.__isset_bit_vector);
+      this.success = other.success;
+      if (other.isSetSec()) {
+        this.sec = new org.apache.accumulo.core.security.thrift.ThriftSecurityException(other.sec);
+      }
+    }
+
+    public sortLog_result deepCopy() {
+      return new sortLog_result(this);
+    }
+
+    @Override
+    public void clear() {
+      setSuccessIsSet(false);
+      this.success = 0.0;
+      this.sec = null;
+    }
+
+    public double getSuccess() {
+      return this.success;
+    }
+
+    public sortLog_result setSuccess(double success) {
+      this.success = success;
+      setSuccessIsSet(true);
+      return this;
+    }
+
+    public void unsetSuccess() {
+      __isset_bit_vector.clear(__SUCCESS_ISSET_ID);
+    }
+
+    /** Returns true if field success is set (has been assigned a value) and false otherwise */
+    public boolean isSetSuccess() {
+      return __isset_bit_vector.get(__SUCCESS_ISSET_ID);
+    }
+
+    public void setSuccessIsSet(boolean value) {
+      __isset_bit_vector.set(__SUCCESS_ISSET_ID, value);
+    }
+
+    public org.apache.accumulo.core.security.thrift.ThriftSecurityException getSec() {
+      return this.sec;
+    }
+
+    public sortLog_result setSec(org.apache.accumulo.core.security.thrift.ThriftSecurityException sec) {
+      this.sec = sec;
+      return this;
+    }
+
+    public void unsetSec() {
+      this.sec = null;
+    }
+
+    /** Returns true if field sec is set (has been assigned a value) and false otherwise */
+    public boolean isSetSec() {
+      return this.sec != null;
+    }
+
+    public void setSecIsSet(boolean value) {
+      if (!value) {
+        this.sec = null;
+      }
+    }
+
+    public void setFieldValue(_Fields field, Object value) {
+      switch (field) {
+      case SUCCESS:
+        if (value == null) {
+          unsetSuccess();
+        } else {
+          setSuccess((Double)value);
+        }
+        break;
+
+      case SEC:
+        if (value == null) {
+          unsetSec();
+        } else {
+          setSec((org.apache.accumulo.core.security.thrift.ThriftSecurityException)value);
+        }
+        break;
+
+      }
+    }
+
+    public Object getFieldValue(_Fields field) {
+      switch (field) {
+      case SUCCESS:
+        return new Double(getSuccess());
+
+      case SEC:
+        return getSec();
+
+      }
+      throw new IllegalStateException();
+    }
+
+    /** Returns true if field corresponding to fieldID is set (has been assigned a value) and false otherwise */
+    public boolean isSet(_Fields field) {
+      if (field == null) {
+        throw new IllegalArgumentException();
+      }
+
+      switch (field) {
+      case SUCCESS:
+        return isSetSuccess();
+      case SEC:
+        return isSetSec();
+      }
+      throw new IllegalStateException();
+    }
+
+    @Override
+    public boolean equals(Object that) {
+      if (that == null)
+        return false;
+      if (that instanceof sortLog_result)
+        return this.equals((sortLog_result)that);
+      return false;
+    }
+
+    public boolean equals(sortLog_result that) {
+      if (that == null)
+        return false;
+
+      boolean this_present_success = true;
+      boolean that_present_success = true;
+      if (this_present_success || that_present_success) {
+        if (!(this_present_success && that_present_success))
+          return false;
+        if (this.success != that.success)
+          return false;
+      }
+
+      boolean this_present_sec = true && this.isSetSec();
+      boolean that_present_sec = true && that.isSetSec();
+      if (this_present_sec || that_present_sec) {
+        if (!(this_present_sec && that_present_sec))
+          return false;
+        if (!this.sec.equals(that.sec))
+          return false;
+      }
+
+      return true;
+    }
+
+    @Override
+    public int hashCode() {
+      return 0;
+    }
+
+    public int compareTo(sortLog_result other) {
+      if (!getClass().equals(other.getClass())) {
+        return getClass().getName().compareTo(other.getClass().getName());
+      }
+
+      int lastComparison = 0;
+      sortLog_result typedOther = (sortLog_result)other;
+
+      lastComparison = Boolean.valueOf(isSetSuccess()).compareTo(typedOther.isSetSuccess());
+      if (lastComparison != 0) {
+        return lastComparison;
+      }
+      if (isSetSuccess()) {
+        lastComparison = org.apache.thrift.TBaseHelper.compareTo(this.success, typedOther.success);
+        if (lastComparison != 0) {
+          return lastComparison;
+        }
+      }
+      lastComparison = Boolean.valueOf(isSetSec()).compareTo(typedOther.isSetSec());
+      if (lastComparison != 0) {
+        return lastComparison;
+      }
+      if (isSetSec()) {
+        lastComparison = org.apache.thrift.TBaseHelper.compareTo(this.sec, typedOther.sec);
+        if (lastComparison != 0) {
+          return lastComparison;
+        }
+      }
+      return 0;
+    }
+
+    public _Fields fieldForId(int fieldId) {
+      return _Fields.findByThriftId(fieldId);
+    }
+
+    public void read(org.apache.thrift.protocol.TProtocol iprot) throws org.apache.thrift.TException {
+      org.apache.thrift.protocol.TField field;
+      iprot.readStructBegin();
+      while (true)
+      {
+        field = iprot.readFieldBegin();
+        if (field.type == org.apache.thrift.protocol.TType.STOP) { 
+          break;
+        }
+        switch (field.id) {
+          case 0: // SUCCESS
+            if (field.type == org.apache.thrift.protocol.TType.DOUBLE) {
+              this.success = iprot.readDouble();
+              setSuccessIsSet(true);
+            } else { 
+              org.apache.thrift.protocol.TProtocolUtil.skip(iprot, field.type);
+            }
+            break;
+          case 1: // SEC
+            if (field.type == org.apache.thrift.protocol.TType.STRUCT) {
+              this.sec = new org.apache.accumulo.core.security.thrift.ThriftSecurityException();
+              this.sec.read(iprot);
+            } else { 
+              org.apache.thrift.protocol.TProtocolUtil.skip(iprot, field.type);
+            }
+            break;
+          default:
+            org.apache.thrift.protocol.TProtocolUtil.skip(iprot, field.type);
+        }
+        iprot.readFieldEnd();
+      }
+      iprot.readStructEnd();
+
+      // check for required fields of primitive type, which can't be checked in the validate method
+      validate();
+    }
+
+    public void write(org.apache.thrift.protocol.TProtocol oprot) throws org.apache.thrift.TException {
+      oprot.writeStructBegin(STRUCT_DESC);
+
+      if (this.isSetSuccess()) {
+        oprot.writeFieldBegin(SUCCESS_FIELD_DESC);
+        oprot.writeDouble(this.success);
+        oprot.writeFieldEnd();
+      } else if (this.isSetSec()) {
+        oprot.writeFieldBegin(SEC_FIELD_DESC);
+        this.sec.write(oprot);
+        oprot.writeFieldEnd();
+      }
+      oprot.writeFieldStop();
+      oprot.writeStructEnd();
+    }
+
+    @Override
+    public String toString() {
+      StringBuilder sb = new StringBuilder("sortLog_result(");
+      boolean first = true;
+
+      sb.append("success:");
+      sb.append(this.success);
       first = false;
       if (!first) sb.append(", ");
       sb.append("sec:");

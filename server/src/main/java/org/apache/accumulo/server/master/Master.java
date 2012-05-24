@@ -1478,8 +1478,8 @@ public class Master implements LiveTServerSet.Listener, LoggerWatcher, TableObse
         }
 
         @Override
-        public List<String> getCurrentLoggers() {
-          return new ArrayList<String>(Master.this.getLoggers().values());
+        public Set<TServerInstance> getCurrentTServers() {
+          return Master.this.tserverSet.getCurrentServers();
         }
       };
     }
@@ -2224,9 +2224,9 @@ public class Master implements LiveTServerSet.Listener, LoggerWatcher, TableObse
     try {
       IRemoteLogger remote = new RemoteLogger(address, getSystemConfiguration());
       for (String onDisk : remote.getClosedLogs()) {
-        Path path = new Path(ServerConstants.getRecoveryDir(), onDisk + ".failed");
+        Path path = new Path(ServerConstants.getRecoveryDir(), onDisk + "/failed");
         if (fs.exists(path)) {
-          fs.delete(path, true);
+          fs.delete(path.getParent(), true);
         }
       }
     } catch (Exception ex) {

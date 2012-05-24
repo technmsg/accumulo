@@ -27,6 +27,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Random;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.LinkedBlockingQueue;
@@ -39,13 +40,14 @@ import org.apache.accumulo.core.data.Mutation;
 import org.apache.accumulo.core.security.thrift.ThriftSecurityException;
 import org.apache.accumulo.core.tabletserver.thrift.LogCopyInfo;
 import org.apache.accumulo.core.tabletserver.thrift.LoggerClosedException;
-import org.apache.accumulo.core.tabletserver.thrift.MutationLogger;
 import org.apache.accumulo.core.tabletserver.thrift.NoSuchLogIDException;
+import org.apache.accumulo.core.tabletserver.thrift.TabletClientService.Iface;
 import org.apache.accumulo.core.tabletserver.thrift.TabletMutations;
 import org.apache.accumulo.core.util.Daemon;
 import org.apache.accumulo.core.util.ThriftUtil;
 import org.apache.accumulo.server.logger.LogFileKey;
 import org.apache.accumulo.server.logger.LogFileValue;
+import org.apache.accumulo.server.master.state.TServerInstance;
 import org.apache.accumulo.server.security.SecurityConstants;
 import org.apache.accumulo.server.tabletserver.log.RemoteLogger.LogWork;
 import org.apache.accumulo.server.tabletserver.log.RemoteLogger.LoggerOperation;
@@ -67,7 +69,7 @@ public class DfsLogger implements IRemoteLogger {
     
     FileSystem getFileSystem();
     
-    List<String> getCurrentLoggers();
+    Set<TServerInstance> getCurrentTServers();
   }
 
   private LinkedBlockingQueue<LogWork> workQueue = new LinkedBlockingQueue<LogWork>();
@@ -85,64 +87,46 @@ public class DfsLogger implements IRemoteLogger {
     @Override
     public void run() {
       ArrayList<LogWork> work = new ArrayList<LogWork>();
-      ArrayList<TabletMutations> mutations = new ArrayList<TabletMutations>();
       while (true) {
+        work.clear();
+        
         try {
-          
-          work.clear();
-          mutations.clear();
-          
           work.add(workQueue.take());
-          workQueue.drainTo(work);
-          
-          for (LogWork logWork : work)
-            if (logWork != CLOSED_MARKER)
-              mutations.addAll(logWork.mutations);
-          
-          synchronized (DfsLogger.this) {
+        } catch (InterruptedException ex) {
+          continue;
+        }
+        workQueue.drainTo(work);
+        
+        synchronized (closeLock) {
+          if (!closed) {
             try {
-              for (TabletMutations mutation : mutations) {
-                LogFileKey key = new LogFileKey();
-                key.event = MANY_MUTATIONS;
-                key.seq = mutation.seq;
-                key.tid = mutation.tabletID;
-                LogFileValue value = new LogFileValue();
-                Mutation[] m = new Mutation[mutation.mutations.size()];
-                for (int i = 0; i < m.length; i++)
-                  m[i] = new Mutation(mutation.mutations.get(i));
-                value.mutations = m;
-                write(key, value);
-              }
-            } catch (Exception e) {
-              log.error(e, e);
-              for (LogWork logWork : work)
-                if (logWork != CLOSED_MARKER)
-                  logWork.exception = e;
-            }
-          }
-          synchronized (closeLock) {
-            if (!closed) {
               logFile.flush();
               logFile.sync();
+            } catch (IOException ex) {
+              log.warn("Exception syncing " + ex);
+              for (LogWork logWork : work) {
+                logWork.exception = ex;
+              }
+            }
+          } else {
+            for (LogWork logWork : work) {
+              logWork.exception = new LoggerClosedException();
             }
           }
-          
-          boolean sawClosedMarker = false;
-          for (LogWork logWork : work)
-            if (logWork == CLOSED_MARKER)
-              sawClosedMarker = true;
-            else
-              logWork.latch.countDown();
-          
-          if (sawClosedMarker) {
-            synchronized (closeLock) {
-              closeLock.notifyAll();
-            }
-            break;
+        }
+        
+        boolean sawClosedMarker = false;
+        for (LogWork logWork : work)
+          if (logWork == CLOSED_MARKER)
+            sawClosedMarker = true;
+          else
+            logWork.latch.countDown();
+        
+        if (sawClosedMarker) {
+          synchronized (closeLock) {
+            closeLock.notifyAll();
           }
-
-        } catch (Exception e) {
-          log.error(e.getMessage(), e);
+          break;
         }
       }
     }
@@ -185,12 +169,20 @@ public class DfsLogger implements IRemoteLogger {
 
   public synchronized void open() throws IOException {
     String filename = UUID.randomUUID().toString();
+
     logPath = new Path(Constants.getWalDirectory(conf.getConfiguration()), filename);
     try {
-      short replication = (short) conf.getConfiguration().getCount(Property.LOGGER_RECOVERY_FILE_REPLICATION);
+      FileSystem fs = conf.getFileSystem();
+      short replication = (short) conf.getConfiguration().getCount(Property.TSERV_WAL_REPLICATION);
       if (replication == 0)
-        replication = (short) conf.getFileSystem().getDefaultReplication();
-      logFile = conf.getFileSystem().create(logPath, replication);
+        replication = (short) fs.getDefaultReplication();
+      long blockSize = conf.getConfiguration().getMemoryInBytes(Property.TSERV_WAL_BLOCKSIZE);
+      if (blockSize == 0)
+        blockSize = (long) (conf.getConfiguration().getMemoryInBytes(Property.TSERV_WALOG_MAX_SIZE) * 1.1);
+      int checkSum = fs.getConf().getInt("io.bytes.per.checksum", 512);
+      blockSize -= blockSize % checkSum;
+      blockSize = Math.max(blockSize, checkSum);
+      logFile = fs.create(logPath, true, fs.getConf().getInt("io.file.buffer.size", 4096), replication, blockSize);
       LogFileKey key = new LogFileKey();
       key.event = OPEN;
       key.tserverSession = filename;
@@ -261,7 +253,8 @@ public class DfsLogger implements IRemoteLogger {
       try {
         logFile.close();
       } catch (IOException ex) {
-        throw new RuntimeException(ex);
+        log.error(ex);
+        throw new LoggerClosedException();
       }
   }
   
@@ -276,12 +269,13 @@ public class DfsLogger implements IRemoteLogger {
     key.seq = seq;
     key.tid = tid;
     key.tablet = tablet;
-    write(key, EMPTY);
     try {
+      write(key, EMPTY);
       logFile.flush();
       logFile.sync();
     } catch (IOException ex) {
-      throw new RuntimeException(ex);
+      log.error(ex);
+      throw new LoggerClosedException();
     }
   }
   
@@ -290,13 +284,9 @@ public class DfsLogger implements IRemoteLogger {
    * @param empty2
    * @throws IOException
    */
-  private synchronized void write(LogFileKey key, LogFileValue value) {
-    try {
-      key.write(logFile);
-      value.write(logFile);
-    } catch (IOException ex) {
-      throw new RuntimeException(ex);
-    }
+  private synchronized void write(LogFileKey key, LogFileValue value) throws IOException {
+    key.write(logFile);
+    value.write(logFile);
   }
 
   /* (non-Javadoc)
@@ -314,12 +304,32 @@ public class DfsLogger implements IRemoteLogger {
   public LoggerOperation logManyTablets(List<TabletMutations> mutations) throws NoSuchLogIDException, LoggerClosedException, TException {
     LogWork work = new LogWork(mutations, new CountDownLatch(1));
     
+    synchronized (DfsLogger.this) {
+      try {
+        for (TabletMutations mutation : mutations) {
+          LogFileKey key = new LogFileKey();
+          key.event = MANY_MUTATIONS;
+          key.seq = mutation.seq;
+          key.tid = mutation.tabletID;
+          LogFileValue value = new LogFileValue();
+          Mutation[] m = new Mutation[mutation.mutations.size()];
+          for (int i = 0; i < m.length; i++)
+            m[i] = new Mutation(mutation.mutations.get(i));
+          value.mutations = m;
+          write(key, value);
+        }
+      } catch (Exception e) {
+        log.error(e, e);
+        work.exception = e;
+      }
+    }
+
     synchronized (closeLock) {
       // use a different lock for close check so that adding to work queue does not need
       // to wait on walog I/O operations
 
       if (closed)
-        throw new NoSuchLogIDException();
+        throw new LoggerClosedException();
       workQueue.add(work);
     }
 
@@ -335,7 +345,12 @@ public class DfsLogger implements IRemoteLogger {
     key.event = COMPACTION_FINISH;
     key.seq = seq;
     key.tid = tid;
-    write(key, EMPTY);
+    try {
+      write(key, EMPTY);
+    } catch (IOException ex) {
+      log.error(ex);
+      throw new LoggerClosedException();
+    }
   }
   
   /* (non-Javadoc)
@@ -348,24 +363,33 @@ public class DfsLogger implements IRemoteLogger {
     key.seq = seq;
     key.tid = tid;
     key.filename = fqfn;
-    write(key, EMPTY);
+    try {
+      write(key, EMPTY);
+    } catch (IOException ex) {
+      log.error(ex);
+      throw new LoggerClosedException();
+    }
   }
   
   /* (non-Javadoc)
    * @see org.apache.accumulo.server.tabletserver.log.IRemoteLogger#startCopy(java.lang.String, java.lang.String)
    */
   @Override
-  public synchronized LogCopyInfo startCopy(String name, String fullyQualifiedFileName) throws ThriftSecurityException, TException {
-    MutationLogger.Iface client = null;
+  public synchronized LogCopyInfo startCopy(String source, String dest) throws ThriftSecurityException, TException {
+    Iface client = null;
     try {
-      List<String> currentLoggers = conf.getCurrentLoggers();
-      if (currentLoggers.isEmpty())
-        throw new RuntimeException("No loggers for recovery");
+      Set<TServerInstance> current = conf.getCurrentTServers();
+      if (current.isEmpty())
+        throw new RuntimeException("No servers for recovery");
       Random random = new Random();
-      int choice = random.nextInt(currentLoggers.size());
-      String address = currentLoggers.get(choice);
-      client = ThriftUtil.getClient(new MutationLogger.Client.Factory(), address, Property.LOGGER_PORT, Property.TSERV_LOGGER_TIMEOUT, conf.getConfiguration());
-      return client.startCopy(null, SecurityConstants.getSystemCredentials(), name, fullyQualifiedFileName, true);
+      int choice = random.nextInt(current.size());
+      TServerInstance instance = current.toArray(new TServerInstance[] {})[choice];
+      client = ThriftUtil.getTServerClient(instance.hostPort(), conf.getConfiguration());
+      log.info("Asking " + instance.hostPort() + " to copy/sort from " + source + " to " + dest);
+      LogCopyInfo result = new LogCopyInfo();
+      client.sortLog(null, SecurityConstants.getSystemCredentials(), source, dest);
+      result.fileSize = conf.getConfiguration().getMemoryInBytes(Property.TSERV_WALOG_MAX_SIZE);
+      return result;
     } finally {
       if (client != null)
         ThriftUtil.returnClient(client);

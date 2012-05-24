@@ -24,6 +24,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 
+import org.apache.accumulo.core.Constants;
 import org.apache.accumulo.core.conf.AccumuloConfiguration;
 import org.apache.accumulo.core.conf.Property;
 import org.apache.accumulo.core.data.KeyExtent;
@@ -72,25 +73,20 @@ public class CoordinateRecoveryTask implements Runnable {
     }
     
     String recoveryFileName() {
-      return fullName(file + ".recovered");
+      return fullName(file);
     }
     
     String successFileName() {
-      return fullName(file + ".recovered/finished");
+      return fullName(file + "/finished");
     }
     
     String failedFileName() {
-      return fullName(file + ".failed");
+      return fullName(file + "/failed");
     }
     
     public String unsortedFileName() {
       return fullName(file);
     }
-    
-    public String copyTempFileName() {
-      return fullName(file + ".copy");
-    }
-    
   }
   
   interface JobComplete {
@@ -129,8 +125,9 @@ public class CoordinateRecoveryTask implements Runnable {
         else
           logger = new DfsLogger(conf);
         String base = logFile.unsortedFileName();
-        log.debug("Starting to copy " + logFile.file + " from " + logFile.server);
-        LogCopyInfo lci = logger.startCopy(logFile.file, base);
+        String source = Constants.getWalDirectory(config) + "/" + logFile.file;
+        String dest = Constants.getRecoveryDir(config) + "/" + logFile.file;
+        LogCopyInfo lci = logger.startCopy(source, dest);
         copySize = lci.fileSize;
         loggerZNode = lci.loggerZNode;
       } catch (Throwable t) {

@@ -388,7 +388,7 @@ class LogWriter implements MutationLogger.Iface {
       }
       
       private void copySortLog(LogEntryReader reader, String fullyQualifiedFileName) throws IOException {
-        final long SORT_BUFFER_SIZE = acuConf.getMemoryInBytes(Property.LOGGER_SORT_BUFFER_SIZE);
+        final long SORT_BUFFER_SIZE = acuConf.getMemoryInBytes(Property.TSERV_SORT_BUFFER_SIZE);
         
         Path dest = new Path(fullyQualifiedFileName + ".recovered");
         log.debug("Sorting log file to DSF " + dest);

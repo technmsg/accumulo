@@ -148,7 +148,13 @@ public enum Property {
   TSERV_HOLD_TIME_SUICIDE("tserver.hold.time.max", "5m", PropertyType.TIMEDURATION,
       "The maximum time for a tablet server to be in the \"memory full\" state.  If the tablet server cannot write out memory"
           + " in this much time, it will assume there is some failure local to its node, and quit.  A value of zero is equivalent to forever."),
+  TSERV_WAL_BLOCKSIZE("tserver.wal.blocksize", "0", PropertyType.MEMORY,
+      "The size of the HDFS blocks used to write to the Write-Ahead log.  If zero, it will be 110% of tserver.walog.max.size (that is, try to use just one block)"),
+  TSERV_WAL_REPLICATION("tserver.wal.replication", "0", PropertyType.COUNT,
+      "The replication to use when writing the Write-Ahead log to HDFS. If zero, it will use the HDFS default replication setting."),
   TSERV_USE_DFS_WAL("tserver.use.dfs.wal", "false", PropertyType.BOOLEAN, "Use the distributed file system for write-ahead loggging."),
+  TSERV_RECOVERY_MAX_CONCURRENT("tserver.recovery.concurrent.max", "2", PropertyType.COUNT, "The maximum number of threads to use to sort logs during recovery"),
+  TSERV_SORT_BUFFER_SIZE("tserver.sort.buffer.size", "200M", PropertyType.MEMORY, "The amount of memory to use when sorting logs during recovery."),
   
   // properties that are specific to logger server behavior
   LOGGER_PREFIX("logger.", null, PropertyType.PREFIX, "Properties in this category affect the behavior of the write-ahead logger servers"),
@@ -166,8 +172,6 @@ public enum Property {
       "true",
       PropertyType.BOOLEAN,
       "When enabled the logger will monitor file systems and kill itself when one switches from rw to ro.  This is usually and indication that Linux has detected a bad disk."),
-  LOGGER_SORT_BUFFER_SIZE("logger.sort.buffer.size", "200M", PropertyType.MEMORY,
-      "The amount of memory to use when sorting logs during recovery. Only used when *not* sorting logs with map/reduce."),
   LOGGER_RECOVERY_FILE_REPLICATION("logger.recovery.file.replication", "1", PropertyType.COUNT,
       "When a logger puts a WALOG into HDFS, it will use this as the replication factor."),
   LOGGER_MINTHREADS("logger.server.threads.minimum", "2", PropertyType.COUNT, "The miniumum number of threads to use to handle incoming requests."),

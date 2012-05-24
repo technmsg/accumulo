@@ -18,6 +18,7 @@ package org.apache.accumulo.server.tabletserver;
 
 import static org.apache.accumulo.server.problems.ProblemType.TABLET_LOAD;
 
+import java.io.EOFException;
 import java.io.File;
 import java.io.IOException;
 import java.lang.management.GarbageCollectorMXBean;
@@ -45,6 +46,7 @@ import java.util.SortedSet;
 import java.util.TimerTask;
 import java.util.TreeMap;
 import java.util.TreeSet;
+import java.util.UUID;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingDeque;
 import java.util.concurrent.CancellationException;
@@ -136,6 +138,8 @@ import org.apache.accumulo.server.client.ClientServiceHandler;
 import org.apache.accumulo.server.client.HdfsZooInstance;
 import org.apache.accumulo.server.conf.ServerConfiguration;
 import org.apache.accumulo.server.conf.TableConfiguration;
+import org.apache.accumulo.server.logger.LogFileKey;
+import org.apache.accumulo.server.logger.LogFileValue;
 import org.apache.accumulo.server.master.state.Assignment;
 import org.apache.accumulo.server.master.state.DistributedStoreException;
 import org.apache.accumulo.server.master.state.TServerInstance;
@@ -161,6 +165,7 @@ import org.apache.accumulo.server.tabletserver.TabletServerResourceManager.Table
 import org.apache.accumulo.server.tabletserver.TabletStatsKeeper.Operation;
 import org.apache.accumulo.server.tabletserver.log.DfsLogger;
 import org.apache.accumulo.server.tabletserver.log.IRemoteLogger;
+import org.apache.accumulo.server.tabletserver.log.LogSorter;
 import org.apache.accumulo.server.tabletserver.log.LoggerStrategy;
 import org.apache.accumulo.server.tabletserver.log.MutationReceiver;
 import org.apache.accumulo.server.tabletserver.log.RoundRobinLoggerStrategy;
@@ -191,8 +196,12 @@ import org.apache.accumulo.server.zookeeper.ZooLock.LockWatcher;
 import org.apache.accumulo.server.zookeeper.ZooReaderWriter;
 import org.apache.accumulo.start.Platform;
 import org.apache.accumulo.start.classloader.AccumuloClassLoader;
+import org.apache.hadoop.fs.FSDataOutputStream;
+import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.io.SequenceFile;
+import org.apache.hadoop.io.SequenceFile.Reader;
 import org.apache.hadoop.io.Text;
 import org.apache.log4j.Logger;
 import org.apache.thrift.TException;
@@ -222,12 +231,14 @@ public class TabletServer extends AbstractMetricsImpl implements org.apache.accu
   protected TabletServerMinCMetrics mincMetrics = new TabletServerMinCMetrics();
   
   private ServerConfiguration serverConfig;
+  private final LogSorter logSorter;
   
   public TabletServer(ServerConfiguration conf, FileSystem fs) {
     super();
     this.serverConfig = conf;
     this.instance = conf.getInstance();
     this.fs = TraceFileSystem.wrap(fs);
+    this.logSorter = new LogSorter(fs, conf.getConfiguration());
     SimpleTimer.getInstance().schedule(new TimerTask() {
       @Override
       public void run() {
@@ -2042,6 +2053,27 @@ public class TabletServer extends AbstractMetricsImpl implements org.apache.accu
       
     }
     
+    /*
+     * (non-Javadoc)
+     * 
+     * @see org.apache.accumulo.core.tabletserver.thrift.TabletClientService.Iface#sortLog(org.apache.accumulo.cloudtrace.thrift.TInfo,
+     * org.apache.accumulo.core.security.thrift.AuthInfo, java.lang.String)
+     */
+    @Override
+    public double sortLog(TInfo tinfo, AuthInfo credentials, String source, String dest) throws ThriftSecurityException, TException {
+      try {
+        if (!authenticator.hasSystemPermission(credentials, credentials.user, SystemPermission.SYSTEM))
+          throw new ThriftSecurityException(credentials.user, SecurityErrorCode.PERMISSION_DENIED);
+      } catch (Exception e) {
+        throw new RuntimeException(e);
+      }
+      try {
+        return logSorter.sort(source, dest);
+      } catch (IOException ex) {
+        throw new RuntimeException(ex);
+      }
+    }
+    
   }
   
   private class SplitRunner implements Runnable {
@@ -3105,6 +3137,7 @@ public class TabletServer extends AbstractMetricsImpl implements org.apache.accu
       Instance instance = HdfsZooInstance.getInstance();
       ServerConfiguration conf = new ServerConfiguration(instance);
       Accumulo.init(fs, conf, "tserver");
+      recoverLocalWriteAheadLogs(fs, conf);
       TabletServer server = new TabletServer(conf, fs);
       server.config(hostname);
       Accumulo.enableTracing(hostname, "tserver");
@@ -3113,7 +3146,45 @@ public class TabletServer extends AbstractMetricsImpl implements org.apache.accu
       log.error("Uncaught exception in TabletServer.main, exiting", ex);
     }
   }
-  
+
+  /**
+   * Copy local walogs into HDFS on an upgrade
+   * 
+   */
+  public static void recoverLocalWriteAheadLogs(FileSystem fs, ServerConfiguration serverConf) throws IOException {
+    FileSystem localfs = FileSystem.getLocal(fs.getConf()).getRawFileSystem();
+    AccumuloConfiguration conf = serverConf.getConfiguration();
+    String localWalDirectory = conf.get(Property.LOGGER_DIR);
+    for (FileStatus file : localfs.listStatus(new Path(localWalDirectory))) {
+      String name = file.getPath().getName();
+      try {
+        UUID.fromString(name);
+      } catch (IllegalArgumentException ex) {
+        log.info("Ignoring non-log file " + name + " in " + localWalDirectory);
+        continue;
+      }
+      LogFileKey key = new LogFileKey();
+      LogFileValue value = new LogFileValue();
+      log.info("Openning local log " + file.getPath());
+      Reader reader = new SequenceFile.Reader(localfs, file.getPath(), localfs.getConf());
+      Path tmp = new Path(Constants.getWalDirectory(conf) + "/" + name + ".copy");
+      FSDataOutputStream writer = fs.create(tmp);
+      while (reader.next(key, value)) {
+        try {
+          key.write(writer);
+          value.write(writer);
+        } catch (EOFException ex) {
+          break;
+        }
+      }
+      writer.close();
+      reader.close();
+      fs.rename(tmp, new Path(tmp.getParent(), name));
+      log.info("Copied local log " + name);
+      localfs.delete(new Path(localWalDirectory, name), true);
+    }
+  }
+
   public void minorCompactionFinished(CommitSession tablet, String newDatafile, int walogSeq) throws IOException {
     totalMinorCompactions++;
     logger.minorCompactionFinished(tablet, newDatafile, walogSeq);
@@ -3136,7 +3207,7 @@ public class TabletServer extends AbstractMetricsImpl implements org.apache.accu
       String recovery = null;
       for (String log : entry.logSet) {
         String[] parts = log.split("/"); // "host:port/filename"
-        log = ServerConstants.getRecoveryDir() + "/" + parts[1] + ".recovered";
+        log = ServerConstants.getRecoveryDir() + "/" + parts[1];
         Path finished = new Path(log + "/finished");
         TabletServer.log.info("Looking for " + finished);
         if (fs.exists(finished)) {
@@ -3342,13 +3413,8 @@ public class TabletServer extends AbstractMetricsImpl implements org.apache.accu
       }
       
       @Override
-      public List<String> getCurrentLoggers() {
-        try {
-          return new ArrayList<String>(getLoggers());
-        } catch (Exception ex) {
-          log.warn(ex, ex);
-          return Collections.emptyList();
-        }
+      public Set<TServerInstance> getCurrentTServers() {
+        return null;
       }
       
       @Override

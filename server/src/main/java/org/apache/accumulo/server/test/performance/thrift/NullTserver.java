@@ -188,6 +188,18 @@ public class NullTserver {
     public void flush(TInfo tinfo, AuthInfo credentials, String lock, String tableId, ByteBuffer startRow, ByteBuffer endRow) throws TException {
       
     }
+    
+    /*
+     * (non-Javadoc)
+     * 
+     * @see org.apache.accumulo.core.tabletserver.thrift.TabletClientService.Iface#sortLog(org.apache.accumulo.cloudtrace.thrift.TInfo,
+     * org.apache.accumulo.core.security.thrift.AuthInfo, java.lang.String)
+     */
+    @Override
+    public double sortLog(TInfo tinfo, AuthInfo credentials, String lock, String path) throws ThriftSecurityException, TException {
+      // TODO Auto-generated method stub
+      return 0;
+    }
   }
   
   public static void main(String[] args) throws Exception {

@@ -255,7 +255,7 @@ public class LogService implements MutationLogger.Iface, Watcher {
     
     // look for .recovered that are not finished
     for (String walog : walogs) {
-      Path path = new Path(ServerConstants.getRecoveryDir() + "/" + walog + ".recovered");
+      Path path = new Path(ServerConstants.getRecoveryDir() + "/" + walog);
       if (fs.exists(path) && !fs.exists(new Path(path, "finished"))) {
         LOG.debug("Incomplete copy/sort in dfs, deleting " + path);
         fs.delete(path, true);
