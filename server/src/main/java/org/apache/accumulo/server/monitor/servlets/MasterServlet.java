@@ -34,7 +34,6 @@ import org.apache.accumulo.core.master.thrift.MasterMonitorInfo;
 import org.apache.accumulo.core.master.thrift.MasterState;
 import org.apache.accumulo.core.master.thrift.RecoveryStatus;
 import org.apache.accumulo.core.master.thrift.TabletServerStatus;
-import org.apache.accumulo.core.util.AddressUtil;
 import org.apache.accumulo.core.util.StringUtil;
 import org.apache.accumulo.server.client.HdfsZooInstance;
 import org.apache.accumulo.server.monitor.DedupedLogEvent;
@@ -43,9 +42,9 @@ import org.apache.accumulo.server.monitor.Monitor;
 import org.apache.accumulo.server.monitor.util.Table;
 import org.apache.accumulo.server.monitor.util.TableRow;
 import org.apache.accumulo.server.monitor.util.celltypes.DurationType;
-import org.apache.accumulo.server.monitor.util.celltypes.LoggerLinkType;
 import org.apache.accumulo.server.monitor.util.celltypes.NumberType;
 import org.apache.accumulo.server.monitor.util.celltypes.ProgressChartType;
+import org.apache.accumulo.server.util.AddressUtil;
 import org.apache.log4j.Level;
 
 public class MasterServlet extends BasicServlet {
@@ -57,7 +56,7 @@ public class MasterServlet extends BasicServlet {
   @Override
   protected String getTitle(HttpServletRequest req) {
     List<String> masters = Monitor.getInstance().getMasterLocations();
-    return "Master Server" + (masters.size() == 0 ? "" : ":" + AddressUtil.parseAddress(masters.get(0), 0).getHostName());
+    return "Master Server" + (masters.size() == 0 ? "" : ":" + AddressUtil.parseAddress(masters.get(0), Property.MASTER_CLIENTPORT).getHostName());
   }
   
   @Override
@@ -151,7 +150,7 @@ public class MasterServlet extends BasicServlet {
       masterStatus.addSortableColumn("OS&nbsp;Load", new NumberType<Double>(0., guessHighLoad * 1., 0., guessHighLoad * 3.),
           "The one-minute load average on the computer that runs the monitor web server.");
       TableRow row = masterStatus.prepareRow();
-      row.add(masters.size() == 0 ? "<div class='error'>Down</div>" : AddressUtil.parseAddress(masters.get(0), 0).getHostName());
+      row.add(masters.size() == 0 ? "<div class='error'>Down</div>" : AddressUtil.parseAddress(masters.get(0), Property.MASTER_CLIENTPORT).getHostName());
       row.add(Monitor.getMmi().tServerInfo.size());
       row.add(slaves.size());
       row.add("<a href='/gc'>" + gcStatus + "</a>");
@@ -178,14 +177,14 @@ public class MasterServlet extends BasicServlet {
       if (jobs != null && jobs.size() > 0) {
         Table recoveryTable = new Table("logRecovery", "Log&nbsp;Recovery");
         recoveryTable.setSubCaption("Some tablets were unloaded in an unsafe manner. Write-ahead logs are being recovered.");
-        recoveryTable.addSortableColumn("Server", new LoggerLinkType(), null);
+        recoveryTable.addSortableColumn("Server");
         recoveryTable.addSortableColumn("Log");
         recoveryTable.addSortableColumn("Time", new DurationType(), null);
         recoveryTable.addSortableColumn("Copy/Sort", new ProgressChartType(), null);
         
         for (RecoveryStatus recovery : jobs) {
           TableRow row = recoveryTable.prepareRow();
-          row.add(recovery);
+          row.add(AddressUtil.parseAddress(recovery.host, Property.TSERV_CLIENTPORT).getHostName());
           row.add(recovery.name);
           row.add((long) recovery.runtime);
           row.add(recovery.copyProgress);

@@ -968,16 +968,16 @@ import org.slf4j.LoggerFactory;
         case 1: // TABLE_MAP
           if (field.type == org.apache.thrift.protocol.TType.MAP) {
             {
-              org.apache.thrift.protocol.TMap _map9 = iprot.readMapBegin();
-              this.tableMap = new HashMap<String,TableInfo>(2*_map9.size);
-              for (int _i10 = 0; _i10 < _map9.size; ++_i10)
+              org.apache.thrift.protocol.TMap _map5 = iprot.readMapBegin();
+              this.tableMap = new HashMap<String,TableInfo>(2*_map5.size);
+              for (int _i6 = 0; _i6 < _map5.size; ++_i6)
               {
-                String _key11;
-                TableInfo _val12;
-                _key11 = iprot.readString();
-                _val12 = new TableInfo();
-                _val12.read(iprot);
-                this.tableMap.put(_key11, _val12);
+                String _key7;
+                TableInfo _val8;
+                _key7 = iprot.readString();
+                _val8 = new TableInfo();
+                _val8.read(iprot);
+                this.tableMap.put(_key7, _val8);
               }
               iprot.readMapEnd();
             }
@@ -988,14 +988,14 @@ import org.slf4j.LoggerFactory;
         case 2: // T_SERVER_INFO
           if (field.type == org.apache.thrift.protocol.TType.LIST) {
             {
-              org.apache.thrift.protocol.TList _list13 = iprot.readListBegin();
-              this.tServerInfo = new ArrayList<TabletServerStatus>(_list13.size);
-              for (int _i14 = 0; _i14 < _list13.size; ++_i14)
+              org.apache.thrift.protocol.TList _list9 = iprot.readListBegin();
+              this.tServerInfo = new ArrayList<TabletServerStatus>(_list9.size);
+              for (int _i10 = 0; _i10 < _list9.size; ++_i10)
               {
-                TabletServerStatus _elem15;
-                _elem15 = new TabletServerStatus();
-                _elem15.read(iprot);
-                this.tServerInfo.add(_elem15);
+                TabletServerStatus _elem11;
+                _elem11 = new TabletServerStatus();
+                _elem11.read(iprot);
+                this.tServerInfo.add(_elem11);
               }
               iprot.readListEnd();
             }
@@ -1006,15 +1006,15 @@ import org.slf4j.LoggerFactory;
         case 3: // BAD_TSERVERS
           if (field.type == org.apache.thrift.protocol.TType.MAP) {
             {
-              org.apache.thrift.protocol.TMap _map16 = iprot.readMapBegin();
-              this.badTServers = new HashMap<String,Byte>(2*_map16.size);
-              for (int _i17 = 0; _i17 < _map16.size; ++_i17)
+              org.apache.thrift.protocol.TMap _map12 = iprot.readMapBegin();
+              this.badTServers = new HashMap<String,Byte>(2*_map12.size);
+              for (int _i13 = 0; _i13 < _map12.size; ++_i13)
               {
-                String _key18;
-                byte _val19;
-                _key18 = iprot.readString();
-                _val19 = iprot.readByte();
-                this.badTServers.put(_key18, _val19);
+                String _key14;
+                byte _val15;
+                _key14 = iprot.readString();
+                _val15 = iprot.readByte();
+                this.badTServers.put(_key14, _val15);
               }
               iprot.readMapEnd();
             }
@@ -1025,14 +1025,14 @@ import org.slf4j.LoggerFactory;
         case 4: // RECOVERY
           if (field.type == org.apache.thrift.protocol.TType.LIST) {
             {
-              org.apache.thrift.protocol.TList _list20 = iprot.readListBegin();
-              this.recovery = new ArrayList<RecoveryStatus>(_list20.size);
-              for (int _i21 = 0; _i21 < _list20.size; ++_i21)
+              org.apache.thrift.protocol.TList _list16 = iprot.readListBegin();
+              this.recovery = new ArrayList<RecoveryStatus>(_list16.size);
+              for (int _i17 = 0; _i17 < _list16.size; ++_i17)
               {
-                RecoveryStatus _elem22;
-                _elem22 = new RecoveryStatus();
-                _elem22.read(iprot);
-                this.recovery.add(_elem22);
+                RecoveryStatus _elem18;
+                _elem18 = new RecoveryStatus();
+                _elem18.read(iprot);
+                this.recovery.add(_elem18);
               }
               iprot.readListEnd();
             }
@@ -1065,13 +1065,13 @@ import org.slf4j.LoggerFactory;
         case 9: // SERVERS_SHUTTING_DOWN
           if (field.type == org.apache.thrift.protocol.TType.SET) {
             {
-              org.apache.thrift.protocol.TSet _set23 = iprot.readSetBegin();
-              this.serversShuttingDown = new HashSet<String>(2*_set23.size);
-              for (int _i24 = 0; _i24 < _set23.size; ++_i24)
+              org.apache.thrift.protocol.TSet _set19 = iprot.readSetBegin();
+              this.serversShuttingDown = new HashSet<String>(2*_set19.size);
+              for (int _i20 = 0; _i20 < _set19.size; ++_i20)
               {
-                String _elem25;
-                _elem25 = iprot.readString();
-                this.serversShuttingDown.add(_elem25);
+                String _elem21;
+                _elem21 = iprot.readString();
+                this.serversShuttingDown.add(_elem21);
               }
               iprot.readSetEnd();
             }
@@ -1082,14 +1082,14 @@ import org.slf4j.LoggerFactory;
         case 10: // DEAD_TABLET_SERVERS
           if (field.type == org.apache.thrift.protocol.TType.LIST) {
             {
-              org.apache.thrift.protocol.TList _list26 = iprot.readListBegin();
-              this.deadTabletServers = new ArrayList<DeadServer>(_list26.size);
-              for (int _i27 = 0; _i27 < _list26.size; ++_i27)
+              org.apache.thrift.protocol.TList _list22 = iprot.readListBegin();
+              this.deadTabletServers = new ArrayList<DeadServer>(_list22.size);
+              for (int _i23 = 0; _i23 < _list22.size; ++_i23)
               {
-                DeadServer _elem28;
-                _elem28 = new DeadServer();
-                _elem28.read(iprot);
-                this.deadTabletServers.add(_elem28);
+                DeadServer _elem24;
+                _elem24 = new DeadServer();
+                _elem24.read(iprot);
+                this.deadTabletServers.add(_elem24);
               }
               iprot.readListEnd();
             }
@@ -1116,10 +1116,10 @@ import org.slf4j.LoggerFactory;
       oprot.writeFieldBegin(TABLE_MAP_FIELD_DESC);
       {
         oprot.writeMapBegin(new org.apache.thrift.protocol.TMap(org.apache.thrift.protocol.TType.STRING, org.apache.thrift.protocol.TType.STRUCT, this.tableMap.size()));
-        for (Map.Entry<String, TableInfo> _iter29 : this.tableMap.entrySet())
+        for (Map.Entry<String, TableInfo> _iter25 : this.tableMap.entrySet())
         {
-          oprot.writeString(_iter29.getKey());
-          _iter29.getValue().write(oprot);
+          oprot.writeString(_iter25.getKey());
+          _iter25.getValue().write(oprot);
         }
         oprot.writeMapEnd();
       }
@@ -1129,9 +1129,9 @@ import org.slf4j.LoggerFactory;
       oprot.writeFieldBegin(T_SERVER_INFO_FIELD_DESC);
       {
         oprot.writeListBegin(new org.apache.thrift.protocol.TList(org.apache.thrift.protocol.TType.STRUCT, this.tServerInfo.size()));
-        for (TabletServerStatus _iter30 : this.tServerInfo)
+        for (TabletServerStatus _iter26 : this.tServerInfo)
         {
-          _iter30.write(oprot);
+          _iter26.write(oprot);
         }
         oprot.writeListEnd();
       }
@@ -1141,10 +1141,10 @@ import org.slf4j.LoggerFactory;
       oprot.writeFieldBegin(BAD_TSERVERS_FIELD_DESC);
       {
         oprot.writeMapBegin(new org.apache.thrift.protocol.TMap(org.apache.thrift.protocol.TType.STRING, org.apache.thrift.protocol.TType.BYTE, this.badTServers.size()));
-        for (Map.Entry<String, Byte> _iter31 : this.badTServers.entrySet())
+        for (Map.Entry<String, Byte> _iter27 : this.badTServers.entrySet())
         {
-          oprot.writeString(_iter31.getKey());
-          oprot.writeByte(_iter31.getValue());
+          oprot.writeString(_iter27.getKey());
+          oprot.writeByte(_iter27.getValue());
         }
         oprot.writeMapEnd();
       }
@@ -1154,9 +1154,9 @@ import org.slf4j.LoggerFactory;
       oprot.writeFieldBegin(RECOVERY_FIELD_DESC);
       {
         oprot.writeListBegin(new org.apache.thrift.protocol.TList(org.apache.thrift.protocol.TType.STRUCT, this.recovery.size()));
-        for (RecoveryStatus _iter32 : this.recovery)
+        for (RecoveryStatus _iter28 : this.recovery)
         {
-          _iter32.write(oprot);
+          _iter28.write(oprot);
         }
         oprot.writeListEnd();
       }
@@ -1179,9 +1179,9 @@ import org.slf4j.LoggerFactory;
       oprot.writeFieldBegin(SERVERS_SHUTTING_DOWN_FIELD_DESC);
       {
         oprot.writeSetBegin(new org.apache.thrift.protocol.TSet(org.apache.thrift.protocol.TType.STRING, this.serversShuttingDown.size()));
-        for (String _iter33 : this.serversShuttingDown)
+        for (String _iter29 : this.serversShuttingDown)
         {
-          oprot.writeString(_iter33);
+          oprot.writeString(_iter29);
         }
         oprot.writeSetEnd();
       }
@@ -1191,9 +1191,9 @@ import org.slf4j.LoggerFactory;
       oprot.writeFieldBegin(DEAD_TABLET_SERVERS_FIELD_DESC);
       {
         oprot.writeListBegin(new org.apache.thrift.protocol.TList(org.apache.thrift.protocol.TType.STRUCT, this.deadTabletServers.size()));
-        for (DeadServer _iter34 : this.deadTabletServers)
+        for (DeadServer _iter30 : this.deadTabletServers)
         {
-          _iter34.write(oprot);
+          _iter30.write(oprot);
         }
         oprot.writeListEnd();
       }

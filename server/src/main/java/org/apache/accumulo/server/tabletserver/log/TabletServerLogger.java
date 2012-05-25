@@ -209,7 +209,7 @@ public class TabletServerLogger {
         try {
           logger.close();
         } catch (Throwable ex) {
-          log.error("Unable to cleanly close logger " + logger.getLogger() + ": " + ex);
+          log.error("Unable to cleanly close log " + logger.getFileName() + ": " + ex);
         }
       }
       loggers.clear();

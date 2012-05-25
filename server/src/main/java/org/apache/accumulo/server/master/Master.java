@@ -174,7 +174,7 @@ import org.apache.zookeeper.data.Stat;
 
 
 /**
- * The Master is responsible for assigning and balancing tablets and loggers to tablet servers.
+ * The Master is responsible for assigning and balancing tablets to tablet servers.
  * 
  * The master will also coordinate log recoveries and reports general status.
  */

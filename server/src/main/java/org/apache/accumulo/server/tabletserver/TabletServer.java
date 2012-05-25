@@ -23,7 +23,6 @@ import java.io.File;
 import java.io.IOException;
 import java.lang.management.GarbageCollectorMXBean;
 import java.lang.management.ManagementFactory;
-import java.lang.reflect.Constructor;
 import java.net.InetSocketAddress;
 import java.net.Socket;
 import java.net.UnknownHostException;
@@ -99,7 +98,6 @@ import org.apache.accumulo.core.data.thrift.TRange;
 import org.apache.accumulo.core.data.thrift.UpdateErrors;
 import org.apache.accumulo.core.file.FileUtil;
 import org.apache.accumulo.core.iterators.IterationInterruptedException;
-import org.apache.accumulo.core.master.MasterNotRunningException;
 import org.apache.accumulo.core.master.thrift.Compacting;
 import org.apache.accumulo.core.master.thrift.MasterClientService;
 import org.apache.accumulo.core.master.thrift.TableInfo;
@@ -166,9 +164,7 @@ import org.apache.accumulo.server.tabletserver.TabletStatsKeeper.Operation;
 import org.apache.accumulo.server.tabletserver.log.DfsLogger;
 import org.apache.accumulo.server.tabletserver.log.IRemoteLogger;
 import org.apache.accumulo.server.tabletserver.log.LogSorter;
-import org.apache.accumulo.server.tabletserver.log.LoggerStrategy;
 import org.apache.accumulo.server.tabletserver.log.MutationReceiver;
-import org.apache.accumulo.server.tabletserver.log.RoundRobinLoggerStrategy;
 import org.apache.accumulo.server.tabletserver.log.TabletServerLogger;
 import org.apache.accumulo.server.tabletserver.mastermessage.MasterMessage;
 import org.apache.accumulo.server.tabletserver.mastermessage.SplitReportMessage;
@@ -195,7 +191,6 @@ import org.apache.accumulo.server.zookeeper.ZooLock.LockLossReason;
 import org.apache.accumulo.server.zookeeper.ZooLock.LockWatcher;
 import org.apache.accumulo.server.zookeeper.ZooReaderWriter;
 import org.apache.accumulo.start.Platform;
-import org.apache.accumulo.start.classloader.AccumuloClassLoader;
 import org.apache.hadoop.fs.FSDataOutputStream;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
@@ -221,12 +216,10 @@ public class TabletServer extends AbstractMetricsImpl implements org.apache.accu
   private static HashMap<String,Long> prevGcTime = new HashMap<String,Long>();
   private static long lastMemorySize = 0;
   private static long gcTimeIncreasedCount;
-  private static final Class<? extends LoggerStrategy> DEFAULT_LOGGER_STRATEGY = RoundRobinLoggerStrategy.class;
   
   private static final long MAX_TIME_TO_WAIT_FOR_SCAN_RESULT_MILLIS = 1000;
   
   private TabletServerLogger logger;
-  private LoggerStrategy loggerStrategy;
   
   protected TabletServerMinCMetrics mincMetrics = new TabletServerMinCMetrics();
   
@@ -1984,12 +1977,6 @@ public class TabletServer extends AbstractMetricsImpl implements org.apache.accu
       return statsKeeper.getTabletStats();
     }
     
-    @Override
-    public void useLoggers(TInfo tinfo, AuthInfo credentials, Set<String> loggers) throws TException {
-      loggerStrategy.preferLoggers(loggers);
-    }
-    
-    @Override
     public List<ActiveScan> getActiveScans(TInfo tinfo, AuthInfo credentials) throws ThriftSecurityException, TException {
       
       try {
@@ -2081,8 +2068,10 @@ public class TabletServer extends AbstractMetricsImpl implements org.apache.accu
      * org.apache.accumulo.core.security.thrift.AuthInfo, java.util.List)
      */
     @Override
-    public void removeLogs(TInfo tinfo, AuthInfo credentials, List<String> filenames) throws ThriftSecurityException, TException {
-      Path logDir = new Path(Constants.getWalDirectory(acuConf), getClientAddressString());
+    public void removeLogs(TInfo tinfo, AuthInfo credentials, List<String> filenames) throws TException {
+      String myname = getClientAddressString();
+      myname = myname.replace(':', '+');
+      Path logDir = new Path(Constants.getWalDirectory(acuConf), myname);
       Set<String> loggers = new HashSet<String>();
       logger.getLoggers(loggers);
       nextFile:
@@ -2565,7 +2554,6 @@ public class TabletServer extends AbstractMetricsImpl implements org.apache.accu
   
   private FileSystem fs;
   private Instance instance;
-  private ZooCache cache;
   
   private SortedMap<KeyExtent,Tablet> onlineTablets = Collections.synchronizedSortedMap(new TreeMap<KeyExtent,Tablet>());
   private SortedSet<KeyExtent> unopenedTablets = Collections.synchronizedSortedSet(new TreeSet<KeyExtent>());
@@ -2598,27 +2586,6 @@ public class TabletServer extends AbstractMetricsImpl implements org.apache.accu
     return statsKeeper;
   }
   
-  public Set<String> getLoggers() throws TException, MasterNotRunningException, ThriftSecurityException {
-    Set<String> allLoggers = new HashSet<String>();
-    String dir = ZooUtil.getRoot(instance) + Constants.ZLOGGERS;
-    for (String child : cache.getChildren(dir)) {
-      allLoggers.add(new String(cache.get(dir + "/" + child)));
-    }
-    if (allLoggers.isEmpty()) {
-      log.warn("there are no loggers registered in zookeeper");
-      return allLoggers;
-    }
-    Set<String> result = loggerStrategy.getLoggers(Collections.unmodifiableSet(allLoggers));
-    Set<String> bogus = new HashSet<String>(result);
-    bogus.removeAll(allLoggers);
-    if (!bogus.isEmpty())
-      log.warn("logger strategy is returning loggers that are not candidates");
-    result.removeAll(bogus);
-    if (result.isEmpty())
-      log.warn("strategy returned no useful loggers");
-    return result;
-  }
-  
   public void addLoggersToMetadata(List<IRemoteLogger> logs, KeyExtent extent, int id) {
     log.info("Adding " + logs.size() + " logs for extent " + extent + " as alias " + id);
     
@@ -2635,7 +2602,7 @@ public class TabletServer extends AbstractMetricsImpl implements org.apache.accu
     entry.logSet = logSet;
     MetadataTable.addLogEntry(SecurityConstants.getSystemCredentials(), entry, getLock());
   }
-  
+
   private int startServer(AccumuloConfiguration conf, Property portHint, TProcessor processor, String threadName) throws UnknownHostException {
     ServerPort sp = TServerUtils.startServer(conf, portHint, processor, this.getClass().getSimpleName(), threadName, Property.TSERV_PORTSEARCH,
         Property.TSERV_MINTHREADS, Property.TSERV_THREADCHECK);
@@ -3058,31 +3025,6 @@ public class TabletServer extends AbstractMetricsImpl implements org.apache.accu
     majorCompactorThread = new Daemon(new LoggingRunnable(log, new MajorCompactor()));
     majorCompactorThread.setName("Split/MajC initiator");
     majorCompactorThread.start();
-    
-    String className = getSystemConfiguration().get(Property.TSERV_LOGGER_STRATEGY);
-    Class<? extends LoggerStrategy> klass = DEFAULT_LOGGER_STRATEGY;
-    try {
-      klass = AccumuloClassLoader.loadClass(className, LoggerStrategy.class);
-    } catch (Exception ex) {
-      log.warn("Unable to load class " + className + " for logger strategy, using " + klass.getName(), ex);
-    }
-    try {
-      Constructor<? extends LoggerStrategy> constructor = klass.getConstructor(TabletServer.class);
-      loggerStrategy = constructor.newInstance(this);
-      loggerStrategy.init(serverConfig);
-    } catch (Exception ex) {
-      log.warn("Unable to create object of type " + klass.getName() + " using " + DEFAULT_LOGGER_STRATEGY.getName());
-    }
-    if (loggerStrategy == null) {
-      try {
-        loggerStrategy = DEFAULT_LOGGER_STRATEGY.getConstructor(TabletServer.class).newInstance(this);
-      } catch (Exception ex) {
-        log.fatal("Programmer error: cannot create a logger strategy.");
-        throw new RuntimeException(ex);
-      }
-    }
-    cache = new ZooCache();
-    
   }
   
   public TabletServerStatus getStats(Map<String,MapCounter<ScanRunState>> scanCounts) {
@@ -3163,12 +3105,10 @@ public class TabletServer extends AbstractMetricsImpl implements org.apache.accu
     result.name = getClientAddressString();
     result.holdTime = resourceManager.holdTime();
     result.lookups = seekCount.get();
-    result.loggers = new HashSet<String>();
     result.indexCacheHits = resourceManager.getIndexCache().getStats().getHitCount();
     result.indexCacheRequest = resourceManager.getIndexCache().getStats().getRequestCount();
     result.dataCacheHits = resourceManager.getDataCache().getStats().getHitCount();
     result.dataCacheRequest = resourceManager.getDataCache().getStats().getRequestCount();
-    logger.getLoggers(result.loggers);
     return result;
   }
   
@@ -3197,34 +3137,36 @@ public class TabletServer extends AbstractMetricsImpl implements org.apache.accu
   public static void recoverLocalWriteAheadLogs(FileSystem fs, ServerConfiguration serverConf) throws IOException {
     FileSystem localfs = FileSystem.getLocal(fs.getConf()).getRawFileSystem();
     AccumuloConfiguration conf = serverConf.getConfiguration();
-    String localWalDirectory = conf.get(Property.LOGGER_DIR);
-    for (FileStatus file : localfs.listStatus(new Path(localWalDirectory))) {
-      String name = file.getPath().getName();
-      try {
-        UUID.fromString(name);
-      } catch (IllegalArgumentException ex) {
-        log.info("Ignoring non-log file " + name + " in " + localWalDirectory);
-        continue;
-      }
-      LogFileKey key = new LogFileKey();
-      LogFileValue value = new LogFileValue();
-      log.info("Openning local log " + file.getPath());
-      Reader reader = new SequenceFile.Reader(localfs, file.getPath(), localfs.getConf());
-      Path tmp = new Path(Constants.getWalDirectory(conf) + "/" + name + ".copy");
-      FSDataOutputStream writer = fs.create(tmp);
-      while (reader.next(key, value)) {
+    String localWalDirectories = conf.get(Property.LOGGER_DIR);
+    for (String localWalDirectory : localWalDirectories.split(",")) {
+      for (FileStatus file : localfs.listStatus(new Path(localWalDirectory))) {
+        String name = file.getPath().getName();
         try {
-          key.write(writer);
-          value.write(writer);
-        } catch (EOFException ex) {
-          break;
+          UUID.fromString(name);
+        } catch (IllegalArgumentException ex) {
+          log.info("Ignoring non-log file " + name + " in " + localWalDirectory);
+          continue;
         }
+        LogFileKey key = new LogFileKey();
+        LogFileValue value = new LogFileValue();
+        log.info("Openning local log " + file.getPath());
+        Reader reader = new SequenceFile.Reader(localfs, file.getPath(), localfs.getConf());
+        Path tmp = new Path(Constants.getWalDirectory(conf) + "/" + name + ".copy");
+        FSDataOutputStream writer = fs.create(tmp);
+        while (reader.next(key, value)) {
+          try {
+            key.write(writer);
+            value.write(writer);
+          } catch (EOFException ex) {
+            break;
+          }
+        }
+        writer.close();
+        reader.close();
+        fs.rename(tmp, new Path(tmp.getParent(), name));
+        log.info("Copied local log " + name);
+        localfs.delete(new Path(localWalDirectory, name), true);
       }
-      writer.close();
-      reader.close();
-      fs.rename(tmp, new Path(tmp.getParent(), name));
-      log.info("Copied local log " + name);
-      localfs.delete(new Path(localWalDirectory, name), true);
     }
   }
 

@@ -113,10 +113,6 @@ public enum Property {
   TSERV_BLOOM_LOAD_MAXCONCURRENT("tserver.bloom.load.concurrent.max", "4", PropertyType.COUNT,
       "The number of concurrent threads that will load bloom filters in the background. "
           + "Setting this to zero will make bloom filters load in the foreground."),
-  TSERV_LOGGER_TIMEOUT("tserver.logger.timeout", "30s", PropertyType.TIMEDURATION, "The time to wait for a logger to respond to a write-ahead request"),
-  TSERV_LOGGER_COUNT("tserver.logger.count", "2", PropertyType.COUNT, "The number of loggers that each tablet server should use."),
-  TSERV_LOGGER_STRATEGY("tserver.logger.strategy", "org.apache.accumulo.server.tabletserver.log.RoundRobinLoggerStrategy", PropertyType.STRING,
-      "The classname used to decide which loggers to use."),
   TSERV_MONITOR_FS(
       "tserver.monitor.fs",
       "true",
@@ -330,7 +326,7 @@ public enum Property {
   }
   
   private static final EnumSet<Property> fixedProperties = EnumSet.of(Property.TSERV_CLIENTPORT, Property.TSERV_NATIVEMAP_ENABLED,
-      Property.TSERV_SCAN_MAX_OPENFILES, Property.TSERV_LOGGER_COUNT, Property.MASTER_CLIENTPORT, Property.GC_PORT);
+      Property.TSERV_SCAN_MAX_OPENFILES, Property.MASTER_CLIENTPORT, Property.GC_PORT);
   
   public static boolean isFixedZooPropertyKey(Property key) {
     return fixedProperties.contains(key);

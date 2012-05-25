@@ -32,7 +32,6 @@ import org.apache.accumulo.core.conf.AccumuloConfiguration;
 import org.apache.accumulo.core.conf.Property;
 import org.apache.accumulo.core.gc.thrift.GCStatus;
 import org.apache.accumulo.core.gc.thrift.GcCycleStats;
-import org.apache.accumulo.core.security.thrift.ThriftSecurityException;
 import org.apache.accumulo.core.tabletserver.thrift.TabletClientService;
 import org.apache.accumulo.core.tabletserver.thrift.TabletClientService.Iface;
 import org.apache.accumulo.core.util.ThriftUtil;
@@ -122,8 +121,7 @@ public class GarbageCollectWriteAheadLogs {
         try {
           tserver = ThriftUtil.getClient(new TabletClientService.Client.Factory(), address, conf);
           tserver.removeLogs(null, SecurityConstants.getSystemCredentials(), entry.getValue());
-        } catch (ThriftSecurityException e) {
-          log.warn("Unexpected security exception during log file cleanup while talking to " + address + ". Is your configuration consistent over all nodes?");
+          status.currentLog.deleted += entry.getValue().size();
         } catch (TException e) {
           log.warn("Error talking to " + address + ": " + e);
         } finally {

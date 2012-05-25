@@ -194,8 +194,9 @@ public class DfsLogger implements IRemoteLogger {
     this.conf = conf;
   }
   
-  public DfsLogger(ServerConfig conf, String filename) throws IOException {
+  public DfsLogger(ServerConfig conf, String logger, String filename) throws IOException {
     this.conf = conf;
+    this.logger = logger;
     this.logPath = new Path(Constants.getWalDirectory(conf.getConfiguration()), filename);
   }
 

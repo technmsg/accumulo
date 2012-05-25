@@ -137,8 +137,6 @@ service TabletClientService extends client.ClientService {
   oneway void chop(1:cloudtrace.TInfo tinfo, 2:security.AuthInfo credentials, 3:string lock, 4:data.TKeyExtent extent),
   oneway void compact(1:cloudtrace.TInfo tinfo, 2:security.AuthInfo credentials, 3:string lock, 4:string tableId, 5:binary startRow, 6:binary endRow),
   
-  oneway void useLoggers(3:cloudtrace.TInfo tinfo, 1:security.AuthInfo credentials, 2:set<string> loggers),
-  
   master.TabletServerStatus getTabletServerStatus(3:cloudtrace.TInfo tinfo, 1:security.AuthInfo credentials) throws (1:security.ThriftSecurityException sec)
   list<TabletStats> getTabletStats(3:cloudtrace.TInfo tinfo, 1:security.AuthInfo credentials, 2:string tableId) throws (1:security.ThriftSecurityException sec)
   TabletStats getHistoricalStats(2:cloudtrace.TInfo tinfo, 1:security.AuthInfo credentials) throws (1:security.ThriftSecurityException sec)
@@ -147,7 +145,7 @@ service TabletClientService extends client.ClientService {
   
   list<ActiveScan> getActiveScans(2:cloudtrace.TInfo tinfo, 1:security.AuthInfo credentials) throws (1:security.ThriftSecurityException sec)
   double sortLog(1:cloudtrace.TInfo tinfo, 2:security.AuthInfo credentials, 3:string lock, 4:string path) throws (1:security.ThriftSecurityException sec);
-  oneway void removeLogs(1:cloudtrace.TInfo tinfo, 2:security.AuthInfo credentials, 3:list<string> filenames) throws (1:security.ThriftSecurityException sec);
+  oneway void removeLogs(1:cloudtrace.TInfo tinfo, 2:security.AuthInfo credentials, 3:list<string> filenames)
 }
 
 typedef i32 TabletID

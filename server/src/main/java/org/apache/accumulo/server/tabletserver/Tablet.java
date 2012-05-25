@@ -1462,7 +1462,7 @@ public class Tablet {
       for (LogEntry logEntry : logEntries) {
         for (String log : logEntry.logSet) {
           String[] parts = log.split("/", 2);
-          currentLogs.add(new DfsLogger(tabletServer.getServerConfig(), parts[1]));
+          currentLogs.add(new DfsLogger(tabletServer.getServerConfig(), logEntry.server, parts[1]));
         }
       }
       

@@ -79,12 +79,6 @@ public class XMLServlet extends BasicServlet {
       sb.append("</compactions>\n");
       
       sb.append("<tablets>").append(summary.tablets).append("</tablets>\n");
-      if (status.loggers != null) {
-        sb.append("<loggers>");
-        for (String logger : status.loggers)
-          sb.append("<logger>" + logger + "</logger>");
-        sb.append("</loggers>");
-      }
       
       sb.append("<ingest>").append(summary.ingestRate).append("</ingest>\n");
       sb.append("<query>").append(summary.queryRate).append("</query>\n");

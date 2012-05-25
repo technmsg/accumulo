@@ -90,9 +90,6 @@ public class GetMasterStats {
         out(2, "Time Difference %.1f", ((now - server.lastContact) / 1000.));
         out(2, "Total Records %d", summary.recs);
         out(2, "Lookups %d", server.lookups);
-        out(2, "Loggers %d", server.loggers.size());
-        for (String logger : server.loggers)
-          out(3, "Logger %s", logger);
         if (server.holdTime > 0)
           out(2, "Hold Time %d", server.holdTime);
         if (server.tableMap != null && server.tableMap.size() > 0) {

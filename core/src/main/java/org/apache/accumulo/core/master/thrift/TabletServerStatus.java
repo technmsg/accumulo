@@ -29,7 +29,6 @@ import org.slf4j.LoggerFactory;
   private static final org.apache.thrift.protocol.TField OS_LOAD_FIELD_DESC = new org.apache.thrift.protocol.TField("osLoad", org.apache.thrift.protocol.TType.DOUBLE, (short)5);
   private static final org.apache.thrift.protocol.TField HOLD_TIME_FIELD_DESC = new org.apache.thrift.protocol.TField("holdTime", org.apache.thrift.protocol.TType.I64, (short)7);
   private static final org.apache.thrift.protocol.TField LOOKUPS_FIELD_DESC = new org.apache.thrift.protocol.TField("lookups", org.apache.thrift.protocol.TType.I64, (short)8);
-  private static final org.apache.thrift.protocol.TField LOGGERS_FIELD_DESC = new org.apache.thrift.protocol.TField("loggers", org.apache.thrift.protocol.TType.SET, (short)9);
   private static final org.apache.thrift.protocol.TField INDEX_CACHE_HITS_FIELD_DESC = new org.apache.thrift.protocol.TField("indexCacheHits", org.apache.thrift.protocol.TType.I64, (short)10);
   private static final org.apache.thrift.protocol.TField INDEX_CACHE_REQUEST_FIELD_DESC = new org.apache.thrift.protocol.TField("indexCacheRequest", org.apache.thrift.protocol.TType.I64, (short)11);
   private static final org.apache.thrift.protocol.TField DATA_CACHE_HITS_FIELD_DESC = new org.apache.thrift.protocol.TField("dataCacheHits", org.apache.thrift.protocol.TType.I64, (short)12);
@@ -41,7 +40,6 @@ import org.slf4j.LoggerFactory;
   public double osLoad;
   public long holdTime;
   public long lookups;
-  public Set<String> loggers;
   public long indexCacheHits;
   public long indexCacheRequest;
   public long dataCacheHits;
@@ -55,7 +53,6 @@ import org.slf4j.LoggerFactory;
     OS_LOAD((short)5, "osLoad"),
     HOLD_TIME((short)7, "holdTime"),
     LOOKUPS((short)8, "lookups"),
-    LOGGERS((short)9, "loggers"),
     INDEX_CACHE_HITS((short)10, "indexCacheHits"),
     INDEX_CACHE_REQUEST((short)11, "indexCacheRequest"),
     DATA_CACHE_HITS((short)12, "dataCacheHits"),
@@ -86,8 +83,6 @@ import org.slf4j.LoggerFactory;
           return HOLD_TIME;
         case 8: // LOOKUPS
           return LOOKUPS;
-        case 9: // LOGGERS
-          return LOGGERS;
         case 10: // INDEX_CACHE_HITS
           return INDEX_CACHE_HITS;
         case 11: // INDEX_CACHE_REQUEST
@@ -163,9 +158,6 @@ import org.slf4j.LoggerFactory;
         new org.apache.thrift.meta_data.FieldValueMetaData(org.apache.thrift.protocol.TType.I64)));
     tmpMap.put(_Fields.LOOKUPS, new org.apache.thrift.meta_data.FieldMetaData("lookups", org.apache.thrift.TFieldRequirementType.DEFAULT, 
         new org.apache.thrift.meta_data.FieldValueMetaData(org.apache.thrift.protocol.TType.I64)));
-    tmpMap.put(_Fields.LOGGERS, new org.apache.thrift.meta_data.FieldMetaData("loggers", org.apache.thrift.TFieldRequirementType.DEFAULT, 
-        new org.apache.thrift.meta_data.SetMetaData(org.apache.thrift.protocol.TType.SET, 
-            new org.apache.thrift.meta_data.FieldValueMetaData(org.apache.thrift.protocol.TType.STRING))));
     tmpMap.put(_Fields.INDEX_CACHE_HITS, new org.apache.thrift.meta_data.FieldMetaData("indexCacheHits", org.apache.thrift.TFieldRequirementType.DEFAULT, 
         new org.apache.thrift.meta_data.FieldValueMetaData(org.apache.thrift.protocol.TType.I64)));
     tmpMap.put(_Fields.INDEX_CACHE_REQUEST, new org.apache.thrift.meta_data.FieldMetaData("indexCacheRequest", org.apache.thrift.TFieldRequirementType.DEFAULT, 
@@ -188,7 +180,6 @@ import org.slf4j.LoggerFactory;
     double osLoad,
     long holdTime,
     long lookups,
-    Set<String> loggers,
     long indexCacheHits,
     long indexCacheRequest,
     long dataCacheHits,
@@ -205,7 +196,6 @@ import org.slf4j.LoggerFactory;
     setHoldTimeIsSet(true);
     this.lookups = lookups;
     setLookupsIsSet(true);
-    this.loggers = loggers;
     this.indexCacheHits = indexCacheHits;
     setIndexCacheHitsIsSet(true);
     this.indexCacheRequest = indexCacheRequest;
@@ -244,13 +234,6 @@ import org.slf4j.LoggerFactory;
     this.osLoad = other.osLoad;
     this.holdTime = other.holdTime;
     this.lookups = other.lookups;
-    if (other.isSetLoggers()) {
-      Set<String> __this__loggers = new HashSet<String>();
-      for (String other_element : other.loggers) {
-        __this__loggers.add(other_element);
-      }
-      this.loggers = __this__loggers;
-    }
     this.indexCacheHits = other.indexCacheHits;
     this.indexCacheRequest = other.indexCacheRequest;
     this.dataCacheHits = other.dataCacheHits;
@@ -273,7 +256,6 @@ import org.slf4j.LoggerFactory;
     this.holdTime = 0;
     setLookupsIsSet(false);
     this.lookups = 0;
-    this.loggers = null;
     setIndexCacheHitsIsSet(false);
     this.indexCacheHits = 0;
     setIndexCacheRequestIsSet(false);
@@ -435,45 +417,6 @@ import org.slf4j.LoggerFactory;
     __isset_bit_vector.set(__LOOKUPS_ISSET_ID, value);
   }
 
-  public int getLoggersSize() {
-    return (this.loggers == null) ? 0 : this.loggers.size();
-  }
-
-  public java.util.Iterator<String> getLoggersIterator() {
-    return (this.loggers == null) ? null : this.loggers.iterator();
-  }
-
-  public void addToLoggers(String elem) {
-    if (this.loggers == null) {
-      this.loggers = new HashSet<String>();
-    }
-    this.loggers.add(elem);
-  }
-
-  public Set<String> getLoggers() {
-    return this.loggers;
-  }
-
-  public TabletServerStatus setLoggers(Set<String> loggers) {
-    this.loggers = loggers;
-    return this;
-  }
-
-  public void unsetLoggers() {
-    this.loggers = null;
-  }
-
-  /** Returns true if field loggers is set (has been assigned a value) and false otherwise */
-  public boolean isSetLoggers() {
-    return this.loggers != null;
-  }
-
-  public void setLoggersIsSet(boolean value) {
-    if (!value) {
-      this.loggers = null;
-    }
-  }
-
   public long getIndexCacheHits() {
     return this.indexCacheHits;
   }
@@ -616,14 +559,6 @@ import org.slf4j.LoggerFactory;
       }
       break;
 
-    case LOGGERS:
-      if (value == null) {
-        unsetLoggers();
-      } else {
-        setLoggers((Set<String>)value);
-      }
-      break;
-
     case INDEX_CACHE_HITS:
       if (value == null) {
         unsetIndexCacheHits();
@@ -679,9 +614,6 @@ import org.slf4j.LoggerFactory;
     case LOOKUPS:
       return new Long(getLookups());
 
-    case LOGGERS:
-      return getLoggers();
-
     case INDEX_CACHE_HITS:
       return new Long(getIndexCacheHits());
 
@@ -717,8 +649,6 @@ import org.slf4j.LoggerFactory;
       return isSetHoldTime();
     case LOOKUPS:
       return isSetLookups();
-    case LOGGERS:
-      return isSetLoggers();
     case INDEX_CACHE_HITS:
       return isSetIndexCacheHits();
     case INDEX_CACHE_REQUEST:
@@ -795,15 +725,6 @@ import org.slf4j.LoggerFactory;
       if (!(this_present_lookups && that_present_lookups))
         return false;
       if (this.lookups != that.lookups)
-        return false;
-    }
-
-    boolean this_present_loggers = true && this.isSetLoggers();
-    boolean that_present_loggers = true && that.isSetLoggers();
-    if (this_present_loggers || that_present_loggers) {
-      if (!(this_present_loggers && that_present_loggers))
-        return false;
-      if (!this.loggers.equals(that.loggers))
         return false;
     }
 
@@ -915,16 +836,6 @@ import org.slf4j.LoggerFactory;
     }
     if (isSetLookups()) {
       lastComparison = org.apache.thrift.TBaseHelper.compareTo(this.lookups, typedOther.lookups);
-      if (lastComparison != 0) {
-        return lastComparison;
-      }
-    }
-    lastComparison = Boolean.valueOf(isSetLoggers()).compareTo(typedOther.isSetLoggers());
-    if (lastComparison != 0) {
-      return lastComparison;
-    }
-    if (isSetLoggers()) {
-      lastComparison = org.apache.thrift.TBaseHelper.compareTo(this.loggers, typedOther.loggers);
       if (lastComparison != 0) {
         return lastComparison;
       }
@@ -1045,23 +956,6 @@ import org.slf4j.LoggerFactory;
             org.apache.thrift.protocol.TProtocolUtil.skip(iprot, field.type);
           }
           break;
-        case 9: // LOGGERS
-          if (field.type == org.apache.thrift.protocol.TType.SET) {
-            {
-              org.apache.thrift.protocol.TSet _set4 = iprot.readSetBegin();
-              this.loggers = new HashSet<String>(2*_set4.size);
-              for (int _i5 = 0; _i5 < _set4.size; ++_i5)
-              {
-                String _elem6;
-                _elem6 = iprot.readString();
-                this.loggers.add(_elem6);
-              }
-              iprot.readSetEnd();
-            }
-          } else { 
-            org.apache.thrift.protocol.TProtocolUtil.skip(iprot, field.type);
-          }
-          break;
         case 10: // INDEX_CACHE_HITS
           if (field.type == org.apache.thrift.protocol.TType.I64) {
             this.indexCacheHits = iprot.readI64();
@@ -1113,10 +1007,10 @@ import org.slf4j.LoggerFactory;
       oprot.writeFieldBegin(TABLE_MAP_FIELD_DESC);
       {
         oprot.writeMapBegin(new org.apache.thrift.protocol.TMap(org.apache.thrift.protocol.TType.STRING, org.apache.thrift.protocol.TType.STRUCT, this.tableMap.size()));
-        for (Map.Entry<String, TableInfo> _iter7 : this.tableMap.entrySet())
+        for (Map.Entry<String, TableInfo> _iter4 : this.tableMap.entrySet())
         {
-          oprot.writeString(_iter7.getKey());
-          _iter7.getValue().write(oprot);
+          oprot.writeString(_iter4.getKey());
+          _iter4.getValue().write(oprot);
         }
         oprot.writeMapEnd();
       }
@@ -1139,18 +1033,6 @@ import org.slf4j.LoggerFactory;
     oprot.writeFieldBegin(LOOKUPS_FIELD_DESC);
     oprot.writeI64(this.lookups);
     oprot.writeFieldEnd();
-    if (this.loggers != null) {
-      oprot.writeFieldBegin(LOGGERS_FIELD_DESC);
-      {
-        oprot.writeSetBegin(new org.apache.thrift.protocol.TSet(org.apache.thrift.protocol.TType.STRING, this.loggers.size()));
-        for (String _iter8 : this.loggers)
-        {
-          oprot.writeString(_iter8);
-        }
-        oprot.writeSetEnd();
-      }
-      oprot.writeFieldEnd();
-    }
     oprot.writeFieldBegin(INDEX_CACHE_HITS_FIELD_DESC);
     oprot.writeI64(this.indexCacheHits);
     oprot.writeFieldEnd();
@@ -1202,14 +1084,6 @@ import org.slf4j.LoggerFactory;
     if (!first) sb.append(", ");
     sb.append("lookups:");
     sb.append(this.lookups);
-    first = false;
-    if (!first) sb.append(", ");
-    sb.append("loggers:");
-    if (this.loggers == null) {
-      sb.append("null");
-    } else {
-      sb.append(this.loggers);
-    }
     first = false;
     if (!first) sb.append(", ");
     sb.append("indexCacheHits:");

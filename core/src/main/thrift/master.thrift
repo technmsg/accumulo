@@ -57,7 +57,6 @@ struct TabletServerStatus {
     5:double osLoad
     7:i64 holdTime
     8:i64 lookups
-    9:set<string> loggers
     10:i64 indexCacheHits    
     11:i64 indexCacheRequest   
     12:i64 dataCacheHits   

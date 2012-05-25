@@ -60,8 +60,6 @@ import org.slf4j.LoggerFactory;
 
     public void compact(org.apache.accumulo.cloudtrace.thrift.TInfo tinfo, org.apache.accumulo.core.security.thrift.AuthInfo credentials, String lock, String tableId, ByteBuffer startRow, ByteBuffer endRow) throws org.apache.thrift.TException;
 
-    public void useLoggers(org.apache.accumulo.cloudtrace.thrift.TInfo tinfo, org.apache.accumulo.core.security.thrift.AuthInfo credentials, Set<String> loggers) throws org.apache.thrift.TException;
-
     public org.apache.accumulo.core.master.thrift.TabletServerStatus getTabletServerStatus(org.apache.accumulo.cloudtrace.thrift.TInfo tinfo, org.apache.accumulo.core.security.thrift.AuthInfo credentials) throws org.apache.accumulo.core.security.thrift.ThriftSecurityException, org.apache.thrift.TException;
 
     public List<TabletStats> getTabletStats(org.apache.accumulo.cloudtrace.thrift.TInfo tinfo, org.apache.accumulo.core.security.thrift.AuthInfo credentials, String tableId) throws org.apache.accumulo.core.security.thrift.ThriftSecurityException, org.apache.thrift.TException;
@@ -76,7 +74,7 @@ import org.slf4j.LoggerFactory;
 
     public double sortLog(org.apache.accumulo.cloudtrace.thrift.TInfo tinfo, org.apache.accumulo.core.security.thrift.AuthInfo credentials, String lock, String path) throws org.apache.accumulo.core.security.thrift.ThriftSecurityException, org.apache.thrift.TException;
 
-    public void removeLogs(org.apache.accumulo.cloudtrace.thrift.TInfo tinfo, org.apache.accumulo.core.security.thrift.AuthInfo credentials, List<String> filenames) throws org.apache.accumulo.core.security.thrift.ThriftSecurityException, org.apache.thrift.TException;
+    public void removeLogs(org.apache.accumulo.cloudtrace.thrift.TInfo tinfo, org.apache.accumulo.core.security.thrift.AuthInfo credentials, List<String> filenames) throws org.apache.thrift.TException;
 
   }
 
@@ -117,8 +115,6 @@ import org.slf4j.LoggerFactory;
     public void chop(org.apache.accumulo.cloudtrace.thrift.TInfo tinfo, org.apache.accumulo.core.security.thrift.AuthInfo credentials, String lock, org.apache.accumulo.core.data.thrift.TKeyExtent extent, org.apache.thrift.async.AsyncMethodCallback<AsyncClient.chop_call> resultHandler) throws org.apache.thrift.TException;
 
     public void compact(org.apache.accumulo.cloudtrace.thrift.TInfo tinfo, org.apache.accumulo.core.security.thrift.AuthInfo credentials, String lock, String tableId, ByteBuffer startRow, ByteBuffer endRow, org.apache.thrift.async.AsyncMethodCallback<AsyncClient.compact_call> resultHandler) throws org.apache.thrift.TException;
-
-    public void useLoggers(org.apache.accumulo.cloudtrace.thrift.TInfo tinfo, org.apache.accumulo.core.security.thrift.AuthInfo credentials, Set<String> loggers, org.apache.thrift.async.AsyncMethodCallback<AsyncClient.useLoggers_call> resultHandler) throws org.apache.thrift.TException;
 
     public void getTabletServerStatus(org.apache.accumulo.cloudtrace.thrift.TInfo tinfo, org.apache.accumulo.core.security.thrift.AuthInfo credentials, org.apache.thrift.async.AsyncMethodCallback<AsyncClient.getTabletServerStatus_call> resultHandler) throws org.apache.thrift.TException;
 
@@ -740,23 +736,6 @@ import org.slf4j.LoggerFactory;
       oprot_.getTransport().flush();
     }
 
-    public void useLoggers(org.apache.accumulo.cloudtrace.thrift.TInfo tinfo, org.apache.accumulo.core.security.thrift.AuthInfo credentials, Set<String> loggers) throws org.apache.thrift.TException
-    {
-      send_useLoggers(tinfo, credentials, loggers);
-    }
-
-    public void send_useLoggers(org.apache.accumulo.cloudtrace.thrift.TInfo tinfo, org.apache.accumulo.core.security.thrift.AuthInfo credentials, Set<String> loggers) throws org.apache.thrift.TException
-    {
-      oprot_.writeMessageBegin(new org.apache.thrift.protocol.TMessage("useLoggers", org.apache.thrift.protocol.TMessageType.CALL, ++seqid_));
-      useLoggers_args args = new useLoggers_args();
-      args.setTinfo(tinfo);
-      args.setCredentials(credentials);
-      args.setLoggers(loggers);
-      args.write(oprot_);
-      oprot_.writeMessageEnd();
-      oprot_.getTransport().flush();
-    }
-
     public org.apache.accumulo.core.master.thrift.TabletServerStatus getTabletServerStatus(org.apache.accumulo.cloudtrace.thrift.TInfo tinfo, org.apache.accumulo.core.security.thrift.AuthInfo credentials) throws org.apache.accumulo.core.security.thrift.ThriftSecurityException, org.apache.thrift.TException
     {
       send_getTabletServerStatus(tinfo, credentials);
@@ -1015,10 +994,9 @@ import org.slf4j.LoggerFactory;
       throw new org.apache.thrift.TApplicationException(org.apache.thrift.TApplicationException.MISSING_RESULT, "sortLog failed: unknown result");
     }
 
-    public void removeLogs(org.apache.accumulo.cloudtrace.thrift.TInfo tinfo, org.apache.accumulo.core.security.thrift.AuthInfo credentials, List<String> filenames) throws org.apache.accumulo.core.security.thrift.ThriftSecurityException, org.apache.thrift.TException
+    public void removeLogs(org.apache.accumulo.cloudtrace.thrift.TInfo tinfo, org.apache.accumulo.core.security.thrift.AuthInfo credentials, List<String> filenames) throws org.apache.thrift.TException
     {
       send_removeLogs(tinfo, credentials, filenames);
-      recv_removeLogs();
     }
 
     public void send_removeLogs(org.apache.accumulo.cloudtrace.thrift.TInfo tinfo, org.apache.accumulo.core.security.thrift.AuthInfo credentials, List<String> filenames) throws org.apache.thrift.TException
@@ -1031,26 +1009,6 @@ import org.slf4j.LoggerFactory;
       args.write(oprot_);
       oprot_.writeMessageEnd();
       oprot_.getTransport().flush();
-    }
-
-    public void recv_removeLogs() throws org.apache.accumulo.core.security.thrift.ThriftSecurityException, org.apache.thrift.TException
-    {
-      org.apache.thrift.protocol.TMessage msg = iprot_.readMessageBegin();
-      if (msg.type == org.apache.thrift.protocol.TMessageType.EXCEPTION) {
-        org.apache.thrift.TApplicationException x = org.apache.thrift.TApplicationException.read(iprot_);
-        iprot_.readMessageEnd();
-        throw x;
-      }
-      if (msg.seqid != seqid_) {
-        throw new org.apache.thrift.TApplicationException(org.apache.thrift.TApplicationException.BAD_SEQUENCE_ID, "removeLogs failed: out of sequence response");
-      }
-      removeLogs_result result = new removeLogs_result();
-      result.read(iprot_);
-      iprot_.readMessageEnd();
-      if (result.sec != null) {
-        throw result.sec;
-      }
-      return;
     }
 
   }
@@ -1816,43 +1774,6 @@ import org.slf4j.LoggerFactory;
       }
     }
 
-    public void useLoggers(org.apache.accumulo.cloudtrace.thrift.TInfo tinfo, org.apache.accumulo.core.security.thrift.AuthInfo credentials, Set<String> loggers, org.apache.thrift.async.AsyncMethodCallback<useLoggers_call> resultHandler) throws org.apache.thrift.TException {
-      checkReady();
-      useLoggers_call method_call = new useLoggers_call(tinfo, credentials, loggers, resultHandler, this, protocolFactory, transport);
-      this.currentMethod = method_call;
-      manager.call(method_call);
-    }
-
-    public static class useLoggers_call extends org.apache.thrift.async.TAsyncMethodCall {
-      private org.apache.accumulo.cloudtrace.thrift.TInfo tinfo;
-      private org.apache.accumulo.core.security.thrift.AuthInfo credentials;
-      private Set<String> loggers;
-      public useLoggers_call(org.apache.accumulo.cloudtrace.thrift.TInfo tinfo, org.apache.accumulo.core.security.thrift.AuthInfo credentials, Set<String> loggers, org.apache.thrift.async.AsyncMethodCallback<useLoggers_call> resultHandler, org.apache.thrift.async.TAsyncClient client, org.apache.thrift.protocol.TProtocolFactory protocolFactory, org.apache.thrift.transport.TNonblockingTransport transport) throws org.apache.thrift.TException {
-        super(client, protocolFactory, transport, resultHandler, true);
-        this.tinfo = tinfo;
-        this.credentials = credentials;
-        this.loggers = loggers;
-      }
-
-      public void write_args(org.apache.thrift.protocol.TProtocol prot) throws org.apache.thrift.TException {
-        prot.writeMessageBegin(new org.apache.thrift.protocol.TMessage("useLoggers", org.apache.thrift.protocol.TMessageType.CALL, 0));
-        useLoggers_args args = new useLoggers_args();
-        args.setTinfo(tinfo);
-        args.setCredentials(credentials);
-        args.setLoggers(loggers);
-        args.write(prot);
-        prot.writeMessageEnd();
-      }
-
-      public void getResult() throws org.apache.thrift.TException {
-        if (getState() != org.apache.thrift.async.TAsyncMethodCall.State.RESPONSE_READ) {
-          throw new IllegalStateException("Method call not finished!");
-        }
-        org.apache.thrift.transport.TMemoryInputTransport memoryTransport = new org.apache.thrift.transport.TMemoryInputTransport(getFrameBuffer().array());
-        org.apache.thrift.protocol.TProtocol prot = client.getProtocolFactory().getProtocol(memoryTransport);
-      }
-    }
-
     public void getTabletServerStatus(org.apache.accumulo.cloudtrace.thrift.TInfo tinfo, org.apache.accumulo.core.security.thrift.AuthInfo credentials, org.apache.thrift.async.AsyncMethodCallback<getTabletServerStatus_call> resultHandler) throws org.apache.thrift.TException {
       checkReady();
       getTabletServerStatus_call method_call = new getTabletServerStatus_call(tinfo, credentials, resultHandler, this, protocolFactory, transport);
@@ -2124,7 +2045,7 @@ import org.slf4j.LoggerFactory;
       private org.apache.accumulo.core.security.thrift.AuthInfo credentials;
       private List<String> filenames;
       public removeLogs_call(org.apache.accumulo.cloudtrace.thrift.TInfo tinfo, org.apache.accumulo.core.security.thrift.AuthInfo credentials, List<String> filenames, org.apache.thrift.async.AsyncMethodCallback<removeLogs_call> resultHandler, org.apache.thrift.async.TAsyncClient client, org.apache.thrift.protocol.TProtocolFactory protocolFactory, org.apache.thrift.transport.TNonblockingTransport transport) throws org.apache.thrift.TException {
-        super(client, protocolFactory, transport, resultHandler, false);
+        super(client, protocolFactory, transport, resultHandler, true);
         this.tinfo = tinfo;
         this.credentials = credentials;
         this.filenames = filenames;
@@ -2140,13 +2061,12 @@ import org.slf4j.LoggerFactory;
         prot.writeMessageEnd();
       }
 
-      public void getResult() throws org.apache.accumulo.core.security.thrift.ThriftSecurityException, org.apache.thrift.TException {
+      public void getResult() throws org.apache.thrift.TException {
         if (getState() != org.apache.thrift.async.TAsyncMethodCall.State.RESPONSE_READ) {
           throw new IllegalStateException("Method call not finished!");
         }
         org.apache.thrift.transport.TMemoryInputTransport memoryTransport = new org.apache.thrift.transport.TMemoryInputTransport(getFrameBuffer().array());
         org.apache.thrift.protocol.TProtocol prot = client.getProtocolFactory().getProtocol(memoryTransport);
-        (new Client(prot)).recv_removeLogs();
       }
     }
 
@@ -2176,7 +2096,6 @@ import org.slf4j.LoggerFactory;
       processMap_.put("flushTablet", new flushTablet());
       processMap_.put("chop", new chop());
       processMap_.put("compact", new compact());
-      processMap_.put("useLoggers", new useLoggers());
       processMap_.put("getTabletServerStatus", new getTabletServerStatus());
       processMap_.put("getTabletStats", new getTabletStats());
       processMap_.put("getHistoricalStats", new getHistoricalStats());
@@ -2770,27 +2689,6 @@ import org.slf4j.LoggerFactory;
       }
     }
 
-    private class useLoggers implements ProcessFunction {
-      public void process(int seqid, org.apache.thrift.protocol.TProtocol iprot, org.apache.thrift.protocol.TProtocol oprot) throws org.apache.thrift.TException
-      {
-        useLoggers_args args = new useLoggers_args();
-        try {
-          args.read(iprot);
-        } catch (org.apache.thrift.protocol.TProtocolException e) {
-          iprot.readMessageEnd();
-          org.apache.thrift.TApplicationException x = new org.apache.thrift.TApplicationException(org.apache.thrift.TApplicationException.PROTOCOL_ERROR, e.getMessage());
-          oprot.writeMessageBegin(new org.apache.thrift.protocol.TMessage("useLoggers", org.apache.thrift.protocol.TMessageType.EXCEPTION, seqid));
-          x.write(oprot);
-          oprot.writeMessageEnd();
-          oprot.getTransport().flush();
-          return;
-        }
-        iprot.readMessageEnd();
-        iface_.useLoggers(args.tinfo, args.credentials, args.loggers);
-        return;
-      }
-    }
-
     private class getTabletServerStatus implements ProcessFunction {
       public void process(int seqid, org.apache.thrift.protocol.TProtocol iprot, org.apache.thrift.protocol.TProtocol oprot) throws org.apache.thrift.TException
       {
@@ -3057,26 +2955,9 @@ import org.slf4j.LoggerFactory;
           return;
         }
         iprot.readMessageEnd();
-        removeLogs_result result = new removeLogs_result();
-        try {
-          iface_.removeLogs(args.tinfo, args.credentials, args.filenames);
-        } catch (org.apache.accumulo.core.security.thrift.ThriftSecurityException sec) {
-          result.sec = sec;
-        } catch (Throwable th) {
-          LOGGER.error("Internal error processing removeLogs", th);
-          org.apache.thrift.TApplicationException x = new org.apache.thrift.TApplicationException(org.apache.thrift.TApplicationException.INTERNAL_ERROR, "Internal error processing removeLogs");
-          oprot.writeMessageBegin(new org.apache.thrift.protocol.TMessage("removeLogs", org.apache.thrift.protocol.TMessageType.EXCEPTION, seqid));
-          x.write(oprot);
-          oprot.writeMessageEnd();
-          oprot.getTransport().flush();
-          return;
-        }
-        oprot.writeMessageBegin(new org.apache.thrift.protocol.TMessage("removeLogs", org.apache.thrift.protocol.TMessageType.REPLY, seqid));
-        result.write(oprot);
-        oprot.writeMessageEnd();
-        oprot.getTransport().flush();
+        iface_.removeLogs(args.tinfo, args.credentials, args.filenames);
+        return;
       }
-
     }
 
   }
@@ -18537,520 +18418,6 @@ import org.slf4j.LoggerFactory;
 
   }
 
-  public static class useLoggers_args implements org.apache.thrift.TBase<useLoggers_args, useLoggers_args._Fields>, java.io.Serializable, Cloneable   {
-    private static final org.apache.thrift.protocol.TStruct STRUCT_DESC = new org.apache.thrift.protocol.TStruct("useLoggers_args");
-
-    private static final org.apache.thrift.protocol.TField TINFO_FIELD_DESC = new org.apache.thrift.protocol.TField("tinfo", org.apache.thrift.protocol.TType.STRUCT, (short)3);
-    private static final org.apache.thrift.protocol.TField CREDENTIALS_FIELD_DESC = new org.apache.thrift.protocol.TField("credentials", org.apache.thrift.protocol.TType.STRUCT, (short)1);
-    private static final org.apache.thrift.protocol.TField LOGGERS_FIELD_DESC = new org.apache.thrift.protocol.TField("loggers", org.apache.thrift.protocol.TType.SET, (short)2);
-
-    public org.apache.accumulo.cloudtrace.thrift.TInfo tinfo;
-    public org.apache.accumulo.core.security.thrift.AuthInfo credentials;
-    public Set<String> loggers;
-
-    /** The set of fields this struct contains, along with convenience methods for finding and manipulating them. */
-    public enum _Fields implements org.apache.thrift.TFieldIdEnum {
-      TINFO((short)3, "tinfo"),
-      CREDENTIALS((short)1, "credentials"),
-      LOGGERS((short)2, "loggers");
-
-      private static final Map<String, _Fields> byName = new HashMap<String, _Fields>();
-
-      static {
-        for (_Fields field : EnumSet.allOf(_Fields.class)) {
-          byName.put(field.getFieldName(), field);
-        }
-      }
-
-      /**
-       * Find the _Fields constant that matches fieldId, or null if its not found.
-       */
-      public static _Fields findByThriftId(int fieldId) {
-        switch(fieldId) {
-          case 3: // TINFO
-            return TINFO;
-          case 1: // CREDENTIALS
-            return CREDENTIALS;
-          case 2: // LOGGERS
-            return LOGGERS;
-          default:
-            return null;
-        }
-      }
-
-      /**
-       * Find the _Fields constant that matches fieldId, throwing an exception
-       * if it is not found.
-       */
-      public static _Fields findByThriftIdOrThrow(int fieldId) {
-        _Fields fields = findByThriftId(fieldId);
-        if (fields == null) throw new IllegalArgumentException("Field " + fieldId + " doesn't exist!");
-        return fields;
-      }
-
-      /**
-       * Find the _Fields constant that matches name, or null if its not found.
-       */
-      public static _Fields findByName(String name) {
-        return byName.get(name);
-      }
-
-      private final short _thriftId;
-      private final String _fieldName;
-
-      _Fields(short thriftId, String fieldName) {
-        _thriftId = thriftId;
-        _fieldName = fieldName;
-      }
-
-      public short getThriftFieldId() {
-        return _thriftId;
-      }
-
-      public String getFieldName() {
-        return _fieldName;
-      }
-    }
-
-    // isset id assignments
-
-    public static final Map<_Fields, org.apache.thrift.meta_data.FieldMetaData> metaDataMap;
-    static {
-      Map<_Fields, org.apache.thrift.meta_data.FieldMetaData> tmpMap = new EnumMap<_Fields, org.apache.thrift.meta_data.FieldMetaData>(_Fields.class);
-      tmpMap.put(_Fields.TINFO, new org.apache.thrift.meta_data.FieldMetaData("tinfo", org.apache.thrift.TFieldRequirementType.DEFAULT, 
-          new org.apache.thrift.meta_data.StructMetaData(org.apache.thrift.protocol.TType.STRUCT, org.apache.accumulo.cloudtrace.thrift.TInfo.class)));
-      tmpMap.put(_Fields.CREDENTIALS, new org.apache.thrift.meta_data.FieldMetaData("credentials", org.apache.thrift.TFieldRequirementType.DEFAULT, 
-          new org.apache.thrift.meta_data.StructMetaData(org.apache.thrift.protocol.TType.STRUCT, org.apache.accumulo.core.security.thrift.AuthInfo.class)));
-      tmpMap.put(_Fields.LOGGERS, new org.apache.thrift.meta_data.FieldMetaData("loggers", org.apache.thrift.TFieldRequirementType.DEFAULT, 
-          new org.apache.thrift.meta_data.SetMetaData(org.apache.thrift.protocol.TType.SET, 
-              new org.apache.thrift.meta_data.FieldValueMetaData(org.apache.thrift.protocol.TType.STRING))));
-      metaDataMap = Collections.unmodifiableMap(tmpMap);
-      org.apache.thrift.meta_data.FieldMetaData.addStructMetaDataMap(useLoggers_args.class, metaDataMap);
-    }
-
-    public useLoggers_args() {
-    }
-
-    public useLoggers_args(
-      org.apache.accumulo.cloudtrace.thrift.TInfo tinfo,
-      org.apache.accumulo.core.security.thrift.AuthInfo credentials,
-      Set<String> loggers)
-    {
-      this();
-      this.tinfo = tinfo;
-      this.credentials = credentials;
-      this.loggers = loggers;
-    }
-
-    /**
-     * Performs a deep copy on <i>other</i>.
-     */
-    public useLoggers_args(useLoggers_args other) {
-      if (other.isSetTinfo()) {
-        this.tinfo = new org.apache.accumulo.cloudtrace.thrift.TInfo(other.tinfo);
-      }
-      if (other.isSetCredentials()) {
-        this.credentials = new org.apache.accumulo.core.security.thrift.AuthInfo(other.credentials);
-      }
-      if (other.isSetLoggers()) {
-        Set<String> __this__loggers = new HashSet<String>();
-        for (String other_element : other.loggers) {
-          __this__loggers.add(other_element);
-        }
-        this.loggers = __this__loggers;
-      }
-    }
-
-    public useLoggers_args deepCopy() {
-      return new useLoggers_args(this);
-    }
-
-    @Override
-    public void clear() {
-      this.tinfo = null;
-      this.credentials = null;
-      this.loggers = null;
-    }
-
-    public org.apache.accumulo.cloudtrace.thrift.TInfo getTinfo() {
-      return this.tinfo;
-    }
-
-    public useLoggers_args setTinfo(org.apache.accumulo.cloudtrace.thrift.TInfo tinfo) {
-      this.tinfo = tinfo;
-      return this;
-    }
-
-    public void unsetTinfo() {
-      this.tinfo = null;
-    }
-
-    /** Returns true if field tinfo is set (has been assigned a value) and false otherwise */
-    public boolean isSetTinfo() {
-      return this.tinfo != null;
-    }
-
-    public void setTinfoIsSet(boolean value) {
-      if (!value) {
-        this.tinfo = null;
-      }
-    }
-
-    public org.apache.accumulo.core.security.thrift.AuthInfo getCredentials() {
-      return this.credentials;
-    }
-
-    public useLoggers_args setCredentials(org.apache.accumulo.core.security.thrift.AuthInfo credentials) {
-      this.credentials = credentials;
-      return this;
-    }
-
-    public void unsetCredentials() {
-      this.credentials = null;
-    }
-
-    /** Returns true if field credentials is set (has been assigned a value) and false otherwise */
-    public boolean isSetCredentials() {
-      return this.credentials != null;
-    }
-
-    public void setCredentialsIsSet(boolean value) {
-      if (!value) {
-        this.credentials = null;
-      }
-    }
-
-    public int getLoggersSize() {
-      return (this.loggers == null) ? 0 : this.loggers.size();
-    }
-
-    public java.util.Iterator<String> getLoggersIterator() {
-      return (this.loggers == null) ? null : this.loggers.iterator();
-    }
-
-    public void addToLoggers(String elem) {
-      if (this.loggers == null) {
-        this.loggers = new HashSet<String>();
-      }
-      this.loggers.add(elem);
-    }
-
-    public Set<String> getLoggers() {
-      return this.loggers;
-    }
-
-    public useLoggers_args setLoggers(Set<String> loggers) {
-      this.loggers = loggers;
-      return this;
-    }
-
-    public void unsetLoggers() {
-      this.loggers = null;
-    }
-
-    /** Returns true if field loggers is set (has been assigned a value) and false otherwise */
-    public boolean isSetLoggers() {
-      return this.loggers != null;
-    }
-
-    public void setLoggersIsSet(boolean value) {
-      if (!value) {
-        this.loggers = null;
-      }
-    }
-
-    public void setFieldValue(_Fields field, Object value) {
-      switch (field) {
-      case TINFO:
-        if (value == null) {
-          unsetTinfo();
-        } else {
-          setTinfo((org.apache.accumulo.cloudtrace.thrift.TInfo)value);
-        }
-        break;
-
-      case CREDENTIALS:
-        if (value == null) {
-          unsetCredentials();
-        } else {
-          setCredentials((org.apache.accumulo.core.security.thrift.AuthInfo)value);
-        }
-        break;
-
-      case LOGGERS:
-        if (value == null) {
-          unsetLoggers();
-        } else {
-          setLoggers((Set<String>)value);
-        }
-        break;
-
-      }
-    }
-
-    public Object getFieldValue(_Fields field) {
-      switch (field) {
-      case TINFO:
-        return getTinfo();
-
-      case CREDENTIALS:
-        return getCredentials();
-
-      case LOGGERS:
-        return getLoggers();
-
-      }
-      throw new IllegalStateException();
-    }
-
-    /** Returns true if field corresponding to fieldID is set (has been assigned a value) and false otherwise */
-    public boolean isSet(_Fields field) {
-      if (field == null) {
-        throw new IllegalArgumentException();
-      }
-
-      switch (field) {
-      case TINFO:
-        return isSetTinfo();
-      case CREDENTIALS:
-        return isSetCredentials();
-      case LOGGERS:
-        return isSetLoggers();
-      }
-      throw new IllegalStateException();
-    }
-
-    @Override
-    public boolean equals(Object that) {
-      if (that == null)
-        return false;
-      if (that instanceof useLoggers_args)
-        return this.equals((useLoggers_args)that);
-      return false;
-    }
-
-    public boolean equals(useLoggers_args that) {
-      if (that == null)
-        return false;
-
-      boolean this_present_tinfo = true && this.isSetTinfo();
-      boolean that_present_tinfo = true && that.isSetTinfo();
-      if (this_present_tinfo || that_present_tinfo) {
-        if (!(this_present_tinfo && that_present_tinfo))
-          return false;
-        if (!this.tinfo.equals(that.tinfo))
-          return false;
-      }
-
-      boolean this_present_credentials = true && this.isSetCredentials();
-      boolean that_present_credentials = true && that.isSetCredentials();
-      if (this_present_credentials || that_present_credentials) {
-        if (!(this_present_credentials && that_present_credentials))
-          return false;
-        if (!this.credentials.equals(that.credentials))
-          return false;
-      }
-
-      boolean this_present_loggers = true && this.isSetLoggers();
-      boolean that_present_loggers = true && that.isSetLoggers();
-      if (this_present_loggers || that_present_loggers) {
-        if (!(this_present_loggers && that_present_loggers))
-          return false;
-        if (!this.loggers.equals(that.loggers))
-          return false;
-      }
-
-      return true;
-    }
-
-    @Override
-    public int hashCode() {
-      return 0;
-    }
-
-    public int compareTo(useLoggers_args other) {
-      if (!getClass().equals(other.getClass())) {
-        return getClass().getName().compareTo(other.getClass().getName());
-      }
-
-      int lastComparison = 0;
-      useLoggers_args typedOther = (useLoggers_args)other;
-
-      lastComparison = Boolean.valueOf(isSetTinfo()).compareTo(typedOther.isSetTinfo());
-      if (lastComparison != 0) {
-        return lastComparison;
-      }
-      if (isSetTinfo()) {
-        lastComparison = org.apache.thrift.TBaseHelper.compareTo(this.tinfo, typedOther.tinfo);
-        if (lastComparison != 0) {
-          return lastComparison;
-        }
-      }
-      lastComparison = Boolean.valueOf(isSetCredentials()).compareTo(typedOther.isSetCredentials());
-      if (lastComparison != 0) {
-        return lastComparison;
-      }
-      if (isSetCredentials()) {
-        lastComparison = org.apache.thrift.TBaseHelper.compareTo(this.credentials, typedOther.credentials);
-        if (lastComparison != 0) {
-          return lastComparison;
-        }
-      }
-      lastComparison = Boolean.valueOf(isSetLoggers()).compareTo(typedOther.isSetLoggers());
-      if (lastComparison != 0) {
-        return lastComparison;
-      }
-      if (isSetLoggers()) {
-        lastComparison = org.apache.thrift.TBaseHelper.compareTo(this.loggers, typedOther.loggers);
-        if (lastComparison != 0) {
-          return lastComparison;
-        }
-      }
-      return 0;
-    }
-
-    public _Fields fieldForId(int fieldId) {
-      return _Fields.findByThriftId(fieldId);
-    }
-
-    public void read(org.apache.thrift.protocol.TProtocol iprot) throws org.apache.thrift.TException {
-      org.apache.thrift.protocol.TField field;
-      iprot.readStructBegin();
-      while (true)
-      {
-        field = iprot.readFieldBegin();
-        if (field.type == org.apache.thrift.protocol.TType.STOP) { 
-          break;
-        }
-        switch (field.id) {
-          case 3: // TINFO
-            if (field.type == org.apache.thrift.protocol.TType.STRUCT) {
-              this.tinfo = new org.apache.accumulo.cloudtrace.thrift.TInfo();
-              this.tinfo.read(iprot);
-            } else { 
-              org.apache.thrift.protocol.TProtocolUtil.skip(iprot, field.type);
-            }
-            break;
-          case 1: // CREDENTIALS
-            if (field.type == org.apache.thrift.protocol.TType.STRUCT) {
-              this.credentials = new org.apache.accumulo.core.security.thrift.AuthInfo();
-              this.credentials.read(iprot);
-            } else { 
-              org.apache.thrift.protocol.TProtocolUtil.skip(iprot, field.type);
-            }
-            break;
-          case 2: // LOGGERS
-            if (field.type == org.apache.thrift.protocol.TType.SET) {
-              {
-                org.apache.thrift.protocol.TSet _set97 = iprot.readSetBegin();
-                this.loggers = new HashSet<String>(2*_set97.size);
-                for (int _i98 = 0; _i98 < _set97.size; ++_i98)
-                {
-                  String _elem99;
-                  _elem99 = iprot.readString();
-                  this.loggers.add(_elem99);
-                }
-                iprot.readSetEnd();
-              }
-            } else { 
-              org.apache.thrift.protocol.TProtocolUtil.skip(iprot, field.type);
-            }
-            break;
-          default:
-            org.apache.thrift.protocol.TProtocolUtil.skip(iprot, field.type);
-        }
-        iprot.readFieldEnd();
-      }
-      iprot.readStructEnd();
-
-      // check for required fields of primitive type, which can't be checked in the validate method
-      validate();
-    }
-
-    public void write(org.apache.thrift.protocol.TProtocol oprot) throws org.apache.thrift.TException {
-      validate();
-
-      oprot.writeStructBegin(STRUCT_DESC);
-      if (this.credentials != null) {
-        oprot.writeFieldBegin(CREDENTIALS_FIELD_DESC);
-        this.credentials.write(oprot);
-        oprot.writeFieldEnd();
-      }
-      if (this.loggers != null) {
-        oprot.writeFieldBegin(LOGGERS_FIELD_DESC);
-        {
-          oprot.writeSetBegin(new org.apache.thrift.protocol.TSet(org.apache.thrift.protocol.TType.STRING, this.loggers.size()));
-          for (String _iter100 : this.loggers)
-          {
-            oprot.writeString(_iter100);
-          }
-          oprot.writeSetEnd();
-        }
-        oprot.writeFieldEnd();
-      }
-      if (this.tinfo != null) {
-        oprot.writeFieldBegin(TINFO_FIELD_DESC);
-        this.tinfo.write(oprot);
-        oprot.writeFieldEnd();
-      }
-      oprot.writeFieldStop();
-      oprot.writeStructEnd();
-    }
-
-    @Override
-    public String toString() {
-      StringBuilder sb = new StringBuilder("useLoggers_args(");
-      boolean first = true;
-
-      sb.append("tinfo:");
-      if (this.tinfo == null) {
-        sb.append("null");
-      } else {
-        sb.append(this.tinfo);
-      }
-      first = false;
-      if (!first) sb.append(", ");
-      sb.append("credentials:");
-      if (this.credentials == null) {
-        sb.append("null");
-      } else {
-        sb.append(this.credentials);
-      }
-      first = false;
-      if (!first) sb.append(", ");
-      sb.append("loggers:");
-      if (this.loggers == null) {
-        sb.append("null");
-      } else {
-        sb.append(this.loggers);
-      }
-      first = false;
-      sb.append(")");
-      return sb.toString();
-    }
-
-    public void validate() throws org.apache.thrift.TException {
-      // check for required fields
-    }
-
-    private void writeObject(java.io.ObjectOutputStream out) throws java.io.IOException {
-      try {
-        write(new org.apache.thrift.protocol.TCompactProtocol(new org.apache.thrift.transport.TIOStreamTransport(out)));
-      } catch (org.apache.thrift.TException te) {
-        throw new java.io.IOException(te);
-      }
-    }
-
-    private void readObject(java.io.ObjectInputStream in) throws java.io.IOException, ClassNotFoundException {
-      try {
-        read(new org.apache.thrift.protocol.TCompactProtocol(new org.apache.thrift.transport.TIOStreamTransport(in)));
-      } catch (org.apache.thrift.TException te) {
-        throw new java.io.IOException(te);
-      }
-    }
-
-  }
-
   public static class getTabletServerStatus_args implements org.apache.thrift.TBase<getTabletServerStatus_args, getTabletServerStatus_args._Fields>, java.io.Serializable, Cloneable   {
     private static final org.apache.thrift.protocol.TStruct STRUCT_DESC = new org.apache.thrift.protocol.TStruct("getTabletServerStatus_args");
 
@@ -20622,14 +19989,14 @@ import org.slf4j.LoggerFactory;
           case 0: // SUCCESS
             if (field.type == org.apache.thrift.protocol.TType.LIST) {
               {
-                org.apache.thrift.protocol.TList _list101 = iprot.readListBegin();
-                this.success = new ArrayList<TabletStats>(_list101.size);
-                for (int _i102 = 0; _i102 < _list101.size; ++_i102)
+                org.apache.thrift.protocol.TList _list97 = iprot.readListBegin();
+                this.success = new ArrayList<TabletStats>(_list97.size);
+                for (int _i98 = 0; _i98 < _list97.size; ++_i98)
                 {
-                  TabletStats _elem103;
-                  _elem103 = new TabletStats();
-                  _elem103.read(iprot);
-                  this.success.add(_elem103);
+                  TabletStats _elem99;
+                  _elem99 = new TabletStats();
+                  _elem99.read(iprot);
+                  this.success.add(_elem99);
                 }
                 iprot.readListEnd();
               }
@@ -20663,9 +20030,9 @@ import org.slf4j.LoggerFactory;
         oprot.writeFieldBegin(SUCCESS_FIELD_DESC);
         {
           oprot.writeListBegin(new org.apache.thrift.protocol.TList(org.apache.thrift.protocol.TType.STRUCT, this.success.size()));
-          for (TabletStats _iter104 : this.success)
+          for (TabletStats _iter100 : this.success)
           {
-            _iter104.write(oprot);
+            _iter100.write(oprot);
           }
           oprot.writeListEnd();
         }
@@ -23458,14 +22825,14 @@ import org.slf4j.LoggerFactory;
           case 0: // SUCCESS
             if (field.type == org.apache.thrift.protocol.TType.LIST) {
               {
-                org.apache.thrift.protocol.TList _list105 = iprot.readListBegin();
-                this.success = new ArrayList<ActiveScan>(_list105.size);
-                for (int _i106 = 0; _i106 < _list105.size; ++_i106)
+                org.apache.thrift.protocol.TList _list101 = iprot.readListBegin();
+                this.success = new ArrayList<ActiveScan>(_list101.size);
+                for (int _i102 = 0; _i102 < _list101.size; ++_i102)
                 {
-                  ActiveScan _elem107;
-                  _elem107 = new ActiveScan();
-                  _elem107.read(iprot);
-                  this.success.add(_elem107);
+                  ActiveScan _elem103;
+                  _elem103 = new ActiveScan();
+                  _elem103.read(iprot);
+                  this.success.add(_elem103);
                 }
                 iprot.readListEnd();
               }
@@ -23499,9 +22866,9 @@ import org.slf4j.LoggerFactory;
         oprot.writeFieldBegin(SUCCESS_FIELD_DESC);
         {
           oprot.writeListBegin(new org.apache.thrift.protocol.TList(org.apache.thrift.protocol.TType.STRUCT, this.success.size()));
-          for (ActiveScan _iter108 : this.success)
+          for (ActiveScan _iter104 : this.success)
           {
-            _iter108.write(oprot);
+            _iter104.write(oprot);
           }
           oprot.writeListEnd();
         }
@@ -24917,13 +24284,13 @@ import org.slf4j.LoggerFactory;
           case 3: // FILENAMES
             if (field.type == org.apache.thrift.protocol.TType.LIST) {
               {
-                org.apache.thrift.protocol.TList _list109 = iprot.readListBegin();
-                this.filenames = new ArrayList<String>(_list109.size);
-                for (int _i110 = 0; _i110 < _list109.size; ++_i110)
+                org.apache.thrift.protocol.TList _list105 = iprot.readListBegin();
+                this.filenames = new ArrayList<String>(_list105.size);
+                for (int _i106 = 0; _i106 < _list105.size; ++_i106)
                 {
-                  String _elem111;
-                  _elem111 = iprot.readString();
-                  this.filenames.add(_elem111);
+                  String _elem107;
+                  _elem107 = iprot.readString();
+                  this.filenames.add(_elem107);
                 }
                 iprot.readListEnd();
               }
@@ -24960,9 +24327,9 @@ import org.slf4j.LoggerFactory;
         oprot.writeFieldBegin(FILENAMES_FIELD_DESC);
         {
           oprot.writeListBegin(new org.apache.thrift.protocol.TList(org.apache.thrift.protocol.TType.STRING, this.filenames.size()));
-          for (String _iter112 : this.filenames)
+          for (String _iter108 : this.filenames)
           {
-            oprot.writeString(_iter112);
+            oprot.writeString(_iter108);
           }
           oprot.writeListEnd();
         }
@@ -24998,303 +24365,6 @@ import org.slf4j.LoggerFactory;
         sb.append("null");
       } else {
         sb.append(this.filenames);
-      }
-      first = false;
-      sb.append(")");
-      return sb.toString();
-    }
-
-    public void validate() throws org.apache.thrift.TException {
-      // check for required fields
-    }
-
-    private void writeObject(java.io.ObjectOutputStream out) throws java.io.IOException {
-      try {
-        write(new org.apache.thrift.protocol.TCompactProtocol(new org.apache.thrift.transport.TIOStreamTransport(out)));
-      } catch (org.apache.thrift.TException te) {
-        throw new java.io.IOException(te);
-      }
-    }
-
-    private void readObject(java.io.ObjectInputStream in) throws java.io.IOException, ClassNotFoundException {
-      try {
-        read(new org.apache.thrift.protocol.TCompactProtocol(new org.apache.thrift.transport.TIOStreamTransport(in)));
-      } catch (org.apache.thrift.TException te) {
-        throw new java.io.IOException(te);
-      }
-    }
-
-  }
-
-  public static class removeLogs_result implements org.apache.thrift.TBase<removeLogs_result, removeLogs_result._Fields>, java.io.Serializable, Cloneable   {
-    private static final org.apache.thrift.protocol.TStruct STRUCT_DESC = new org.apache.thrift.protocol.TStruct("removeLogs_result");
-
-    private static final org.apache.thrift.protocol.TField SEC_FIELD_DESC = new org.apache.thrift.protocol.TField("sec", org.apache.thrift.protocol.TType.STRUCT, (short)1);
-
-    public org.apache.accumulo.core.security.thrift.ThriftSecurityException sec;
-
-    /** The set of fields this struct contains, along with convenience methods for finding and manipulating them. */
-    public enum _Fields implements org.apache.thrift.TFieldIdEnum {
-      SEC((short)1, "sec");
-
-      private static final Map<String, _Fields> byName = new HashMap<String, _Fields>();
-
-      static {
-        for (_Fields field : EnumSet.allOf(_Fields.class)) {
-          byName.put(field.getFieldName(), field);
-        }
-      }
-
-      /**
-       * Find the _Fields constant that matches fieldId, or null if its not found.
-       */
-      public static _Fields findByThriftId(int fieldId) {
-        switch(fieldId) {
-          case 1: // SEC
-            return SEC;
-          default:
-            return null;
-        }
-      }
-
-      /**
-       * Find the _Fields constant that matches fieldId, throwing an exception
-       * if it is not found.
-       */
-      public static _Fields findByThriftIdOrThrow(int fieldId) {
-        _Fields fields = findByThriftId(fieldId);
-        if (fields == null) throw new IllegalArgumentException("Field " + fieldId + " doesn't exist!");
-        return fields;
-      }
-
-      /**
-       * Find the _Fields constant that matches name, or null if its not found.
-       */
-      public static _Fields findByName(String name) {
-        return byName.get(name);
-      }
-
-      private final short _thriftId;
-      private final String _fieldName;
-
-      _Fields(short thriftId, String fieldName) {
-        _thriftId = thriftId;
-        _fieldName = fieldName;
-      }
-
-      public short getThriftFieldId() {
-        return _thriftId;
-      }
-
-      public String getFieldName() {
-        return _fieldName;
-      }
-    }
-
-    // isset id assignments
-
-    public static final Map<_Fields, org.apache.thrift.meta_data.FieldMetaData> metaDataMap;
-    static {
-      Map<_Fields, org.apache.thrift.meta_data.FieldMetaData> tmpMap = new EnumMap<_Fields, org.apache.thrift.meta_data.FieldMetaData>(_Fields.class);
-      tmpMap.put(_Fields.SEC, new org.apache.thrift.meta_data.FieldMetaData("sec", org.apache.thrift.TFieldRequirementType.DEFAULT, 
-          new org.apache.thrift.meta_data.FieldValueMetaData(org.apache.thrift.protocol.TType.STRUCT)));
-      metaDataMap = Collections.unmodifiableMap(tmpMap);
-      org.apache.thrift.meta_data.FieldMetaData.addStructMetaDataMap(removeLogs_result.class, metaDataMap);
-    }
-
-    public removeLogs_result() {
-    }
-
-    public removeLogs_result(
-      org.apache.accumulo.core.security.thrift.ThriftSecurityException sec)
-    {
-      this();
-      this.sec = sec;
-    }
-
-    /**
-     * Performs a deep copy on <i>other</i>.
-     */
-    public removeLogs_result(removeLogs_result other) {
-      if (other.isSetSec()) {
-        this.sec = new org.apache.accumulo.core.security.thrift.ThriftSecurityException(other.sec);
-      }
-    }
-
-    public removeLogs_result deepCopy() {
-      return new removeLogs_result(this);
-    }
-
-    @Override
-    public void clear() {
-      this.sec = null;
-    }
-
-    public org.apache.accumulo.core.security.thrift.ThriftSecurityException getSec() {
-      return this.sec;
-    }
-
-    public removeLogs_result setSec(org.apache.accumulo.core.security.thrift.ThriftSecurityException sec) {
-      this.sec = sec;
-      return this;
-    }
-
-    public void unsetSec() {
-      this.sec = null;
-    }
-
-    /** Returns true if field sec is set (has been assigned a value) and false otherwise */
-    public boolean isSetSec() {
-      return this.sec != null;
-    }
-
-    public void setSecIsSet(boolean value) {
-      if (!value) {
-        this.sec = null;
-      }
-    }
-
-    public void setFieldValue(_Fields field, Object value) {
-      switch (field) {
-      case SEC:
-        if (value == null) {
-          unsetSec();
-        } else {
-          setSec((org.apache.accumulo.core.security.thrift.ThriftSecurityException)value);
-        }
-        break;
-
-      }
-    }
-
-    public Object getFieldValue(_Fields field) {
-      switch (field) {
-      case SEC:
-        return getSec();
-
-      }
-      throw new IllegalStateException();
-    }
-
-    /** Returns true if field corresponding to fieldID is set (has been assigned a value) and false otherwise */
-    public boolean isSet(_Fields field) {
-      if (field == null) {
-        throw new IllegalArgumentException();
-      }
-
-      switch (field) {
-      case SEC:
-        return isSetSec();
-      }
-      throw new IllegalStateException();
-    }
-
-    @Override
-    public boolean equals(Object that) {
-      if (that == null)
-        return false;
-      if (that instanceof removeLogs_result)
-        return this.equals((removeLogs_result)that);
-      return false;
-    }
-
-    public boolean equals(removeLogs_result that) {
-      if (that == null)
-        return false;
-
-      boolean this_present_sec = true && this.isSetSec();
-      boolean that_present_sec = true && that.isSetSec();
-      if (this_present_sec || that_present_sec) {
-        if (!(this_present_sec && that_present_sec))
-          return false;
-        if (!this.sec.equals(that.sec))
-          return false;
-      }
-
-      return true;
-    }
-
-    @Override
-    public int hashCode() {
-      return 0;
-    }
-
-    public int compareTo(removeLogs_result other) {
-      if (!getClass().equals(other.getClass())) {
-        return getClass().getName().compareTo(other.getClass().getName());
-      }
-
-      int lastComparison = 0;
-      removeLogs_result typedOther = (removeLogs_result)other;
-
-      lastComparison = Boolean.valueOf(isSetSec()).compareTo(typedOther.isSetSec());
-      if (lastComparison != 0) {
-        return lastComparison;
-      }
-      if (isSetSec()) {
-        lastComparison = org.apache.thrift.TBaseHelper.compareTo(this.sec, typedOther.sec);
-        if (lastComparison != 0) {
-          return lastComparison;
-        }
-      }
-      return 0;
-    }
-
-    public _Fields fieldForId(int fieldId) {
-      return _Fields.findByThriftId(fieldId);
-    }
-
-    public void read(org.apache.thrift.protocol.TProtocol iprot) throws org.apache.thrift.TException {
-      org.apache.thrift.protocol.TField field;
-      iprot.readStructBegin();
-      while (true)
-      {
-        field = iprot.readFieldBegin();
-        if (field.type == org.apache.thrift.protocol.TType.STOP) { 
-          break;
-        }
-        switch (field.id) {
-          case 1: // SEC
-            if (field.type == org.apache.thrift.protocol.TType.STRUCT) {
-              this.sec = new org.apache.accumulo.core.security.thrift.ThriftSecurityException();
-              this.sec.read(iprot);
-            } else { 
-              org.apache.thrift.protocol.TProtocolUtil.skip(iprot, field.type);
-            }
-            break;
-          default:
-            org.apache.thrift.protocol.TProtocolUtil.skip(iprot, field.type);
-        }
-        iprot.readFieldEnd();
-      }
-      iprot.readStructEnd();
-
-      // check for required fields of primitive type, which can't be checked in the validate method
-      validate();
-    }
-
-    public void write(org.apache.thrift.protocol.TProtocol oprot) throws org.apache.thrift.TException {
-      oprot.writeStructBegin(STRUCT_DESC);
-
-      if (this.isSetSec()) {
-        oprot.writeFieldBegin(SEC_FIELD_DESC);
-        this.sec.write(oprot);
-        oprot.writeFieldEnd();
-      }
-      oprot.writeFieldStop();
-      oprot.writeStructEnd();
-    }
-
-    @Override
-    public String toString() {
-      StringBuilder sb = new StringBuilder("removeLogs_result(");
-      boolean first = true;
-
-      sb.append("sec:");
-      if (this.sec == null) {
-        sb.append("null");
-      } else {
-        sb.append(this.sec);
       }
       first = false;
       sb.append(")");
