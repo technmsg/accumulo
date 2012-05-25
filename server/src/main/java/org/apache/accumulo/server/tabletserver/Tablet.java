@@ -2214,6 +2214,12 @@ public class Tablet {
         this.stats = minorCompact(conf, fs, tabletMemory.getMinCMemTable(), newMapfileLocation + "_tmp", newMapfileLocation, mergeFile, true, queued,
             commitSession, flushId);
         span.stop();
+        
+        if (needsSplit()) {
+          tabletServer.executeSplit(Tablet.this);
+        } else {
+          initiateMajorCompaction(MajorCompactionReason.NORMAL);
+        }
       } catch (Throwable t) {
         log.error("Unknown error during minor compaction for extent: " + getExtent(), t);
         throw new RuntimeException(t);
@@ -3229,7 +3235,8 @@ public class Tablet {
           span.data("written", "" + mcs.getEntriesWritten());
           majCStats.add(mcs);
           
-          datafileManager.bringMajorCompactionOnline(smallestFiles, compactTmpName, fileName, filesToCompact.size() == 0 ? compactionId : null,
+          datafileManager.bringMajorCompactionOnline(smallestFiles, compactTmpName, fileName,
+              filesToCompact.size() == 0 && compactionId != null ? compactionId.getFirst() : null,
               new DataFileValue(mcs.getFileSize(), mcs.getEntriesWritten()));
           
           // when major compaction produces a file w/ zero entries, it will be deleted... do not want
@@ -3602,6 +3609,12 @@ public class Tablet {
     try {
       datafileManager.importMapFiles(tid, entries, setTime);
       lastMapFileImportTime = System.currentTimeMillis();
+      
+      if (needsSplit()) {
+        tabletServer.executeSplit(this);
+      } else {
+        initiateMajorCompaction(MajorCompactionReason.NORMAL);
+      }
     } finally {
       synchronized (this) {
         if (writesInProgress < 1)
