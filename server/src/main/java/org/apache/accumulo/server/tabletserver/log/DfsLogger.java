@@ -27,7 +27,6 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
-import java.util.Random;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CountDownLatch;
@@ -38,15 +37,12 @@ import org.apache.accumulo.core.conf.AccumuloConfiguration;
 import org.apache.accumulo.core.conf.Property;
 import org.apache.accumulo.core.data.KeyExtent;
 import org.apache.accumulo.core.data.Mutation;
-import org.apache.accumulo.core.tabletserver.thrift.TabletClientService.Iface;
 import org.apache.accumulo.core.tabletserver.thrift.TabletMutations;
 import org.apache.accumulo.core.util.Daemon;
 import org.apache.accumulo.core.util.StringUtil;
-import org.apache.accumulo.core.util.ThriftUtil;
 import org.apache.accumulo.server.logger.LogFileKey;
 import org.apache.accumulo.server.logger.LogFileValue;
 import org.apache.accumulo.server.master.state.TServerInstance;
-import org.apache.accumulo.server.security.SecurityConstants;
 import org.apache.hadoop.fs.FSDataOutputStream;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
@@ -56,10 +52,10 @@ import org.apache.log4j.Logger;
  * Wrap a connection to a logger.
  * 
  */
-public class DfsLogger implements IRemoteLogger {
+public class DfsLogger {
   private static Logger log = Logger.getLogger(DfsLogger.class);
   
-  public interface ServerConfig {
+  public interface ServerResources {
     AccumuloConfiguration getConfiguration();
     
     FileSystem getFileSystem();
@@ -171,8 +167,8 @@ public class DfsLogger implements IRemoteLogger {
     // filename is unique
     if (obj == null)
       return false;
-    if (obj instanceof IRemoteLogger)
-      return getFileName().equals(((IRemoteLogger) obj).getFileName());
+    if (obj instanceof DfsLogger)
+      return getFileName().equals(((DfsLogger) obj).getFileName());
     return false;
   }
   
@@ -185,16 +181,16 @@ public class DfsLogger implements IRemoteLogger {
     return getFileName().hashCode();
   }
   
-  private ServerConfig conf;
+  private ServerResources conf;
   private FSDataOutputStream logFile;
   private Path logPath;
   private String logger;
   
-  public DfsLogger(ServerConfig conf) throws IOException {
+  public DfsLogger(ServerResources conf) throws IOException {
     this.conf = conf;
   }
   
-  public DfsLogger(ServerConfig conf, String logger, String filename) throws IOException {
+  public DfsLogger(ServerResources conf, String logger, String filename) throws IOException {
     this.conf = conf;
     this.logger = logger;
     this.logPath = new Path(Constants.getWalDirectory(conf.getConfiguration()), filename);
@@ -243,26 +239,14 @@ public class DfsLogger implements IRemoteLogger {
     return getLogger() + "/" + getFileName();
   }
   
-  /* (non-Javadoc)
-   * @see org.apache.accumulo.server.tabletserver.log.IRemoteLogger#getLogger()
-   */
-  @Override
   public String getLogger() {
     return logger;
   }
   
-  /* (non-Javadoc)
-   * @see org.apache.accumulo.server.tabletserver.log.IRemoteLogger#getFileName()
-   */
-  @Override
   public String getFileName() {
     return logPath.getName();
   }
   
-  /* (non-Javadoc)
-   * @see org.apache.accumulo.server.tabletserver.log.IRemoteLogger#close()
-   */
-  @Override
   public void close() throws IOException {
     
     synchronized (closeLock) {
@@ -292,10 +276,6 @@ public class DfsLogger implements IRemoteLogger {
       }
   }
   
-  /* (non-Javadoc)
-   * @see org.apache.accumulo.server.tabletserver.log.IRemoteLogger#defineTablet(int, int, org.apache.accumulo.core.data.KeyExtent)
-   */
-  @Override
   public synchronized void defineTablet(int seq, int tid, KeyExtent tablet) throws IOException {
     // write this log to the METADATA table
     final LogFileKey key = new LogFileKey();
@@ -305,7 +285,6 @@ public class DfsLogger implements IRemoteLogger {
     key.tablet = tablet;
     try {
       write(key, EMPTY);
-      logFile.flush();
       logFile.sync();
     } catch (IOException ex) {
       log.error(ex);
@@ -323,18 +302,10 @@ public class DfsLogger implements IRemoteLogger {
     value.write(logFile);
   }
 
-  /* (non-Javadoc)
-   * @see org.apache.accumulo.server.tabletserver.log.IRemoteLogger#log(int, int, org.apache.accumulo.core.data.Mutation)
-   */
-  @Override
   public LoggerOperation log(int seq, int tid, Mutation mutation) throws IOException {
     return logManyTablets(Collections.singletonList(new TabletMutations(tid, seq, Collections.singletonList(mutation.toThrift()))));
   }
   
-  /* (non-Javadoc)
-   * @see org.apache.accumulo.server.tabletserver.log.IRemoteLogger#logManyTablets(java.util.List)
-   */
-  @Override
   public LoggerOperation logManyTablets(List<TabletMutations> mutations) throws IOException {
     DfsLogger.LogWork work = new DfsLogger.LogWork(mutations, new CountDownLatch(1));
     
@@ -370,10 +341,6 @@ public class DfsLogger implements IRemoteLogger {
     return new LoggerOperation(work);
   }
   
-  /* (non-Javadoc)
-   * @see org.apache.accumulo.server.tabletserver.log.IRemoteLogger#minorCompactionFinished(int, int, java.lang.String)
-   */
-  @Override
   public synchronized void minorCompactionFinished(int seq, int tid, String fqfn) throws IOException {
     LogFileKey key = new LogFileKey();
     key.event = COMPACTION_FINISH;
@@ -387,10 +354,6 @@ public class DfsLogger implements IRemoteLogger {
     }
   }
   
-  /* (non-Javadoc)
-   * @see org.apache.accumulo.server.tabletserver.log.IRemoteLogger#minorCompactionStarted(int, int, java.lang.String)
-   */
-  @Override
   public synchronized void minorCompactionStarted(int seq, int tid, String fqfn) throws IOException {
     LogFileKey key = new LogFileKey();
     key.event = COMPACTION_START;
@@ -403,47 +366,6 @@ public class DfsLogger implements IRemoteLogger {
       log.error(ex);
       throw ex;
     }
-  }
-  
-  /* (non-Javadoc)
-   * @see org.apache.accumulo.server.tabletserver.log.IRemoteLogger#startCopy(java.lang.String, java.lang.String)
-   */
-  @Override
-  public synchronized double startCopy(String source, String dest) throws IOException {
-    Iface client = null;
-    try {
-      Set<TServerInstance> current = conf.getCurrentTServers();
-      if (current.isEmpty())
-        throw new RuntimeException("No servers for recovery");
-      Random random = new Random();
-      int choice = random.nextInt(current.size());
-      TServerInstance instance = current.toArray(new TServerInstance[] {})[choice];
-      try {
-        client = ThriftUtil.getTServerClient(instance.hostPort(), conf.getConfiguration());
-        log.info("Asking " + instance.hostPort() + " to copy/sort from " + source + " to " + dest);
-        return client.sortLog(null, SecurityConstants.getSystemCredentials(), source, dest);
-      } catch (Exception ex) {
-        throw new IOException(ex);
-      }
-    } finally {
-      if (client != null)
-        ThriftUtil.returnClient(client);
-    }
-  }
-  
-  /* (non-Javadoc)
-   * @see org.apache.accumulo.server.tabletserver.log.IRemoteLogger#getClosedLogs()
-   */
-  @Override
-  public synchronized List<String> getClosedLogs() throws IOException {
-    return Collections.emptyList();
-  }
-  
-  /* (non-Javadoc)
-   * @see org.apache.accumulo.server.tabletserver.log.IRemoteLogger#removeFile(java.util.List)
-   */
-  @Override
-  public synchronized void removeFile(List<String> files) throws IOException {
   }
   
 }

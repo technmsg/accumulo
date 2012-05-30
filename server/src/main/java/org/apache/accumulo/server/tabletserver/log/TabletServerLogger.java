@@ -59,7 +59,7 @@ public class TabletServerLogger {
   private final TabletServer tserver;
   
   // The current log set: always updated to a new set with every change of loggers
-  private final List<IRemoteLogger> loggers = new ArrayList<IRemoteLogger>();
+  private final List<DfsLogger> loggers = new ArrayList<DfsLogger>();
   
   // The current generation of logSet.
   // Because multiple threads can be using a log set at one time, a log
@@ -132,7 +132,7 @@ public class TabletServerLogger {
     this.maxSize = maxSize;
   }
   
-  private int initializeLoggers(final List<IRemoteLogger> copy) throws IOException {
+  private int initializeLoggers(final List<DfsLogger> copy) throws IOException {
     final int[] result = {-1};
     testLockAndRun(logSetLock, new TestCallWithWriteLock() {
       boolean test() {
@@ -163,8 +163,8 @@ public class TabletServerLogger {
   public void getLoggers(Set<String> loggersOut) {
     logSetLock.readLock().lock();
     try {
-      for (IRemoteLogger logger : loggers) {
-        loggersOut.add(logger.getLogger());
+      for (DfsLogger logger : loggers) {
+        loggersOut.add(logger.toString());
       }
     } finally {
       logSetLock.readLock().unlock();
@@ -205,7 +205,7 @@ public class TabletServerLogger {
       throw new IllegalStateException("close should be called with write lock held!");
     }
     try {
-      for (IRemoteLogger logger : loggers) {
+      for (DfsLogger logger : loggers) {
         try {
           logger.close();
         } catch (Throwable ex) {
@@ -220,7 +220,7 @@ public class TabletServerLogger {
   }
   
   interface Writer {
-    LoggerOperation write(IRemoteLogger logger, int seq) throws Exception;
+    LoggerOperation write(DfsLogger logger, int seq) throws Exception;
   }
   
   private int write(CommitSession commitSession, boolean mincFinish, Writer writer) throws IOException {
@@ -239,7 +239,7 @@ public class TabletServerLogger {
     while (!success) {
       try {
         // get a reference to the loggers that no other thread can touch
-        ArrayList<IRemoteLogger> copy = new ArrayList<IRemoteLogger>();
+        ArrayList<DfsLogger> copy = new ArrayList<DfsLogger>();
         currentLogSet = initializeLoggers(copy);
         
         // add the logger to the log set for the memory in the tablet,
@@ -268,7 +268,7 @@ public class TabletServerLogger {
           if (seq < 0)
             throw new RuntimeException("Logger sequence generator wrapped!  Onos!!!11!eleven");
           ArrayList<LoggerOperation> queuedOperations = new ArrayList<LoggerOperation>(copy.size());
-          for (IRemoteLogger wal : copy) {
+          for (DfsLogger wal : copy) {
             LoggerOperation lop = writer.write(wal, seq);
             if (lop != null)
               queuedOperations.add(lop);
@@ -330,7 +330,7 @@ public class TabletServerLogger {
       return -1;
     return write(commitSession, false, new Writer() {
       @Override
-      public LoggerOperation write(IRemoteLogger logger, int ignored) throws Exception {
+      public LoggerOperation write(DfsLogger logger, int ignored) throws Exception {
         logger.defineTablet(commitSession.getWALogSeq(), commitSession.getLogId(), commitSession.getExtent());
         return null;
       }
@@ -342,7 +342,7 @@ public class TabletServerLogger {
       return -1;
     int seq = write(commitSession, false, new Writer() {
       @Override
-      public LoggerOperation write(IRemoteLogger logger, int ignored) throws Exception {
+      public LoggerOperation write(DfsLogger logger, int ignored) throws Exception {
         return logger.log(tabletSeq, commitSession.getLogId(), m);
       }
     });
@@ -362,7 +362,7 @@ public class TabletServerLogger {
     
     int seq = write(loggables.keySet(), false, new Writer() {
       @Override
-      public LoggerOperation write(IRemoteLogger logger, int ignored) throws Exception {
+      public LoggerOperation write(DfsLogger logger, int ignored) throws Exception {
         List<TabletMutations> copy = new ArrayList<TabletMutations>(loggables.size());
         for (Entry<CommitSession,List<Mutation>> entry : loggables.entrySet()) {
           CommitSession cs = entry.getKey();
@@ -393,7 +393,7 @@ public class TabletServerLogger {
     
     int seq = write(commitSession, true, new Writer() {
       @Override
-      public LoggerOperation write(IRemoteLogger logger, int ignored) throws Exception {
+      public LoggerOperation write(DfsLogger logger, int ignored) throws Exception {
         logger.minorCompactionFinished(walogSeq, commitSession.getLogId(), fullyQualifiedFileName);
         return null;
       }
@@ -409,7 +409,7 @@ public class TabletServerLogger {
       return -1;
     write(commitSession, false, new Writer() {
       @Override
-      public LoggerOperation write(IRemoteLogger logger, int ignored) throws Exception {
+      public LoggerOperation write(DfsLogger logger, int ignored) throws Exception {
         logger.minorCompactionStarted(seq, commitSession.getLogId(), fullyQualifiedFileName);
         return null;
       }

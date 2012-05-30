@@ -75,6 +75,7 @@ public class Constants {
   public static final String ZNEXT_FILE = "/next_file";
   
   public static final String ZHDFS_RESERVATIONS = "/hdfs_reservations";
+  public static final String ZRECOVERY = "/recovery";
   
   public static final String METADATA_TABLE_ID = "!0";
   public static final String METADATA_TABLE_NAME = "!METADATA";

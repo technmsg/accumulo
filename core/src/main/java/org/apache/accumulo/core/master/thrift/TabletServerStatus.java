@@ -33,6 +33,7 @@ import org.slf4j.LoggerFactory;
   private static final org.apache.thrift.protocol.TField INDEX_CACHE_REQUEST_FIELD_DESC = new org.apache.thrift.protocol.TField("indexCacheRequest", org.apache.thrift.protocol.TType.I64, (short)11);
   private static final org.apache.thrift.protocol.TField DATA_CACHE_HITS_FIELD_DESC = new org.apache.thrift.protocol.TField("dataCacheHits", org.apache.thrift.protocol.TType.I64, (short)12);
   private static final org.apache.thrift.protocol.TField DATA_CACHE_REQUEST_FIELD_DESC = new org.apache.thrift.protocol.TField("dataCacheRequest", org.apache.thrift.protocol.TType.I64, (short)13);
+  private static final org.apache.thrift.protocol.TField LOG_SORTS_FIELD_DESC = new org.apache.thrift.protocol.TField("logSorts", org.apache.thrift.protocol.TType.LIST, (short)14);
 
   public Map<String,TableInfo> tableMap;
   public long lastContact;
@@ -44,6 +45,7 @@ import org.slf4j.LoggerFactory;
   public long indexCacheRequest;
   public long dataCacheHits;
   public long dataCacheRequest;
+  public List<RecoveryStatus> logSorts;
 
   /** The set of fields this struct contains, along with convenience methods for finding and manipulating them. */
   public enum _Fields implements org.apache.thrift.TFieldIdEnum {
@@ -56,7 +58,8 @@ import org.slf4j.LoggerFactory;
     INDEX_CACHE_HITS((short)10, "indexCacheHits"),
     INDEX_CACHE_REQUEST((short)11, "indexCacheRequest"),
     DATA_CACHE_HITS((short)12, "dataCacheHits"),
-    DATA_CACHE_REQUEST((short)13, "dataCacheRequest");
+    DATA_CACHE_REQUEST((short)13, "dataCacheRequest"),
+    LOG_SORTS((short)14, "logSorts");
 
     private static final Map<String, _Fields> byName = new HashMap<String, _Fields>();
 
@@ -91,6 +94,8 @@ import org.slf4j.LoggerFactory;
           return DATA_CACHE_HITS;
         case 13: // DATA_CACHE_REQUEST
           return DATA_CACHE_REQUEST;
+        case 14: // LOG_SORTS
+          return LOG_SORTS;
         default:
           return null;
       }
@@ -166,6 +171,9 @@ import org.slf4j.LoggerFactory;
         new org.apache.thrift.meta_data.FieldValueMetaData(org.apache.thrift.protocol.TType.I64)));
     tmpMap.put(_Fields.DATA_CACHE_REQUEST, new org.apache.thrift.meta_data.FieldMetaData("dataCacheRequest", org.apache.thrift.TFieldRequirementType.DEFAULT, 
         new org.apache.thrift.meta_data.FieldValueMetaData(org.apache.thrift.protocol.TType.I64)));
+    tmpMap.put(_Fields.LOG_SORTS, new org.apache.thrift.meta_data.FieldMetaData("logSorts", org.apache.thrift.TFieldRequirementType.DEFAULT, 
+        new org.apache.thrift.meta_data.ListMetaData(org.apache.thrift.protocol.TType.LIST, 
+            new org.apache.thrift.meta_data.StructMetaData(org.apache.thrift.protocol.TType.STRUCT, RecoveryStatus.class))));
     metaDataMap = Collections.unmodifiableMap(tmpMap);
     org.apache.thrift.meta_data.FieldMetaData.addStructMetaDataMap(TabletServerStatus.class, metaDataMap);
   }
@@ -183,7 +191,8 @@ import org.slf4j.LoggerFactory;
     long indexCacheHits,
     long indexCacheRequest,
     long dataCacheHits,
-    long dataCacheRequest)
+    long dataCacheRequest,
+    List<RecoveryStatus> logSorts)
   {
     this();
     this.tableMap = tableMap;
@@ -204,6 +213,7 @@ import org.slf4j.LoggerFactory;
     setDataCacheHitsIsSet(true);
     this.dataCacheRequest = dataCacheRequest;
     setDataCacheRequestIsSet(true);
+    this.logSorts = logSorts;
   }
 
   /**
@@ -238,6 +248,13 @@ import org.slf4j.LoggerFactory;
     this.indexCacheRequest = other.indexCacheRequest;
     this.dataCacheHits = other.dataCacheHits;
     this.dataCacheRequest = other.dataCacheRequest;
+    if (other.isSetLogSorts()) {
+      List<RecoveryStatus> __this__logSorts = new ArrayList<RecoveryStatus>();
+      for (RecoveryStatus other_element : other.logSorts) {
+        __this__logSorts.add(new RecoveryStatus(other_element));
+      }
+      this.logSorts = __this__logSorts;
+    }
   }
 
   public TabletServerStatus deepCopy() {
@@ -264,6 +281,7 @@ import org.slf4j.LoggerFactory;
     this.dataCacheHits = 0;
     setDataCacheRequestIsSet(false);
     this.dataCacheRequest = 0;
+    this.logSorts = null;
   }
 
   public int getTableMapSize() {
@@ -509,6 +527,45 @@ import org.slf4j.LoggerFactory;
     __isset_bit_vector.set(__DATACACHEREQUEST_ISSET_ID, value);
   }
 
+  public int getLogSortsSize() {
+    return (this.logSorts == null) ? 0 : this.logSorts.size();
+  }
+
+  public java.util.Iterator<RecoveryStatus> getLogSortsIterator() {
+    return (this.logSorts == null) ? null : this.logSorts.iterator();
+  }
+
+  public void addToLogSorts(RecoveryStatus elem) {
+    if (this.logSorts == null) {
+      this.logSorts = new ArrayList<RecoveryStatus>();
+    }
+    this.logSorts.add(elem);
+  }
+
+  public List<RecoveryStatus> getLogSorts() {
+    return this.logSorts;
+  }
+
+  public TabletServerStatus setLogSorts(List<RecoveryStatus> logSorts) {
+    this.logSorts = logSorts;
+    return this;
+  }
+
+  public void unsetLogSorts() {
+    this.logSorts = null;
+  }
+
+  /** Returns true if field logSorts is set (has been assigned a value) and false otherwise */
+  public boolean isSetLogSorts() {
+    return this.logSorts != null;
+  }
+
+  public void setLogSortsIsSet(boolean value) {
+    if (!value) {
+      this.logSorts = null;
+    }
+  }
+
   public void setFieldValue(_Fields field, Object value) {
     switch (field) {
     case TABLE_MAP:
@@ -591,6 +648,14 @@ import org.slf4j.LoggerFactory;
       }
       break;
 
+    case LOG_SORTS:
+      if (value == null) {
+        unsetLogSorts();
+      } else {
+        setLogSorts((List<RecoveryStatus>)value);
+      }
+      break;
+
     }
   }
 
@@ -626,6 +691,9 @@ import org.slf4j.LoggerFactory;
     case DATA_CACHE_REQUEST:
       return new Long(getDataCacheRequest());
 
+    case LOG_SORTS:
+      return getLogSorts();
+
     }
     throw new IllegalStateException();
   }
@@ -657,6 +725,8 @@ import org.slf4j.LoggerFactory;
       return isSetDataCacheHits();
     case DATA_CACHE_REQUEST:
       return isSetDataCacheRequest();
+    case LOG_SORTS:
+      return isSetLogSorts();
     }
     throw new IllegalStateException();
   }
@@ -761,6 +831,15 @@ import org.slf4j.LoggerFactory;
       if (!(this_present_dataCacheRequest && that_present_dataCacheRequest))
         return false;
       if (this.dataCacheRequest != that.dataCacheRequest)
+        return false;
+    }
+
+    boolean this_present_logSorts = true && this.isSetLogSorts();
+    boolean that_present_logSorts = true && that.isSetLogSorts();
+    if (this_present_logSorts || that_present_logSorts) {
+      if (!(this_present_logSorts && that_present_logSorts))
+        return false;
+      if (!this.logSorts.equals(that.logSorts))
         return false;
     }
 
@@ -880,6 +959,16 @@ import org.slf4j.LoggerFactory;
         return lastComparison;
       }
     }
+    lastComparison = Boolean.valueOf(isSetLogSorts()).compareTo(typedOther.isSetLogSorts());
+    if (lastComparison != 0) {
+      return lastComparison;
+    }
+    if (isSetLogSorts()) {
+      lastComparison = org.apache.thrift.TBaseHelper.compareTo(this.logSorts, typedOther.logSorts);
+      if (lastComparison != 0) {
+        return lastComparison;
+      }
+    }
     return 0;
   }
 
@@ -988,6 +1077,24 @@ import org.slf4j.LoggerFactory;
             org.apache.thrift.protocol.TProtocolUtil.skip(iprot, field.type);
           }
           break;
+        case 14: // LOG_SORTS
+          if (field.type == org.apache.thrift.protocol.TType.LIST) {
+            {
+              org.apache.thrift.protocol.TList _list4 = iprot.readListBegin();
+              this.logSorts = new ArrayList<RecoveryStatus>(_list4.size);
+              for (int _i5 = 0; _i5 < _list4.size; ++_i5)
+              {
+                RecoveryStatus _elem6;
+                _elem6 = new RecoveryStatus();
+                _elem6.read(iprot);
+                this.logSorts.add(_elem6);
+              }
+              iprot.readListEnd();
+            }
+          } else { 
+            org.apache.thrift.protocol.TProtocolUtil.skip(iprot, field.type);
+          }
+          break;
         default:
           org.apache.thrift.protocol.TProtocolUtil.skip(iprot, field.type);
       }
@@ -1007,10 +1114,10 @@ import org.slf4j.LoggerFactory;
       oprot.writeFieldBegin(TABLE_MAP_FIELD_DESC);
       {
         oprot.writeMapBegin(new org.apache.thrift.protocol.TMap(org.apache.thrift.protocol.TType.STRING, org.apache.thrift.protocol.TType.STRUCT, this.tableMap.size()));
-        for (Map.Entry<String, TableInfo> _iter4 : this.tableMap.entrySet())
+        for (Map.Entry<String, TableInfo> _iter7 : this.tableMap.entrySet())
         {
-          oprot.writeString(_iter4.getKey());
-          _iter4.getValue().write(oprot);
+          oprot.writeString(_iter7.getKey());
+          _iter7.getValue().write(oprot);
         }
         oprot.writeMapEnd();
       }
@@ -1045,6 +1152,18 @@ import org.slf4j.LoggerFactory;
     oprot.writeFieldBegin(DATA_CACHE_REQUEST_FIELD_DESC);
     oprot.writeI64(this.dataCacheRequest);
     oprot.writeFieldEnd();
+    if (this.logSorts != null) {
+      oprot.writeFieldBegin(LOG_SORTS_FIELD_DESC);
+      {
+        oprot.writeListBegin(new org.apache.thrift.protocol.TList(org.apache.thrift.protocol.TType.STRUCT, this.logSorts.size()));
+        for (RecoveryStatus _iter8 : this.logSorts)
+        {
+          _iter8.write(oprot);
+        }
+        oprot.writeListEnd();
+      }
+      oprot.writeFieldEnd();
+    }
     oprot.writeFieldStop();
     oprot.writeStructEnd();
   }
@@ -1100,6 +1219,14 @@ import org.slf4j.LoggerFactory;
     if (!first) sb.append(", ");
     sb.append("dataCacheRequest:");
     sb.append(this.dataCacheRequest);
+    first = false;
+    if (!first) sb.append(", ");
+    sb.append("logSorts:");
+    if (this.logSorts == null) {
+      sb.append("null");
+    } else {
+      sb.append(this.logSorts);
+    }
     first = false;
     sb.append(")");
     return sb.toString();

@@ -162,7 +162,6 @@ import org.apache.accumulo.server.tabletserver.Tablet.TabletClosedException;
 import org.apache.accumulo.server.tabletserver.TabletServerResourceManager.TabletResourceManager;
 import org.apache.accumulo.server.tabletserver.TabletStatsKeeper.Operation;
 import org.apache.accumulo.server.tabletserver.log.DfsLogger;
-import org.apache.accumulo.server.tabletserver.log.IRemoteLogger;
 import org.apache.accumulo.server.tabletserver.log.LogSorter;
 import org.apache.accumulo.server.tabletserver.log.MutationReceiver;
 import org.apache.accumulo.server.tabletserver.log.TabletServerLogger;
@@ -224,14 +223,14 @@ public class TabletServer extends AbstractMetricsImpl implements org.apache.accu
   protected TabletServerMinCMetrics mincMetrics = new TabletServerMinCMetrics();
   
   private ServerConfiguration serverConfig;
-  private final LogSorter logSorter;
+  private LogSorter logSorter = null;
   
   public TabletServer(ServerConfiguration conf, FileSystem fs) {
     super();
     this.serverConfig = conf;
     this.instance = conf.getInstance();
     this.fs = TraceFileSystem.wrap(fs);
-    this.logSorter = new LogSorter(fs, conf.getConfiguration());
+    this.logSorter = new LogSorter(instance, fs, getSystemConfiguration());
     SimpleTimer.getInstance().schedule(new TimerTask() {
       @Override
       public void run() {
@@ -2043,27 +2042,6 @@ public class TabletServer extends AbstractMetricsImpl implements org.apache.accu
     /*
      * (non-Javadoc)
      * 
-     * @see org.apache.accumulo.core.tabletserver.thrift.TabletClientService.Iface#sortLog(org.apache.accumulo.cloudtrace.thrift.TInfo,
-     * org.apache.accumulo.core.security.thrift.AuthInfo, java.lang.String)
-     */
-    @Override
-    public double sortLog(TInfo tinfo, AuthInfo credentials, String source, String dest) throws ThriftSecurityException, TException {
-      try {
-        if (!authenticator.hasSystemPermission(credentials, credentials.user, SystemPermission.SYSTEM))
-          throw new ThriftSecurityException(credentials.user, SecurityErrorCode.PERMISSION_DENIED);
-      } catch (Exception e) {
-        throw new RuntimeException(e);
-      }
-      try {
-        return logSorter.sort(source, dest);
-      } catch (IOException ex) {
-        throw new RuntimeException(ex);
-      }
-    }
-    
-    /*
-     * (non-Javadoc)
-     * 
      * @see org.apache.accumulo.core.tabletserver.thrift.TabletClientService.Iface#removeLogs(org.apache.accumulo.cloudtrace.thrift.TInfo,
      * org.apache.accumulo.core.security.thrift.AuthInfo, java.util.List)
      */
@@ -2077,6 +2055,7 @@ public class TabletServer extends AbstractMetricsImpl implements org.apache.accu
       nextFile:
       for (String filename : filenames) {
         for (String logger : loggers) {
+          log.debug("logger " + logger + " filename " + filename);
           if (logger.contains(filename))
             continue nextFile;
         }
@@ -2099,6 +2078,8 @@ public class TabletServer extends AbstractMetricsImpl implements org.apache.accu
           } else {
             log.info("Deleting walog " + filename);
             fs.delete(new Path(logDir, filename), true);
+            log.info("Deleting any recovery version of the log ");
+            fs.delete(new Path(Constants.getRecoveryDir(acuConf), filename), true);
           }
         } catch (IOException e) {
           log.warn("Error attempting to delete write-ahead log " + filename + ": " + e);
@@ -2590,12 +2571,12 @@ public class TabletServer extends AbstractMetricsImpl implements org.apache.accu
     return statsKeeper;
   }
   
-  public void addLoggersToMetadata(List<IRemoteLogger> logs, KeyExtent extent, int id) {
+  public void addLoggersToMetadata(List<DfsLogger> logs, KeyExtent extent, int id) {
     log.info("Adding " + logs.size() + " logs for extent " + extent + " as alias " + id);
     
     long now = RelativeTime.currentTimeMillis();
     List<String> logSet = new ArrayList<String>();
-    for (IRemoteLogger log : logs)
+    for (DfsLogger log : logs)
       logSet.add(log.toString());
     MetadataTable.LogEntry entry = new MetadataTable.LogEntry();
     entry.extent = extent;
@@ -2719,6 +2700,12 @@ public class TabletServer extends AbstractMetricsImpl implements org.apache.accu
     }
     clientAddress = new InetSocketAddress(clientAddress.getAddress(), clientPort);
     announceExistence();
+    try {
+      logSorter.startWatchingForRecoveryLogs(getClientAddressString());
+    } catch (Exception ex) {
+      log.error("Error setting watches for recoveries");
+      throw new RuntimeException(ex);
+    }
     
     try {
       OBJECT_NAME = new ObjectName("accumulo.server.metrics:service=TServerInfo,name=TabletServerMBean,instance=" + Thread.currentThread().getName());
@@ -3113,6 +3100,7 @@ public class TabletServer extends AbstractMetricsImpl implements org.apache.accu
     result.indexCacheRequest = resourceManager.getIndexCache().getStats().getRequestCount();
     result.dataCacheHits = resourceManager.getDataCache().getStats().getHitCount();
     result.dataCacheRequest = resourceManager.getDataCache().getStats().getRequestCount();
+    result.logSorts = logSorter.getLogSorts();
     return result;
   }
   
@@ -3392,8 +3380,8 @@ public class TabletServer extends AbstractMetricsImpl implements org.apache.accu
   public TableConfiguration getTableConfiguration(KeyExtent extent) {
     return ServerConfiguration.getTableConfiguration(instance, extent.getTableId().toString());
   }
-  public DfsLogger.ServerConfig getServerConfig() {
-    return new DfsLogger.ServerConfig() {
+  public DfsLogger.ServerResources getServerConfig() {
+    return new DfsLogger.ServerResources() {
       
       @Override
       public FileSystem getFileSystem() {

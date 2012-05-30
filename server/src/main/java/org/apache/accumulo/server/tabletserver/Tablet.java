@@ -112,7 +112,6 @@ import org.apache.accumulo.server.tabletserver.TabletServer.TservConstraintEnv;
 import org.apache.accumulo.server.tabletserver.TabletServerResourceManager.TabletResourceManager;
 import org.apache.accumulo.server.tabletserver.TabletStatsKeeper.Operation;
 import org.apache.accumulo.server.tabletserver.log.DfsLogger;
-import org.apache.accumulo.server.tabletserver.log.IRemoteLogger;
 import org.apache.accumulo.server.tabletserver.log.MutationReceiver;
 import org.apache.accumulo.server.tabletserver.mastermessage.TabletStatusMessage;
 import org.apache.accumulo.server.tabletserver.metrics.TabletServerMinCMetrics;
@@ -210,7 +209,7 @@ public class Tablet {
       return Tablet.this;
     }
     
-    public boolean beginUpdatingLogsUsed(ArrayList<IRemoteLogger> copy, boolean mincFinish) {
+    public boolean beginUpdatingLogsUsed(ArrayList<DfsLogger> copy, boolean mincFinish) {
       return Tablet.this.beginUpdatingLogsUsed(memTable, copy, mincFinish);
     }
     
@@ -1179,7 +1178,6 @@ public class Tablet {
       for (int i = 0; i < files.length; i++) {
         paths[i] = files[i].getPath();
       }
-      log.debug("fs " + fs + " files: " + Arrays.toString(paths) + " location: " + location);
       Collection<String> goodPaths = cleanUpFiles(fs, files, location, true);
       for (String path : goodPaths) {
         String filename = new Path(path).getName();
@@ -1461,7 +1459,7 @@ public class Tablet {
         }
       }
       // make some closed references that represent the recovered logs
-      currentLogs = new HashSet<IRemoteLogger>();
+      currentLogs = new HashSet<DfsLogger>();
       for (LogEntry logEntry : logEntries) {
         for (String log : logEntry.logSet) {
           String[] parts = log.split("/", 2);
@@ -2239,7 +2237,7 @@ public class Tablet {
   private synchronized MinorCompactionTask prepareForMinC(long flushId) {
     CommitSession oldCommitSession = tabletMemory.prepareForMinC();
     otherLogs = currentLogs;
-    currentLogs = new HashSet<IRemoteLogger>();
+    currentLogs = new HashSet<DfsLogger>();
     
     String mergeFile = datafileManager.reserveMergingMinorCompactionFile();
     
@@ -3241,12 +3239,8 @@ public class Tablet {
           log.debug("Starting MajC " + extent + " (" + reason + ") " + datafileManager.abs2rel(datafileManager.string2path(copy.keySet())) + " --> "
               + datafileManager.abs2rel(new Path(compactTmpName)));
 
-          Compactor compactor = new Compactor(conf, fs, copy, null, compactTmpName, filesToCompact.size() == 0 ? propogateDeletes : true, // always
-                                                                                                                                          // propagate
-                                                                                                                                          // deletes,
-                                                                                                                                          // unless
-                                                                                                                                          // last
-                                                                                                                                          // batch
+          // always propagate deletes, unless last batch
+          Compactor compactor = new Compactor(conf, fs, copy, null, compactTmpName, filesToCompact.size() == 0 ? propogateDeletes : true,
               acuTableConf, extent, cenv, compactionIterators);
           
           CompactionStats mcs = compactor.call();
@@ -3647,11 +3641,11 @@ public class Tablet {
     }
   }
   
-  private Set<IRemoteLogger> currentLogs = new HashSet<IRemoteLogger>();
+  private Set<DfsLogger> currentLogs = new HashSet<DfsLogger>();
   
   synchronized public Set<String> getCurrentLogs() {
     Set<String> result = new HashSet<String>();
-    for (IRemoteLogger log : currentLogs) {
+    for (DfsLogger log : currentLogs) {
       result.add(log.toString());
     }
     return result;
@@ -3670,12 +3664,12 @@ public class Tablet {
       if (removingLogs)
         throw new IllegalStateException("Attempted to clear logs when removal of logs in progress");
       
-      for (IRemoteLogger logger : otherLogs) {
+      for (DfsLogger logger : otherLogs) {
         otherLogsCopy.add(logger.toString());
         doomed.add(logger.toString());
       }
       
-      for (IRemoteLogger logger : currentLogs) {
+      for (DfsLogger logger : currentLogs) {
         currentLogsCopy.add(logger.toString());
         doomed.remove(logger.toString());
       }
@@ -3703,7 +3697,7 @@ public class Tablet {
     logLock.unlock();
   }
   
-  private Set<IRemoteLogger> otherLogs = Collections.emptySet();
+  private Set<DfsLogger> otherLogs = Collections.emptySet();
   private boolean removingLogs = false;
   
   // this lock is basically used to synchronize writing of log info to !METADATA
@@ -3713,7 +3707,7 @@ public class Tablet {
     return currentLogs.size();
   }
   
-  private boolean beginUpdatingLogsUsed(InMemoryMap memTable, Collection<IRemoteLogger> more, boolean mincFinish) {
+  private boolean beginUpdatingLogsUsed(InMemoryMap memTable, Collection<DfsLogger> more, boolean mincFinish) {
     
     boolean releaseLock = true;
     
@@ -3750,7 +3744,7 @@ public class Tablet {
         
         int numAdded = 0;
         int numContained = 0;
-        for (IRemoteLogger logger : more) {
+        for (DfsLogger logger : more) {
           if (addToOther) {
             if (otherLogs.add(logger))
               numAdded++;

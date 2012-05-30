@@ -363,7 +363,6 @@ public class Monitor {
       
       ingestRateOverTime.add(new Pair<Long,Double>(currentTime, totalIngestRate));
       ingestByteRateOverTime.add(new Pair<Long,Double>(currentTime, totalIngestByteRate));
-      recoveriesOverTime.add(new Pair<Long,Integer>(currentTime, mmi.recovery.size()));
       
       double totalLoad = 0.;
       for (TabletServerStatus status : mmi.tServerInfo) {

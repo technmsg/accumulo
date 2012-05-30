@@ -26,7 +26,6 @@ import org.slf4j.LoggerFactory;
   private static final org.apache.thrift.protocol.TField TABLE_MAP_FIELD_DESC = new org.apache.thrift.protocol.TField("tableMap", org.apache.thrift.protocol.TType.MAP, (short)1);
   private static final org.apache.thrift.protocol.TField T_SERVER_INFO_FIELD_DESC = new org.apache.thrift.protocol.TField("tServerInfo", org.apache.thrift.protocol.TType.LIST, (short)2);
   private static final org.apache.thrift.protocol.TField BAD_TSERVERS_FIELD_DESC = new org.apache.thrift.protocol.TField("badTServers", org.apache.thrift.protocol.TType.MAP, (short)3);
-  private static final org.apache.thrift.protocol.TField RECOVERY_FIELD_DESC = new org.apache.thrift.protocol.TField("recovery", org.apache.thrift.protocol.TType.LIST, (short)4);
   private static final org.apache.thrift.protocol.TField STATE_FIELD_DESC = new org.apache.thrift.protocol.TField("state", org.apache.thrift.protocol.TType.I32, (short)6);
   private static final org.apache.thrift.protocol.TField GOAL_STATE_FIELD_DESC = new org.apache.thrift.protocol.TField("goalState", org.apache.thrift.protocol.TType.I32, (short)8);
   private static final org.apache.thrift.protocol.TField UNASSIGNED_TABLETS_FIELD_DESC = new org.apache.thrift.protocol.TField("unassignedTablets", org.apache.thrift.protocol.TType.I32, (short)7);
@@ -36,7 +35,6 @@ import org.slf4j.LoggerFactory;
   public Map<String,TableInfo> tableMap;
   public List<TabletServerStatus> tServerInfo;
   public Map<String,Byte> badTServers;
-  public List<RecoveryStatus> recovery;
   /**
    * 
    * @see MasterState
@@ -56,7 +54,6 @@ import org.slf4j.LoggerFactory;
     TABLE_MAP((short)1, "tableMap"),
     T_SERVER_INFO((short)2, "tServerInfo"),
     BAD_TSERVERS((short)3, "badTServers"),
-    RECOVERY((short)4, "recovery"),
     /**
      * 
      * @see MasterState
@@ -90,8 +87,6 @@ import org.slf4j.LoggerFactory;
           return T_SERVER_INFO;
         case 3: // BAD_TSERVERS
           return BAD_TSERVERS;
-        case 4: // RECOVERY
-          return RECOVERY;
         case 6: // STATE
           return STATE;
         case 8: // GOAL_STATE
@@ -159,9 +154,6 @@ import org.slf4j.LoggerFactory;
         new org.apache.thrift.meta_data.MapMetaData(org.apache.thrift.protocol.TType.MAP, 
             new org.apache.thrift.meta_data.FieldValueMetaData(org.apache.thrift.protocol.TType.STRING), 
             new org.apache.thrift.meta_data.FieldValueMetaData(org.apache.thrift.protocol.TType.BYTE))));
-    tmpMap.put(_Fields.RECOVERY, new org.apache.thrift.meta_data.FieldMetaData("recovery", org.apache.thrift.TFieldRequirementType.DEFAULT, 
-        new org.apache.thrift.meta_data.ListMetaData(org.apache.thrift.protocol.TType.LIST, 
-            new org.apache.thrift.meta_data.StructMetaData(org.apache.thrift.protocol.TType.STRUCT, RecoveryStatus.class))));
     tmpMap.put(_Fields.STATE, new org.apache.thrift.meta_data.FieldMetaData("state", org.apache.thrift.TFieldRequirementType.DEFAULT, 
         new org.apache.thrift.meta_data.EnumMetaData(org.apache.thrift.protocol.TType.ENUM, MasterState.class)));
     tmpMap.put(_Fields.GOAL_STATE, new org.apache.thrift.meta_data.FieldMetaData("goalState", org.apache.thrift.TFieldRequirementType.DEFAULT, 
@@ -185,7 +177,6 @@ import org.slf4j.LoggerFactory;
     Map<String,TableInfo> tableMap,
     List<TabletServerStatus> tServerInfo,
     Map<String,Byte> badTServers,
-    List<RecoveryStatus> recovery,
     MasterState state,
     MasterGoalState goalState,
     int unassignedTablets,
@@ -196,7 +187,6 @@ import org.slf4j.LoggerFactory;
     this.tableMap = tableMap;
     this.tServerInfo = tServerInfo;
     this.badTServers = badTServers;
-    this.recovery = recovery;
     this.state = state;
     this.goalState = goalState;
     this.unassignedTablets = unassignedTablets;
@@ -248,13 +238,6 @@ import org.slf4j.LoggerFactory;
       }
       this.badTServers = __this__badTServers;
     }
-    if (other.isSetRecovery()) {
-      List<RecoveryStatus> __this__recovery = new ArrayList<RecoveryStatus>();
-      for (RecoveryStatus other_element : other.recovery) {
-        __this__recovery.add(new RecoveryStatus(other_element));
-      }
-      this.recovery = __this__recovery;
-    }
     if (other.isSetState()) {
       this.state = other.state;
     }
@@ -287,7 +270,6 @@ import org.slf4j.LoggerFactory;
     this.tableMap = null;
     this.tServerInfo = null;
     this.badTServers = null;
-    this.recovery = null;
     this.state = null;
     this.goalState = null;
     setUnassignedTabletsIsSet(false);
@@ -402,45 +384,6 @@ import org.slf4j.LoggerFactory;
   public void setBadTServersIsSet(boolean value) {
     if (!value) {
       this.badTServers = null;
-    }
-  }
-
-  public int getRecoverySize() {
-    return (this.recovery == null) ? 0 : this.recovery.size();
-  }
-
-  public java.util.Iterator<RecoveryStatus> getRecoveryIterator() {
-    return (this.recovery == null) ? null : this.recovery.iterator();
-  }
-
-  public void addToRecovery(RecoveryStatus elem) {
-    if (this.recovery == null) {
-      this.recovery = new ArrayList<RecoveryStatus>();
-    }
-    this.recovery.add(elem);
-  }
-
-  public List<RecoveryStatus> getRecovery() {
-    return this.recovery;
-  }
-
-  public MasterMonitorInfo setRecovery(List<RecoveryStatus> recovery) {
-    this.recovery = recovery;
-    return this;
-  }
-
-  public void unsetRecovery() {
-    this.recovery = null;
-  }
-
-  /** Returns true if field recovery is set (has been assigned a value) and false otherwise */
-  public boolean isSetRecovery() {
-    return this.recovery != null;
-  }
-
-  public void setRecoveryIsSet(boolean value) {
-    if (!value) {
-      this.recovery = null;
     }
   }
 
@@ -635,14 +578,6 @@ import org.slf4j.LoggerFactory;
       }
       break;
 
-    case RECOVERY:
-      if (value == null) {
-        unsetRecovery();
-      } else {
-        setRecovery((List<RecoveryStatus>)value);
-      }
-      break;
-
     case STATE:
       if (value == null) {
         unsetState();
@@ -697,9 +632,6 @@ import org.slf4j.LoggerFactory;
     case BAD_TSERVERS:
       return getBadTServers();
 
-    case RECOVERY:
-      return getRecovery();
-
     case STATE:
       return getState();
 
@@ -732,8 +664,6 @@ import org.slf4j.LoggerFactory;
       return isSetTServerInfo();
     case BAD_TSERVERS:
       return isSetBadTServers();
-    case RECOVERY:
-      return isSetRecovery();
     case STATE:
       return isSetState();
     case GOAL_STATE:
@@ -785,15 +715,6 @@ import org.slf4j.LoggerFactory;
       if (!(this_present_badTServers && that_present_badTServers))
         return false;
       if (!this.badTServers.equals(that.badTServers))
-        return false;
-    }
-
-    boolean this_present_recovery = true && this.isSetRecovery();
-    boolean that_present_recovery = true && that.isSetRecovery();
-    if (this_present_recovery || that_present_recovery) {
-      if (!(this_present_recovery && that_present_recovery))
-        return false;
-      if (!this.recovery.equals(that.recovery))
         return false;
     }
 
@@ -888,16 +809,6 @@ import org.slf4j.LoggerFactory;
         return lastComparison;
       }
     }
-    lastComparison = Boolean.valueOf(isSetRecovery()).compareTo(typedOther.isSetRecovery());
-    if (lastComparison != 0) {
-      return lastComparison;
-    }
-    if (isSetRecovery()) {
-      lastComparison = org.apache.thrift.TBaseHelper.compareTo(this.recovery, typedOther.recovery);
-      if (lastComparison != 0) {
-        return lastComparison;
-      }
-    }
     lastComparison = Boolean.valueOf(isSetState()).compareTo(typedOther.isSetState());
     if (lastComparison != 0) {
       return lastComparison;
@@ -968,16 +879,16 @@ import org.slf4j.LoggerFactory;
         case 1: // TABLE_MAP
           if (field.type == org.apache.thrift.protocol.TType.MAP) {
             {
-              org.apache.thrift.protocol.TMap _map5 = iprot.readMapBegin();
-              this.tableMap = new HashMap<String,TableInfo>(2*_map5.size);
-              for (int _i6 = 0; _i6 < _map5.size; ++_i6)
+              org.apache.thrift.protocol.TMap _map9 = iprot.readMapBegin();
+              this.tableMap = new HashMap<String,TableInfo>(2*_map9.size);
+              for (int _i10 = 0; _i10 < _map9.size; ++_i10)
               {
-                String _key7;
-                TableInfo _val8;
-                _key7 = iprot.readString();
-                _val8 = new TableInfo();
-                _val8.read(iprot);
-                this.tableMap.put(_key7, _val8);
+                String _key11;
+                TableInfo _val12;
+                _key11 = iprot.readString();
+                _val12 = new TableInfo();
+                _val12.read(iprot);
+                this.tableMap.put(_key11, _val12);
               }
               iprot.readMapEnd();
             }
@@ -988,14 +899,14 @@ import org.slf4j.LoggerFactory;
         case 2: // T_SERVER_INFO
           if (field.type == org.apache.thrift.protocol.TType.LIST) {
             {
-              org.apache.thrift.protocol.TList _list9 = iprot.readListBegin();
-              this.tServerInfo = new ArrayList<TabletServerStatus>(_list9.size);
-              for (int _i10 = 0; _i10 < _list9.size; ++_i10)
+              org.apache.thrift.protocol.TList _list13 = iprot.readListBegin();
+              this.tServerInfo = new ArrayList<TabletServerStatus>(_list13.size);
+              for (int _i14 = 0; _i14 < _list13.size; ++_i14)
               {
-                TabletServerStatus _elem11;
-                _elem11 = new TabletServerStatus();
-                _elem11.read(iprot);
-                this.tServerInfo.add(_elem11);
+                TabletServerStatus _elem15;
+                _elem15 = new TabletServerStatus();
+                _elem15.read(iprot);
+                this.tServerInfo.add(_elem15);
               }
               iprot.readListEnd();
             }
@@ -1006,35 +917,17 @@ import org.slf4j.LoggerFactory;
         case 3: // BAD_TSERVERS
           if (field.type == org.apache.thrift.protocol.TType.MAP) {
             {
-              org.apache.thrift.protocol.TMap _map12 = iprot.readMapBegin();
-              this.badTServers = new HashMap<String,Byte>(2*_map12.size);
-              for (int _i13 = 0; _i13 < _map12.size; ++_i13)
+              org.apache.thrift.protocol.TMap _map16 = iprot.readMapBegin();
+              this.badTServers = new HashMap<String,Byte>(2*_map16.size);
+              for (int _i17 = 0; _i17 < _map16.size; ++_i17)
               {
-                String _key14;
-                byte _val15;
-                _key14 = iprot.readString();
-                _val15 = iprot.readByte();
-                this.badTServers.put(_key14, _val15);
+                String _key18;
+                byte _val19;
+                _key18 = iprot.readString();
+                _val19 = iprot.readByte();
+                this.badTServers.put(_key18, _val19);
               }
               iprot.readMapEnd();
-            }
-          } else { 
-            org.apache.thrift.protocol.TProtocolUtil.skip(iprot, field.type);
-          }
-          break;
-        case 4: // RECOVERY
-          if (field.type == org.apache.thrift.protocol.TType.LIST) {
-            {
-              org.apache.thrift.protocol.TList _list16 = iprot.readListBegin();
-              this.recovery = new ArrayList<RecoveryStatus>(_list16.size);
-              for (int _i17 = 0; _i17 < _list16.size; ++_i17)
-              {
-                RecoveryStatus _elem18;
-                _elem18 = new RecoveryStatus();
-                _elem18.read(iprot);
-                this.recovery.add(_elem18);
-              }
-              iprot.readListEnd();
             }
           } else { 
             org.apache.thrift.protocol.TProtocolUtil.skip(iprot, field.type);
@@ -1065,13 +958,13 @@ import org.slf4j.LoggerFactory;
         case 9: // SERVERS_SHUTTING_DOWN
           if (field.type == org.apache.thrift.protocol.TType.SET) {
             {
-              org.apache.thrift.protocol.TSet _set19 = iprot.readSetBegin();
-              this.serversShuttingDown = new HashSet<String>(2*_set19.size);
-              for (int _i20 = 0; _i20 < _set19.size; ++_i20)
+              org.apache.thrift.protocol.TSet _set20 = iprot.readSetBegin();
+              this.serversShuttingDown = new HashSet<String>(2*_set20.size);
+              for (int _i21 = 0; _i21 < _set20.size; ++_i21)
               {
-                String _elem21;
-                _elem21 = iprot.readString();
-                this.serversShuttingDown.add(_elem21);
+                String _elem22;
+                _elem22 = iprot.readString();
+                this.serversShuttingDown.add(_elem22);
               }
               iprot.readSetEnd();
             }
@@ -1082,14 +975,14 @@ import org.slf4j.LoggerFactory;
         case 10: // DEAD_TABLET_SERVERS
           if (field.type == org.apache.thrift.protocol.TType.LIST) {
             {
-              org.apache.thrift.protocol.TList _list22 = iprot.readListBegin();
-              this.deadTabletServers = new ArrayList<DeadServer>(_list22.size);
-              for (int _i23 = 0; _i23 < _list22.size; ++_i23)
+              org.apache.thrift.protocol.TList _list23 = iprot.readListBegin();
+              this.deadTabletServers = new ArrayList<DeadServer>(_list23.size);
+              for (int _i24 = 0; _i24 < _list23.size; ++_i24)
               {
-                DeadServer _elem24;
-                _elem24 = new DeadServer();
-                _elem24.read(iprot);
-                this.deadTabletServers.add(_elem24);
+                DeadServer _elem25;
+                _elem25 = new DeadServer();
+                _elem25.read(iprot);
+                this.deadTabletServers.add(_elem25);
               }
               iprot.readListEnd();
             }
@@ -1116,10 +1009,10 @@ import org.slf4j.LoggerFactory;
       oprot.writeFieldBegin(TABLE_MAP_FIELD_DESC);
       {
         oprot.writeMapBegin(new org.apache.thrift.protocol.TMap(org.apache.thrift.protocol.TType.STRING, org.apache.thrift.protocol.TType.STRUCT, this.tableMap.size()));
-        for (Map.Entry<String, TableInfo> _iter25 : this.tableMap.entrySet())
+        for (Map.Entry<String, TableInfo> _iter26 : this.tableMap.entrySet())
         {
-          oprot.writeString(_iter25.getKey());
-          _iter25.getValue().write(oprot);
+          oprot.writeString(_iter26.getKey());
+          _iter26.getValue().write(oprot);
         }
         oprot.writeMapEnd();
       }
@@ -1129,9 +1022,9 @@ import org.slf4j.LoggerFactory;
       oprot.writeFieldBegin(T_SERVER_INFO_FIELD_DESC);
       {
         oprot.writeListBegin(new org.apache.thrift.protocol.TList(org.apache.thrift.protocol.TType.STRUCT, this.tServerInfo.size()));
-        for (TabletServerStatus _iter26 : this.tServerInfo)
+        for (TabletServerStatus _iter27 : this.tServerInfo)
         {
-          _iter26.write(oprot);
+          _iter27.write(oprot);
         }
         oprot.writeListEnd();
       }
@@ -1141,24 +1034,12 @@ import org.slf4j.LoggerFactory;
       oprot.writeFieldBegin(BAD_TSERVERS_FIELD_DESC);
       {
         oprot.writeMapBegin(new org.apache.thrift.protocol.TMap(org.apache.thrift.protocol.TType.STRING, org.apache.thrift.protocol.TType.BYTE, this.badTServers.size()));
-        for (Map.Entry<String, Byte> _iter27 : this.badTServers.entrySet())
+        for (Map.Entry<String, Byte> _iter28 : this.badTServers.entrySet())
         {
-          oprot.writeString(_iter27.getKey());
-          oprot.writeByte(_iter27.getValue());
+          oprot.writeString(_iter28.getKey());
+          oprot.writeByte(_iter28.getValue());
         }
         oprot.writeMapEnd();
-      }
-      oprot.writeFieldEnd();
-    }
-    if (this.recovery != null) {
-      oprot.writeFieldBegin(RECOVERY_FIELD_DESC);
-      {
-        oprot.writeListBegin(new org.apache.thrift.protocol.TList(org.apache.thrift.protocol.TType.STRUCT, this.recovery.size()));
-        for (RecoveryStatus _iter28 : this.recovery)
-        {
-          _iter28.write(oprot);
-        }
-        oprot.writeListEnd();
       }
       oprot.writeFieldEnd();
     }
@@ -1229,14 +1110,6 @@ import org.slf4j.LoggerFactory;
       sb.append("null");
     } else {
       sb.append(this.badTServers);
-    }
-    first = false;
-    if (!first) sb.append(", ");
-    sb.append("recovery:");
-    if (this.recovery == null) {
-      sb.append("null");
-    } else {
-      sb.append(this.recovery);
     }
     first = false;
     if (!first) sb.append(", ");

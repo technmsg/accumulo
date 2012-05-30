@@ -121,6 +121,7 @@ public class GarbageCollectWriteAheadLogs {
         try {
           tserver = ThriftUtil.getClient(new TabletClientService.Client.Factory(), address, conf);
           tserver.removeLogs(null, SecurityConstants.getSystemCredentials(), entry.getValue());
+          log.debug("deleted " + entry.getValue() + " from " + entry.getKey());
           status.currentLog.deleted += entry.getValue().size();
         } catch (TException e) {
           log.warn("Error talking to " + address + ": " + e);

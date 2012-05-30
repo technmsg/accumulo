@@ -173,25 +173,28 @@ public class MasterServlet extends BasicServlet {
   private void doRecoveryList(HttpServletRequest req, StringBuilder sb) {
     MasterMonitorInfo mmi = Monitor.getMmi();
     if (mmi != null) {
-      List<RecoveryStatus> jobs = mmi.recovery;
-      if (jobs != null && jobs.size() > 0) {
-        Table recoveryTable = new Table("logRecovery", "Log&nbsp;Recovery");
-        recoveryTable.setSubCaption("Some tablets were unloaded in an unsafe manner. Write-ahead logs are being recovered.");
-        recoveryTable.addSortableColumn("Server");
-        recoveryTable.addSortableColumn("Log");
-        recoveryTable.addSortableColumn("Time", new DurationType(), null);
-        recoveryTable.addSortableColumn("Copy/Sort", new ProgressChartType(), null);
-        
-        for (RecoveryStatus recovery : jobs) {
-          TableRow row = recoveryTable.prepareRow();
-          row.add(AddressUtil.parseAddress(recovery.host, Property.TSERV_CLIENTPORT).getHostName());
-          row.add(recovery.name);
-          row.add((long) recovery.runtime);
-          row.add(recovery.copyProgress);
-          recoveryTable.addRow(row);
+      Table recoveryTable = new Table("logRecovery", "Log&nbsp;Recovery");
+      recoveryTable.setSubCaption("Some tablets were unloaded in an unsafe manner. Write-ahead logs are being recovered.");
+      recoveryTable.addSortableColumn("Server");
+      recoveryTable.addSortableColumn("Log");
+      recoveryTable.addSortableColumn("Time", new DurationType(), null);
+      recoveryTable.addSortableColumn("Copy/Sort", new ProgressChartType(), null);
+      int rows = 0;
+      for (TabletServerStatus server : mmi.tServerInfo) {
+        if (server.logSorts != null) {
+          for (RecoveryStatus recovery : server.logSorts) {
+            TableRow row = recoveryTable.prepareRow();
+            row.add(AddressUtil.parseAddress(server.name, Property.TSERV_CLIENTPORT).getHostName());
+            row.add(recovery.name);
+            row.add((long) recovery.runtime);
+            row.add(recovery.progress);
+            recoveryTable.addRow(row);
+            rows++;
+          }
         }
-        recoveryTable.generate(req, sb);
       }
+      if (rows > 0)
+        recoveryTable.generate(req, sb);
     }
   }
   

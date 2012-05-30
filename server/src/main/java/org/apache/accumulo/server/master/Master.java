@@ -87,7 +87,6 @@ import org.apache.accumulo.core.util.ByteBufferUtil;
 import org.apache.accumulo.core.util.CachedConfiguration;
 import org.apache.accumulo.core.util.ColumnFQ;
 import org.apache.accumulo.core.util.Daemon;
-import org.apache.accumulo.core.util.LoggingRunnable;
 import org.apache.accumulo.core.util.UtilWaitThread;
 import org.apache.accumulo.core.zookeeper.ZooUtil;
 import org.apache.accumulo.core.zookeeper.ZooUtil.NodeExistsPolicy;
@@ -98,11 +97,10 @@ import org.apache.accumulo.server.conf.ServerConfiguration;
 import org.apache.accumulo.server.fate.Fate;
 import org.apache.accumulo.server.fate.TStore.TStatus;
 import org.apache.accumulo.server.iterators.MetadataBulkLoadFilter;
-import org.apache.accumulo.server.master.CoordinateRecoveryTask.JobComplete;
-import org.apache.accumulo.server.master.CoordinateRecoveryTask.LogFile;
 import org.apache.accumulo.server.master.LiveTServerSet.TServerConnection;
 import org.apache.accumulo.server.master.balancer.DefaultLoadBalancer;
 import org.apache.accumulo.server.master.balancer.TabletBalancer;
+import org.apache.accumulo.server.master.recovery.RecoverLease;
 import org.apache.accumulo.server.master.state.Assignment;
 import org.apache.accumulo.server.master.state.CurrentState;
 import org.apache.accumulo.server.master.state.DeadServerList;
@@ -140,7 +138,6 @@ import org.apache.accumulo.server.security.SecurityConstants;
 import org.apache.accumulo.server.security.SecurityUtil;
 import org.apache.accumulo.server.security.ZKAuthenticator;
 import org.apache.accumulo.server.tabletserver.TabletTime;
-import org.apache.accumulo.server.tabletserver.log.DfsLogger.ServerConfig;
 import org.apache.accumulo.server.trace.TraceFileSystem;
 import org.apache.accumulo.server.util.AddressUtil;
 import org.apache.accumulo.server.util.DefaultMap;
@@ -170,6 +167,8 @@ import org.apache.thrift.server.TServer;
 import org.apache.thrift.transport.TTransportException;
 import org.apache.zookeeper.KeeperException;
 import org.apache.zookeeper.KeeperException.NoNodeException;
+import org.apache.zookeeper.WatchedEvent;
+import org.apache.zookeeper.Watcher;
 import org.apache.zookeeper.ZooDefs;
 import org.apache.zookeeper.data.ACL;
 import org.apache.zookeeper.data.Stat;
@@ -180,7 +179,7 @@ import org.apache.zookeeper.data.Stat;
  * 
  * The master will also coordinate log recoveries and reports general status.
  */
-public class Master implements LiveTServerSet.Listener, TableObserver, CurrentState, JobComplete {
+public class Master implements LiveTServerSet.Listener, TableObserver, CurrentState {
   
   final private static Logger log = Logger.getLogger(Master.class);
   
@@ -209,7 +208,6 @@ public class Master implements LiveTServerSet.Listener, TableObserver, CurrentSt
   
   private ZooLock masterLock = null;
   private TServer clientService = null;
-  private CoordinateRecoveryTask recovery = null;
   private TabletBalancer tabletBalancer;
   
   private MasterState state = MasterState.INITIAL;
@@ -698,7 +696,6 @@ public class Master implements LiveTServerSet.Listener, TableObserver, CurrentSt
     @Override
     public MasterMonitorInfo getMasterStats(TInfo info, AuthInfo credentials) throws ThriftSecurityException, TException {
       final MasterMonitorInfo result = new MasterMonitorInfo();
-      result.recovery = recovery.status();
       
       result.tServerInfo = new ArrayList<TabletServerStatus>();
       result.tableMap = new DefaultMap<String,TableInfo>(new TableInfo());
@@ -1068,6 +1065,7 @@ public class Master implements LiveTServerSet.Listener, TableObserver, CurrentSt
       fate.delete(opid);
       
     }
+    
   }
   
   public MergeInfo getMergeInfo(Text tableId) {
@@ -1352,9 +1350,8 @@ public class Master implements LiveTServerSet.Listener, TableObserver, CurrentSt
             
             if (goal == TabletGoalState.HOSTED) {
               if (state != TabletState.HOSTED && !tls.walogs.isEmpty()) {
-                if (!recovery.recover(getServerConfig(), tls.extent, tls.walogs, Master.this)) {
+                if (recoverLogs(tls.walogs))
                   continue;
-                }
               }
               switch (state) {
                 case HOSTED:
@@ -1442,28 +1439,6 @@ public class Master implements LiveTServerSet.Listener, TableObserver, CurrentSt
       }
     }
     
-    /**
-     * @return
-     */
-    private ServerConfig getServerConfig() {
-      return new ServerConfig() {
-        @Override
-        public AccumuloConfiguration getConfiguration() {
-          return getSystemConfiguration();
-        }
-
-        @Override
-        public FileSystem getFileSystem() {
-          return fs;
-        }
-
-        @Override
-        public Set<TServerInstance> getCurrentTServers() {
-          return Master.this.tserverSet.getCurrentServers();
-        }
-      };
-    }
-
     private void sendSplitRequest(MergeInfo info, TabletState state, TabletLocationState tls) {
       // Already split?
       if (!info.getState().equals(MergeState.SPLITTING))
@@ -2051,16 +2026,37 @@ public class Master implements LiveTServerSet.Listener, TableObserver, CurrentSt
     return result;
   }
   
+  public boolean recoverLogs(Collection<Collection<String>> walogs) throws IOException {
+    boolean recoveryNeeded = false;
+    for (Collection<String> logs : walogs) {
+      for (String log : logs) {
+        String parts[] = log.split("/");
+        String host = parts[0];
+        String filename = parts[1];
+        if (fs.exists(new Path(Constants.getRecoveryDir(getSystemConfiguration()) + "/" + filename + "/finished"))) {
+          continue;
+        }
+        recoveryNeeded = true;
+        String zPath = ZooUtil.getRoot(instance) + Constants.ZRECOVERY + "/" + filename;
+        try {
+          if (!ZooReaderWriter.getInstance().exists(zPath)) {
+            long tid = fate.startTransaction();
+            fate.seedTransaction(tid, new RecoverLease(host, filename), true);
+          }
+        } catch (Exception ex) {
+          Master.log.info("Unable to check the recovery entry " + filename + ", will retry");
+        }
+      }
+    }
+    return recoveryNeeded;
+  }
+
   public void run() throws IOException, InterruptedException, KeeperException {
     final String zroot = ZooUtil.getRoot(instance);
     
     getMasterLock(zroot + Constants.ZMASTER_LOCK);
     
     TableManager.getInstance().addObserver(this);
-    
-    recovery = new CoordinateRecoveryTask(fs, getSystemConfiguration());
-    Thread recoveryThread = new Daemon(new LoggingRunnable(log, recovery), "Recovery Status");
-    recoveryThread.start();
     
     StatusThread statusThread = new StatusThread();
     statusThread.start();
@@ -2069,6 +2065,13 @@ public class Master implements LiveTServerSet.Listener, TableObserver, CurrentSt
     migrationCleanupThread.start();
     
     tserverSet.startListeningForTabletServerChanges();
+
+    ZooReaderWriter.getInstance().getChildren(zroot + Constants.ZRECOVERY, new Watcher() {
+      @Override
+      public void process(WatchedEvent event) {
+        nextEvent.event("Noticed recovery changes", event.getType());
+      }
+    });
     
     AuthInfo systemAuths = SecurityConstants.getSystemCredentials();
     final TabletStateStore stores[] = {new ZooTabletStateStore(new ZooStore(zroot)), new RootTabletStateStore(instance, systemAuths, this),
@@ -2103,9 +2106,6 @@ public class Master implements LiveTServerSet.Listener, TableObserver, CurrentSt
     
     final long deadline = System.currentTimeMillis() + MAX_CLEANUP_WAIT_TIME;
     statusThread.join(remaining(deadline));
-    
-    recovery.stop();
-    recoveryThread.join(remaining(deadline));
     
     // quit, even if the tablet servers somehow jam up and the watchers
     // don't stop
@@ -2257,11 +2257,6 @@ public class Master implements LiveTServerSet.Listener, TableObserver, CurrentSt
       result.add(getMergeInfo(new Text(tableId)));
     }
     return result;
-  }
-  
-  @Override
-  public void finished(LogFile entry) {
-    nextEvent.event("Log recovery %s complete ", entry);
   }
   
   public void killTServer(TServerInstance server) {

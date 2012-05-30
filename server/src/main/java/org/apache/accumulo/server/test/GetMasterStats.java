@@ -108,16 +108,12 @@ public class GetMasterStats {
             out(4, "Queued for Minor Compaction %d", info.minor == null ? 0 : info.minor.queued);
           }
         }
-      }
-    }
-    if (stats.recovery != null && stats.recovery.size() > 0) {
-      out(0, "Recovery");
-      for (RecoveryStatus r : stats.recovery) {
-        out(1, "Log Server %s", r.host);
-        out(1, "Log Name %s", r.name);
-        out(1, "Map Progress: %.2f%%", r.mapProgress * 100);
-        out(1, "Reduce Progress: %.2f%%", r.reduceProgress * 100);
-        out(1, "Time running: %s", r.runtime / 1000.);
+        out(2, "Recoveries %d", server.logSorts.size());
+        for (RecoveryStatus sort : server.logSorts) {
+          out(3, "File %s", sort.name);
+          out(3, "Progress %.2f%%", sort.progress * 100);
+          out(3, "Time running %s", sort.runtime / 1000.);
+        }
       }
     }
   }
