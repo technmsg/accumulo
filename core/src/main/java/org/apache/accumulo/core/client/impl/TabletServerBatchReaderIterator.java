@@ -69,6 +69,7 @@ import org.apache.thrift.TException;
 import org.apache.thrift.transport.TTransport;
 import org.apache.thrift.transport.TTransportException;
 
+
 public class TabletServerBatchReaderIterator implements Iterator<Entry<Key,Value>> {
   
   private static final Logger log = Logger.getLogger(TabletServerBatchReaderIterator.class);
@@ -81,7 +82,7 @@ public class TabletServerBatchReaderIterator implements Iterator<Entry<Key,Value
   private final ExecutorService queryThreadPool;
   private final ScannerOptions options;
   
-  private ArrayBlockingQueue<Entry<Key,Value>> resultsQueue;
+  private ArrayBlockingQueue<Entry<Key,Value>> resultsQueue = new ArrayBlockingQueue<Entry<Key,Value>>(1000);
   private Entry<Key,Value> nextEntry = null;
   private Object nextLock = new Object();
   
@@ -130,7 +131,6 @@ public class TabletServerBatchReaderIterator implements Iterator<Entry<Key,Value
     this.numThreads = numThreads;
     this.queryThreadPool = queryThreadPool;
     this.options = new ScannerOptions(scannerOptions);
-    this.resultsQueue = new ArrayBlockingQueue<Entry<Key,Value>>(this.options.getBatchSize());
     
     if (options.fetchedColumns.size() > 0) {
       ArrayList<Range> ranges2 = new ArrayList<Range>(ranges.size());
@@ -178,7 +178,7 @@ public class TabletServerBatchReaderIterator implements Iterator<Entry<Key,Value
       
       // don't have one cached, try to cache one and return success
       try {
-        while (nextEntry == null && fatalException == null)
+        while (nextEntry == null && fatalException == null && !queryThreadPool.isShutdown())
           nextEntry = resultsQueue.poll(1, TimeUnit.SECONDS);
         
         if (fatalException != null)
@@ -187,6 +187,9 @@ public class TabletServerBatchReaderIterator implements Iterator<Entry<Key,Value
           else
             throw new RuntimeException(fatalException);
         
+        if (queryThreadPool.isShutdown())
+          throw new RuntimeException("scanner closed");
+
         return nextEntry.getKey() != null && nextEntry.getValue() != null;
       } catch (InterruptedException e) {
         throw new RuntimeException(e);

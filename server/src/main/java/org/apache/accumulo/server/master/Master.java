@@ -2132,7 +2132,8 @@ public class Master implements LiveTServerSet.Listener, TableObserver, CurrentSt
     };
     long current = System.currentTimeMillis();
     final long waitTime = getSystemConfiguration().getTimeInMillis(Property.INSTANCE_ZK_TIMEOUT);
-    final String masterClientAddress = hostname + ":" + getSystemConfiguration().getPort(Property.MASTER_CLIENTPORT);
+    final String masterClientAddress = org.apache.accumulo.core.util.AddressUtil.toString(new InetSocketAddress(hostname, getSystemConfiguration().getPort(
+        Property.MASTER_CLIENTPORT)));
     
     boolean locked = false;
     while (System.currentTimeMillis() - current < waitTime) {
