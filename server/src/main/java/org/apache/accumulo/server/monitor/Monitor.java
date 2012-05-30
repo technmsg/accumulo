@@ -307,7 +307,6 @@ public class Monitor {
           UtilWaitThread.sleep(1000);
       }
       if (mmi != null) {
-        
         int majorCompactions = 0;
         int minorCompactions = 0;
         
@@ -316,7 +315,7 @@ public class Monitor {
         indexCacheRequestTracker.startingUpdates();
         dataCacheHitTracker.startingUpdates();
         dataCacheRequestTracker.startingUpdates();
-
+        
         for (TabletServerStatus server : mmi.tServerInfo) {
           TableInfo summary = Monitor.summarizeTableStats(server);
           totalIngestRate += summary.ingestRate;
@@ -364,7 +363,6 @@ public class Monitor {
         
         ingestRateOverTime.add(new Pair<Long,Double>(currentTime, totalIngestRate));
         ingestByteRateOverTime.add(new Pair<Long,Double>(currentTime, totalIngestByteRate));
-        recoveriesOverTime.add(new Pair<Long,Integer>(currentTime, mmi.recovery.size()));
         
         double totalLoad = 0.;
         for (TabletServerStatus status : mmi.tServerInfo) {
@@ -386,57 +384,6 @@ public class Monitor {
         calcCacheHitRate(indexCacheHitRateOverTime, currentTime, indexCacheHitTracker, indexCacheRequestTracker);
         calcCacheHitRate(dataCacheHitRateOverTime, currentTime, dataCacheHitTracker, dataCacheRequestTracker);
       }
-      
-<<<<<<< .working
-      lookupRateTracker.finishedUpdating();
-      indexCacheHitTracker.finishedUpdating();
-      indexCacheRequestTracker.finishedUpdating();
-      dataCacheHitTracker.finishedUpdating();
-      dataCacheRequestTracker.finishedUpdating();
-      
-      int totalTables = 0;
-      for (TableInfo tInfo : mmi.tableMap.values()) {
-        totalTabletCount += tInfo.tablets;
-        onlineTabletCount += tInfo.onlineTablets;
-        totalTables++;
-      }
-      Monitor.totalIngestRate = totalIngestRate;
-      Monitor.totalTables = totalTables;
-      totalIngestByteRate = totalIngestByteRate / 1000000.0;
-      Monitor.totalIngestByteRate = totalIngestByteRate;
-      Monitor.totalQueryRate = totalQueryRate;
-      Monitor.totalScanRate = totalScanRate;
-      totalQueryByteRate = totalQueryByteRate / 1000000.0;
-      Monitor.totalQueryByteRate = totalQueryByteRate;
-      Monitor.totalEntries = totalEntries;
-      Monitor.totalTabletCount = totalTabletCount;
-      Monitor.onlineTabletCount = onlineTabletCount;
-      Monitor.totalHoldTime = totalHoldTime;
-      Monitor.totalLookups = totalLookups;
-      
-      ingestRateOverTime.add(new Pair<Long,Double>(currentTime, totalIngestRate));
-      ingestByteRateOverTime.add(new Pair<Long,Double>(currentTime, totalIngestByteRate));
-      
-      double totalLoad = 0.;
-      for (TabletServerStatus status : mmi.tServerInfo) {
-        if (status != null)
-          totalLoad += status.osLoad;
-      }
-      loadOverTime.add(new Pair<Long,Double>(currentTime, totalLoad));
-      
-      minorCompactionsOverTime.add(new Pair<Long,Integer>(currentTime, minorCompactions));
-      majorCompactionsOverTime.add(new Pair<Long,Integer>(currentTime, majorCompactions));
-      
-      lookupsOverTime.add(new Pair<Long,Double>(currentTime, lookupRateTracker.calculateRate()));
-      
-      queryRateOverTime.add(new Pair<Long,Integer>(currentTime, (int) totalQueryRate));
-      queryByteRateOverTime.add(new Pair<Long,Double>(currentTime, totalQueryByteRate));
-      
-      scanRateOverTime.add(new Pair<Long,Integer>(currentTime, (int) totalScanRate));
-
-      calcCacheHitRate(indexCacheHitRateOverTime, currentTime, indexCacheHitTracker, indexCacheRequestTracker);
-      calcCacheHitRate(dataCacheHitRateOverTime, currentTime, dataCacheHitTracker, dataCacheRequestTracker);
-      
       try {
         Monitor.problemSummary = ProblemReports.getInstance().summarize();
         Monitor.problemException = null;
