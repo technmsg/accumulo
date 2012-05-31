@@ -3644,10 +3644,12 @@ public class Tablet {
   
   private Set<DfsLogger> currentLogs = new HashSet<DfsLogger>();
   
-  synchronized public Set<String> getCurrentLogs() {
+  public Set<String> getCurrentLogs() {
     Set<String> result = new HashSet<String>();
-    for (DfsLogger log : currentLogs) {
-      result.add(log.toString());
+    synchronized (currentLogs) {
+      for (DfsLogger log : currentLogs) {
+        result.add(log.toString());
+      }
     }
     return result;
   }

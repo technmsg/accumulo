@@ -27,9 +27,7 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Random;
 import java.util.TimerTask;
-import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ThreadPoolExecutor;
-import java.util.concurrent.TimeUnit;
 
 import org.apache.accumulo.core.Constants;
 import org.apache.accumulo.core.client.Instance;
@@ -37,6 +35,7 @@ import org.apache.accumulo.core.conf.AccumuloConfiguration;
 import org.apache.accumulo.core.conf.Property;
 import org.apache.accumulo.core.master.thrift.RecoveryStatus;
 import org.apache.accumulo.core.util.Pair;
+import org.apache.accumulo.core.util.SimpleThreadPool;
 import org.apache.accumulo.core.zookeeper.ZooUtil;
 import org.apache.accumulo.core.zookeeper.ZooUtil.NodeMissingPolicy;
 import org.apache.accumulo.server.logger.LogFileKey;
@@ -188,9 +187,7 @@ public class LogSorter {
     this.fs = fs;
     this.conf = conf;
     int threadPoolSize = conf.getCount(Property.TSERV_RECOVERY_MAX_CONCURRENT);
-    this.threadPool = new ThreadPoolExecutor(threadPoolSize, threadPoolSize,
-        0L, TimeUnit.MILLISECONDS,
-        new LinkedBlockingQueue<Runnable>());
+    this.threadPool = new SimpleThreadPool(threadPoolSize, this.getClass().getName());
   }
   
   public void startWatchingForRecoveryLogs(final String serverName) throws KeeperException, InterruptedException {
@@ -260,6 +257,7 @@ public class LogSorter {
           // Great... we got the lock, but maybe we're too busy
           if (threadPool.getQueue().size() > 1) {
             lock.unlock();
+            log.debug("got the lock, but thread pool is busy; released the lock on " + child);
             continue;
           }
           byte[] contents = zoo.getData(childPath, null);
@@ -275,6 +273,8 @@ public class LogSorter {
               }
             }
           });
+        } else {
+          log.info("failed to get the lock " + child);
         }
       }
     } catch (Throwable t) {

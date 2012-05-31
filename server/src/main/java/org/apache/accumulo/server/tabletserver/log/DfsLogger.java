@@ -55,6 +55,14 @@ import org.apache.log4j.Logger;
 public class DfsLogger {
   private static Logger log = Logger.getLogger(DfsLogger.class);
   
+  public static class LogClosedException extends IOException {
+    private static final long serialVersionUID = 1L;
+
+    public LogClosedException() {
+      super("LogClosed");
+    }
+  }
+
   public interface ServerResources {
     AccumuloConfiguration getConfiguration();
     
@@ -73,7 +81,7 @@ public class DfsLogger {
   
   private boolean closed = false;
 
-  private class LogWriterTask implements Runnable {
+  private class LogSyncingTask implements Runnable {
 
     @Override
     public void run() {
@@ -91,7 +99,6 @@ public class DfsLogger {
         synchronized (closeLock) {
           if (!closed) {
             try {
-              logFile.flush();
               logFile.sync();
             } catch (IOException ex) {
               log.warn("Exception syncing " + ex);
@@ -101,7 +108,7 @@ public class DfsLogger {
             }
           } else {
             for (DfsLogger.LogWork logWork : work) {
-              logWork.exception = new IOException("logger closed");
+              logWork.exception = new LogClosedException();
             }
           }
         }
@@ -226,7 +233,7 @@ public class DfsLogger {
       throw ex;
     }
     
-    Thread t = new Daemon(new LogWriterTask());
+    Thread t = new Daemon(new LogSyncingTask());
     t.setName("Accumulo WALog thread " + toString());
     t.start();
   }
@@ -272,7 +279,7 @@ public class DfsLogger {
         logFile.close();
       } catch (IOException ex) {
         log.error(ex);
-        throw new IOException("Log file closed");
+        throw new LogClosedException();
       }
   }
   
@@ -334,7 +341,7 @@ public class DfsLogger {
       // to wait on walog I/O operations
 
       if (closed)
-        throw new IOException("logger closed");
+        throw new LogClosedException();
       workQueue.add(work);
     }
 

@@ -1853,7 +1853,7 @@ public class TabletServer extends AbstractMetricsImpl implements org.apache.accu
       final Runnable ah = new LoggingRunnable(log, new AssignmentHandler(extent));
       // Root tablet assignment must take place immediately
       if (extent.isRootTablet()) {
-        new Thread("Root Tablet Assignment") {
+        new Daemon("Root Tablet Assignment") {
           public void run() {
             ah.run();
             if (onlineTablets.containsKey(extent)) {
@@ -2060,14 +2060,16 @@ public class TabletServer extends AbstractMetricsImpl implements org.apache.accu
             continue nextFile;
         }
         // this check is not strictly necessary
+        List<Tablet> onlineTabletsCopy = new ArrayList<Tablet>();
         synchronized (onlineTablets) {
-          for (Entry<KeyExtent,Tablet> entry : onlineTablets.entrySet()) {
-            for (String current : entry.getValue().getCurrentLogs()) {
-              if (current.contains(filename)) {
-                log.error("Attempting to remove a write-ahead log that is in use.  This should never happen!");
-                log.info("Attempted to delete " + filename + " from tablet " + entry.getKey());
-                continue nextFile;
-              }
+          onlineTabletsCopy.addAll(onlineTablets.values());
+        }
+        for (Tablet tablet : onlineTabletsCopy) {
+          for (String current : tablet.getCurrentLogs()) {
+            if (current.contains(filename)) {
+              log.error("Attempting to remove a write-ahead log that is in use.  This should never happen!");
+              log.info("Attempted to delete " + filename + " from tablet " + tablet.getExtent());
+              continue nextFile;
             }
           }
         }
@@ -2521,7 +2523,7 @@ public class TabletServer extends AbstractMetricsImpl implements org.apache.accu
               AssignmentHandler handler = new AssignmentHandler(extentToOpen, retryAttempt + 1);
               if (extent.isMeta()) {
                 if (extent.isRootTablet()) {
-                  new Thread(new LoggingRunnable(log, handler), "Root tablet assignment retry").start();
+                  new Daemon(new LoggingRunnable(log, handler), "Root tablet assignment retry").start();
                 } else {
                   resourceManager.addMetaDataAssignment(handler);
                 }
@@ -3112,7 +3114,7 @@ public class TabletServer extends AbstractMetricsImpl implements org.apache.accu
       Instance instance = HdfsZooInstance.getInstance();
       ServerConfiguration conf = new ServerConfiguration(instance);
       Accumulo.init(fs, conf, "tserver");
-      recoverLocalWriteAheadLogs(fs, conf);
+      // recoverLocalWriteAheadLogs(fs, conf);
       TabletServer server = new TabletServer(conf, fs);
       server.config(hostname);
       Accumulo.enableTracing(hostname, "tserver");

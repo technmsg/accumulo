@@ -208,6 +208,8 @@ public class TabletServerLogger {
       for (DfsLogger logger : loggers) {
         try {
           logger.close();
+        } catch (DfsLogger.LogClosedException ex) {
+          // ignore
         } catch (Throwable ex) {
           log.error("Unable to cleanly close log " + logger.getFileName() + ": " + ex);
         }
@@ -281,13 +283,11 @@ public class TabletServerLogger {
           // double-check: did the log set change?
           success = (currentLogSet == logSetId.get());
         }
+      } catch (DfsLogger.LogClosedException ex) {
+        log.debug("Logs closed while writing, retrying " + (attempt + 1));
       } catch (Exception t) {
-        if (attempt == 0) {
-          log.info("Log write failed: another thread probably closed the log", t);
-        } else {
-          log.error("Unexpected error writing to log, retrying attempt " + (attempt + 1), t);
-          UtilWaitThread.sleep(100);
-        }
+        log.error("Unexpected error writing to log, retrying attempt " + (attempt + 1), t);
+        UtilWaitThread.sleep(100);
       } finally {
         attempt++;
       }

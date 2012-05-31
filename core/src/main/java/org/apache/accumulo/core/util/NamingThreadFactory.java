@@ -14,15 +14,18 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.accumulo.server.util;
+package org.apache.accumulo.core.util;
 
-import java.util.concurrent.Executors;
 import java.util.concurrent.ThreadFactory;
+import java.util.concurrent.atomic.AtomicInteger;
+
+import org.apache.accumulo.cloudtrace.instrument.TraceRunnable;
+import org.apache.log4j.Logger;
 
 public class NamingThreadFactory implements ThreadFactory {
+  private static final Logger log = Logger.getLogger(NamingThreadFactory.class);
   
-  private ThreadFactory dtf = Executors.defaultThreadFactory();
-  private int threadNum = 1;
+  private AtomicInteger threadNum = new AtomicInteger(1);
   private String name;
   
   public NamingThreadFactory(String name) {
@@ -30,9 +33,7 @@ public class NamingThreadFactory implements ThreadFactory {
   }
   
   public Thread newThread(Runnable r) {
-    Thread thread = dtf.newThread(r);
-    thread.setName(name + " " + threadNum++);
-    return thread;
+    return new Daemon(new LoggingRunnable(log, new TraceRunnable(r)), name + " " + threadNum.getAndIncrement());
   }
   
 }

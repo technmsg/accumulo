@@ -39,5 +39,5 @@ for server in `cat $SLAVES | grep -v '^#' `; do
         $ACCUMULO_HOME/bin/stop-server.sh $server "$ACCUMULO_HOME/.*/accumulo-start.*.jar" tserver KILL & 
 done
 
-echo 'Cleaning tablet server and logger entries from zookeeper'
+echo 'Cleaning tablet server entries from zookeeper'
 $ACCUMULO_HOME/bin/accumulo org.apache.accumulo.server.util.ZooZap -tservers

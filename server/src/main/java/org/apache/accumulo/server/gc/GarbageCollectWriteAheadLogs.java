@@ -21,6 +21,7 @@ import java.net.InetSocketAddress;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.UUID;
@@ -28,6 +29,7 @@ import java.util.UUID;
 import org.apache.accumulo.cloudtrace.instrument.Span;
 import org.apache.accumulo.cloudtrace.instrument.Trace;
 import org.apache.accumulo.core.Constants;
+import org.apache.accumulo.core.client.Instance;
 import org.apache.accumulo.core.conf.AccumuloConfiguration;
 import org.apache.accumulo.core.conf.Property;
 import org.apache.accumulo.core.gc.thrift.GCStatus;
@@ -35,10 +37,12 @@ import org.apache.accumulo.core.gc.thrift.GcCycleStats;
 import org.apache.accumulo.core.tabletserver.thrift.TabletClientService;
 import org.apache.accumulo.core.tabletserver.thrift.TabletClientService.Iface;
 import org.apache.accumulo.core.util.ThriftUtil;
+import org.apache.accumulo.core.zookeeper.ZooUtil;
 import org.apache.accumulo.server.security.SecurityConstants;
 import org.apache.accumulo.server.util.AddressUtil;
 import org.apache.accumulo.server.util.MetadataTable;
 import org.apache.accumulo.server.util.MetadataTable.LogEntry;
+import org.apache.accumulo.server.zookeeper.ZooReaderWriter;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
@@ -50,12 +54,12 @@ import org.apache.zookeeper.KeeperException;
 public class GarbageCollectWriteAheadLogs {
   private static final Logger log = Logger.getLogger(GarbageCollectWriteAheadLogs.class);
   
-  private final AccumuloConfiguration conf;
+  private final Instance instance;
   private final FileSystem fs;
   
-  GarbageCollectWriteAheadLogs(FileSystem fs, AccumuloConfiguration conf) {
+  GarbageCollectWriteAheadLogs(Instance instance, FileSystem fs) {
+    this.instance = instance;
     this.fs = fs;
-    this.conf = conf;
   }
 
   public void collect(GCStatus status) {
@@ -103,7 +107,21 @@ public class GarbageCollectWriteAheadLogs {
     }
   }
   
+  boolean holdsLock(InetSocketAddress addr) {
+    try {
+      String zpath = ZooUtil.getRoot(instance) + Constants.ZTSERVERS + "/" + org.apache.accumulo.core.util.AddressUtil.toString(addr);
+      List<String> children = ZooReaderWriter.getInstance().getChildren(zpath);
+      return !(children == null || children.isEmpty());
+    } catch (KeeperException.NoNodeException ex) {
+      return false;
+    } catch (Exception ex) {
+      log.debug(ex, ex);
+      return true;
+    }
+  }
+
   private int removeFiles(Map<String,ArrayList<String>> serverToFileMap, final GCStatus status) {
+    AccumuloConfiguration conf = instance.getConfiguration();
     for (Entry<String,ArrayList<String>> entry : serverToFileMap.entrySet()) {
       if (entry.getKey().length() == 0) {
         // old-style log entry, just remove it
@@ -117,6 +135,8 @@ public class GarbageCollectWriteAheadLogs {
         }
       } else {
         InetSocketAddress address = AddressUtil.parseAddress(entry.getKey(), Property.TSERV_CLIENTPORT);
+        if (!holdsLock(address))
+          continue;
         Iface tserver = null;
         try {
           tserver = ThriftUtil.getClient(new TabletClientService.Client.Factory(), address, conf);
@@ -162,6 +182,7 @@ public class GarbageCollectWriteAheadLogs {
   }
   
   private int scanServers(Map<String,String> fileToServerMap) throws Exception {
+    AccumuloConfiguration conf = instance.getConfiguration();
     Path walRoot = new Path(Constants.getWalDirectory(conf));
     for (FileStatus status : fs.listStatus(walRoot)) {
       String name = status.getPath().getName();
