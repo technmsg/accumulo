@@ -260,6 +260,7 @@ public class LogSorter {
             log.debug("got the lock, but thread pool is busy; released the lock on " + child);
             continue;
           }
+          log.info("got lock for " + child);
           byte[] contents = zoo.getData(childPath, null);
           String destination = Constants.getRecoveryDir(conf) + "/" + child;
           startSort(new String(contents), destination, new LogSortNotifier() {

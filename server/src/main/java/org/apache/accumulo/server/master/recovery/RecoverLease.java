@@ -19,6 +19,7 @@ package org.apache.accumulo.server.master.recovery;
 import java.io.IOException;
 
 import org.apache.accumulo.core.Constants;
+import org.apache.accumulo.core.conf.Property;
 import org.apache.accumulo.server.fate.Repo;
 import org.apache.accumulo.server.master.Master;
 import org.apache.accumulo.server.master.tableOps.MasterRepo;
@@ -34,10 +35,12 @@ public class RecoverLease extends MasterRepo {
 
   private String server;
   private String file;
+  private long start;
 
   public RecoverLease(String server, String file) {
     this.server = server;
     this.file = file;
+    this.start = System.currentTimeMillis();
   }
   
   public static Path getSource(Master master, String server, String file) {
@@ -55,6 +58,10 @@ public class RecoverLease extends MasterRepo {
 
   @Override
   public long isReady(long tid, Master master) throws Exception {
+    master.updateRecoveryInProgress(file);
+    long diff = System.currentTimeMillis() - start;
+    if (diff < master.getSystemConfiguration().getTimeInMillis(Property.MASTER_RECOVERY_DELAY))
+      return Math.max(diff, 0);
     FileSystem fs = master.getFileSystem();
     if (fs.exists(getSource(master)))
       return 0;

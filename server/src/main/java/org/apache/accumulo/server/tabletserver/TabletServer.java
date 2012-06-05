@@ -2055,11 +2055,9 @@ public class TabletServer extends AbstractMetricsImpl implements org.apache.accu
       nextFile:
       for (String filename : filenames) {
         for (String logger : loggers) {
-          log.debug("logger " + logger + " filename " + filename);
           if (logger.contains(filename))
             continue nextFile;
         }
-        // this check is not strictly necessary
         List<Tablet> onlineTabletsCopy = new ArrayList<Tablet>();
         synchronized (onlineTablets) {
           onlineTabletsCopy.addAll(onlineTablets.values());
@@ -2067,21 +2065,27 @@ public class TabletServer extends AbstractMetricsImpl implements org.apache.accu
         for (Tablet tablet : onlineTabletsCopy) {
           for (String current : tablet.getCurrentLogs()) {
             if (current.contains(filename)) {
-              log.error("Attempting to remove a write-ahead log that is in use.  This should never happen!");
               log.info("Attempted to delete " + filename + " from tablet " + tablet.getExtent());
               continue nextFile;
             }
           }
         }
         try {
+          String source = logDir + "/" + filename;
           if (acuConf.getBoolean(Property.TSERV_ARCHIVE_WALOGS)) {
-            log.info("Archiving walog " + filename);
-            fs.rename(new Path(logDir, filename), new Path(Constants.getBaseDir(acuConf) + "/walogArchive", filename));
+            String walogArchive = Constants.getBaseDir(acuConf) + "/walogArchive";
+            fs.mkdirs(new Path(walogArchive));
+            String dest = walogArchive + "/" + filename;
+            log.info("Archiving walog " + source + " to " + dest);
+            if (!fs.rename(new Path(source), new Path(dest)))
+              log.error("rename is unsuccessful");
           } else {
             log.info("Deleting walog " + filename);
-            fs.delete(new Path(logDir, filename), true);
-            log.info("Deleting any recovery version of the log ");
-            fs.delete(new Path(Constants.getRecoveryDir(acuConf), filename), true);
+            if (!fs.delete(new Path(source), true))
+              log.warn("Failed to delete walog " + source);
+            if (fs.delete(new Path(Constants.getRecoveryDir(acuConf), filename), true))
+              log.info("Deleted any recovery log " + filename);
+
           }
         } catch (IOException e) {
           log.warn("Error attempting to delete write-ahead log " + filename + ": " + e);

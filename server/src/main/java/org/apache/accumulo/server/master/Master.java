@@ -217,6 +217,8 @@ public class Master implements LiveTServerSet.Listener, TableObserver, CurrentSt
   volatile private SortedMap<TServerInstance,TabletServerStatus> tserverStatus = Collections
       .unmodifiableSortedMap(new TreeMap<TServerInstance,TabletServerStatus>());
   
+  private Set<String> recoveriesInProgress = Collections.synchronizedSet(new HashSet<String>());
+
   synchronized private MasterState getMasterState() {
     return state;
   }
@@ -1350,7 +1352,7 @@ public class Master implements LiveTServerSet.Listener, TableObserver, CurrentSt
             
             if (goal == TabletGoalState.HOSTED) {
               if (state != TabletState.HOSTED && !tls.walogs.isEmpty()) {
-                if (recoverLogs(tls.walogs))
+                if (recoverLogs(tls.extent, tls.walogs))
                   continue;
               }
               switch (state) {
@@ -2001,7 +2003,7 @@ public class Master implements LiveTServerSet.Listener, TableObserver, CurrentSt
         result.put(server, status);
         // TODO maybe remove from bad servers
       } catch (Exception ex) {
-        log.error("unable to get tablet server status " + server + " " + ex.getMessage());
+        log.error("unable to get tablet server status " + server + " " + ex.toString());
         log.debug("unable to get tablet server status " + server, ex);
         if (badServers.get(server).incrementAndGet() > MAX_BAD_STATUS_COUNT) {
           log.warn("attempting to stop " + server);
@@ -2026,7 +2028,7 @@ public class Master implements LiveTServerSet.Listener, TableObserver, CurrentSt
     return result;
   }
   
-  public boolean recoverLogs(Collection<Collection<String>> walogs) throws IOException {
+  public boolean recoverLogs(KeyExtent extent, Collection<Collection<String>> walogs) throws IOException {
     boolean recoveryNeeded = false;
     for (Collection<String> logs : walogs) {
       for (String log : logs) {
@@ -2034,17 +2036,17 @@ public class Master implements LiveTServerSet.Listener, TableObserver, CurrentSt
         String host = parts[0];
         String filename = parts[1];
         if (fs.exists(new Path(Constants.getRecoveryDir(getSystemConfiguration()) + "/" + filename + "/finished"))) {
+          recoveriesInProgress.remove(filename);
           continue;
         }
         recoveryNeeded = true;
-        String zPath = ZooUtil.getRoot(instance) + Constants.ZRECOVERY + "/" + filename;
-        try {
-          if (!ZooReaderWriter.getInstance().exists(zPath)) {
+        synchronized (recoveriesInProgress) {
+          if (!recoveriesInProgress.contains(filename)) {
+            Master.log.info("Starting recovery of " + filename + " created for " + host + ", tablet " + extent + " holds a reference");
             long tid = fate.startTransaction();
             fate.seedTransaction(tid, new RecoverLease(host, filename), true);
+            recoveriesInProgress.add(filename);
           }
-        } catch (Exception ex) {
-          Master.log.info("Unable to check the recovery entry " + filename + ", will retry");
         }
       }
     }
@@ -2291,4 +2293,7 @@ public class Master implements LiveTServerSet.Listener, TableObserver, CurrentSt
     return this.fs;
   }
 
+  public void updateRecoveryInProgress(String file) {
+    recoveriesInProgress.add(file);
+  }
 }

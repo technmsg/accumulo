@@ -46,6 +46,7 @@ public class SubmitFileForRecovery extends MasterRepo implements Repo<Master> {
 
   @Override
   public Repo<Master> call(long tid, final Master master) throws Exception {
+    master.updateRecoveryInProgress(file);
     String source = RecoverLease.getSource(master, server, file).toString();
     ZooReaderWriter zoo = ZooReaderWriter.getInstance();
     final String path = ZooUtil.getRoot(master.getInstance()) + Constants.ZRECOVERY + "/" + file;
