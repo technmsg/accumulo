@@ -174,6 +174,22 @@ public abstract class Connector {
   public abstract Scanner createScanner(String tableName, Authorizations authorizations) throws TableNotFoundException;
   
   /**
+   * Factory method to create a ConditionalWriter connected to Accumulo.
+   * 
+   * @param tableName
+   *          the name of the table to query data from
+   * @param authorizations
+   *          A set of authorization labels that will be checked against the column visibility of each key in order to filter data. The authorizations passed in
+   *          must be a subset of the accumulo user's set of authorizations. If the accumulo user has authorizations (A1, A2) and authorizations (A2, A3) are
+   *          passed, then an exception will be thrown.
+   * 
+   * @return ConditionalWriter object for writing ConditionalMutations
+   * @throws TableNotFoundException
+   *           when the specified table doesn't exist
+   */
+  public abstract ConditionalWriter createConditionalWriter(String tableName, Authorizations authorizations) throws TableNotFoundException;
+
+  /**
    * Accessor method for internal instance object.
    * 
    * @return the internal instance object

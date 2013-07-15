@@ -22,6 +22,7 @@ import org.apache.accumulo.core.client.BatchDeleter;
 import org.apache.accumulo.core.client.BatchScanner;
 import org.apache.accumulo.core.client.BatchWriter;
 import org.apache.accumulo.core.client.BatchWriterConfig;
+import org.apache.accumulo.core.client.ConditionalWriter;
 import org.apache.accumulo.core.client.Connector;
 import org.apache.accumulo.core.client.Instance;
 import org.apache.accumulo.core.client.MultiTableBatchWriter;
@@ -126,6 +127,12 @@ public class MockConnector extends Connector {
   @Override
   public InstanceOperations instanceOperations() {
     return new MockInstanceOperations(acu);
+  }
+  
+  @Override
+  public ConditionalWriter createConditionalWriter(String tableName, Authorizations authorizations) throws TableNotFoundException {
+    // TODO add implementation
+    throw new UnsupportedOperationException();
   }
   
 }

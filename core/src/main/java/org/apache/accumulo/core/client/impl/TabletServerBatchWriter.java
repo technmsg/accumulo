@@ -846,6 +846,8 @@ public class TabletServerBatchWriter {
         return new MutationSet();
       }
       TInfo tinfo = Tracer.traceInfo();
+      
+      // TODO remove this
       TTransport transport = null;
       
       timeoutTracker.startingWrite();
