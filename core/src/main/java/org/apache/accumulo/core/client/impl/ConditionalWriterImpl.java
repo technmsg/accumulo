@@ -25,13 +25,13 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.NoSuchElementException;
 import java.util.Set;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.DelayQueue;
 import java.util.concurrent.Delayed;
-import java.util.concurrent.Executors;
 import java.util.concurrent.LinkedBlockingQueue;
-import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 
 import org.apache.accumulo.core.client.AccumuloException;
@@ -86,9 +86,9 @@ class ConditionalWriterImpl implements ConditionalWriter {
 
   private Map<String,BlockingQueue<TabletServerMutations>> serverQueues;
   private DelayQueue<QCMutation> failedMutations = new DelayQueue<QCMutation>();
-  private ScheduledExecutorService threadPool;
+  private ScheduledThreadPoolExecutor threadPool;
   
-  private static class RQIterator implements Iterator<Result> {
+  private class RQIterator implements Iterator<Result> {
     
     private BlockingQueue<Result> rq;
     private int count;
@@ -105,9 +105,20 @@ class ConditionalWriterImpl implements ConditionalWriter {
     
     @Override
     public Result next() {
+      if (count <= 0)
+        throw new NoSuchElementException();
+
       try {
         // TODO maybe call drainTo after take to get a batch efficiently
-        Result result = rq.take();
+        Result result = rq.poll(1, TimeUnit.SECONDS);
+        while (result == null) {
+          
+          if (threadPool.isShutdown()) {
+            throw new NoSuchElementException("ConditionalWriter closed");
+          }
+          
+          result = rq.poll(1, TimeUnit.SECONDS);
+        }
         count--;
         return result;
       } catch (InterruptedException e) {
@@ -245,7 +256,8 @@ class ConditionalWriterImpl implements ConditionalWriter {
     this.auths = authorizations;
     this.ve = new VisibilityEvaluator(authorizations);
     // TODO make configurable
-    this.threadPool = Executors.newScheduledThreadPool(3);
+    this.threadPool = new ScheduledThreadPoolExecutor(3);
+    this.threadPool.setMaximumPoolSize(3);
     this.locator = TabletLocator.getLocator(instance, new Text(tableId));
     this.serverQueues = new HashMap<String,BlockingQueue<TabletServerMutations>>();
     
@@ -266,8 +278,6 @@ class ConditionalWriterImpl implements ConditionalWriter {
     };
     
     threadPool.scheduleAtFixedRate(failureHandler, 100, 100, TimeUnit.MILLISECONDS);
-    
-    // TODO need to shutdown thread pool
   }
 
   public Iterator<Result> write(Iterator<ConditionalMutation> mutations) {
@@ -498,6 +508,11 @@ class ConditionalWriterImpl implements ConditionalWriter {
   
   public long getTimeout(TimeUnit timeUnit) {
     throw new UnsupportedOperationException();
+  }
+  
+  @Override
+  public void close() {
+    threadPool.shutdownNow();
   }
   
 }

@@ -94,4 +94,5 @@ public interface ConditionalWriter {
    */
   public long getTimeout(TimeUnit timeUnit);
 
+  public void close();
 }

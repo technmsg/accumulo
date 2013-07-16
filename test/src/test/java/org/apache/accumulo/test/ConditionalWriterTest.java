@@ -318,6 +318,8 @@ public class ConditionalWriterTest {
     cm7.put("name", "first", cva, "john");
     cm7.put("tx", "seq", cva, "1");
     Assert.assertEquals(Status.INVISIBLE_VISIBILITY, cw.write(cm7).getStatus());
+    
+    cw.close();
   }
   
   @Test
@@ -347,6 +349,8 @@ public class ConditionalWriterTest {
     
     Assert.assertEquals(Status.ACCEPTED, cw.write(cm1).getStatus());
     Assert.assertTrue(scanner.iterator().hasNext());
+    
+    cw.close();
 
   }
 
@@ -398,6 +402,8 @@ public class ConditionalWriterTest {
     
     // TODO test conditions with different iterators
     // TODO test w/ table that has iterators configured
+    
+    cw.close();
   }
 
   @Test
@@ -502,6 +508,8 @@ public class ConditionalWriterTest {
     scanner.clearColumns();
     scanner.fetchColumn(new Text("name"), new Text("last"));
     Assert.assertEquals("Doe", scanner.iterator().next().getValue().toString());
+    
+    cw.close();
   }
   
   @Test
@@ -575,6 +583,8 @@ public class ConditionalWriterTest {
     }
     
     Assert.assertEquals(num, count);
+    
+    cw.close();
   }
   
   @Test
@@ -656,6 +666,7 @@ public class ConditionalWriterTest {
     Assert.assertEquals("1", iter.next().getValue().toString());
     Assert.assertFalse(iter.hasNext());
 
+    cw.close();
   }
   
   @Test
@@ -707,6 +718,8 @@ public class ConditionalWriterTest {
     Assert.assertEquals(1, accepted);
     Assert.assertEquals(2, rejected);
     Assert.assertEquals(3, total);
+    
+    cw.close();
   }
 
   private SortedSet<Text> nss(String... splits) {

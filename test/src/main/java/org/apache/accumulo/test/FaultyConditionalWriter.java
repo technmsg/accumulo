@@ -82,4 +82,9 @@ public class FaultyConditionalWriter implements ConditionalWriter {
     return cw.getTimeout(timeUnit);
   }
   
+  @Override
+  public void close() {
+    cw.close();
+  }
+  
 }
