@@ -19,6 +19,7 @@ package org.apache.accumulo.core.data;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 
 import org.apache.accumulo.core.util.ArgumentChecker;
@@ -57,6 +58,11 @@ public class ConditionalMutation extends Mutation {
     init(condition, conditions);
   }
   
+  public ConditionalMutation(ConditionalMutation cm) {
+    super(cm);
+    this.conditions = new ArrayList<Condition>(cm.conditions);
+  }
+
   private void init(Condition condition, Condition... conditions) {
     ArgumentChecker.notNull(condition);
     this.conditions.add(condition);
@@ -71,7 +77,7 @@ public class ConditionalMutation extends Mutation {
   }
   
   public List<Condition> getConditions() {
-    return conditions;
+    return Collections.unmodifiableList(conditions);
   }
 
 }
