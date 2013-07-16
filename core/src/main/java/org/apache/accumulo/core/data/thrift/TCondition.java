@@ -55,8 +55,7 @@ import org.slf4j.LoggerFactory;
   private static final org.apache.thrift.protocol.TField TS_FIELD_DESC = new org.apache.thrift.protocol.TField("ts", org.apache.thrift.protocol.TType.I64, (short)4);
   private static final org.apache.thrift.protocol.TField HAS_TIMESTAMP_FIELD_DESC = new org.apache.thrift.protocol.TField("hasTimestamp", org.apache.thrift.protocol.TType.BOOL, (short)5);
   private static final org.apache.thrift.protocol.TField VAL_FIELD_DESC = new org.apache.thrift.protocol.TField("val", org.apache.thrift.protocol.TType.STRING, (short)6);
-  private static final org.apache.thrift.protocol.TField SSI_LIST_FIELD_DESC = new org.apache.thrift.protocol.TField("ssiList", org.apache.thrift.protocol.TType.LIST, (short)7);
-  private static final org.apache.thrift.protocol.TField SSIO_FIELD_DESC = new org.apache.thrift.protocol.TField("ssio", org.apache.thrift.protocol.TType.MAP, (short)8);
+  private static final org.apache.thrift.protocol.TField ITERATORS_FIELD_DESC = new org.apache.thrift.protocol.TField("iterators", org.apache.thrift.protocol.TType.STRING, (short)7);
 
   private static final Map<Class<? extends IScheme>, SchemeFactory> schemes = new HashMap<Class<? extends IScheme>, SchemeFactory>();
   static {
@@ -70,8 +69,7 @@ import org.slf4j.LoggerFactory;
   public long ts; // required
   public boolean hasTimestamp; // required
   public ByteBuffer val; // required
-  public List<IterInfo> ssiList; // required
-  public Map<String,Map<String,String>> ssio; // required
+  public ByteBuffer iterators; // required
 
   /** The set of fields this struct contains, along with convenience methods for finding and manipulating them. */
   @SuppressWarnings("all") public enum _Fields implements org.apache.thrift.TFieldIdEnum {
@@ -81,8 +79,7 @@ import org.slf4j.LoggerFactory;
     TS((short)4, "ts"),
     HAS_TIMESTAMP((short)5, "hasTimestamp"),
     VAL((short)6, "val"),
-    SSI_LIST((short)7, "ssiList"),
-    SSIO((short)8, "ssio");
+    ITERATORS((short)7, "iterators");
 
     private static final Map<String, _Fields> byName = new HashMap<String, _Fields>();
 
@@ -109,10 +106,8 @@ import org.slf4j.LoggerFactory;
           return HAS_TIMESTAMP;
         case 6: // VAL
           return VAL;
-        case 7: // SSI_LIST
-          return SSI_LIST;
-        case 8: // SSIO
-          return SSIO;
+        case 7: // ITERATORS
+          return ITERATORS;
         default:
           return null;
       }
@@ -171,15 +166,8 @@ import org.slf4j.LoggerFactory;
         new org.apache.thrift.meta_data.FieldValueMetaData(org.apache.thrift.protocol.TType.BOOL)));
     tmpMap.put(_Fields.VAL, new org.apache.thrift.meta_data.FieldMetaData("val", org.apache.thrift.TFieldRequirementType.DEFAULT, 
         new org.apache.thrift.meta_data.FieldValueMetaData(org.apache.thrift.protocol.TType.STRING        , true)));
-    tmpMap.put(_Fields.SSI_LIST, new org.apache.thrift.meta_data.FieldMetaData("ssiList", org.apache.thrift.TFieldRequirementType.DEFAULT, 
-        new org.apache.thrift.meta_data.ListMetaData(org.apache.thrift.protocol.TType.LIST, 
-            new org.apache.thrift.meta_data.StructMetaData(org.apache.thrift.protocol.TType.STRUCT, IterInfo.class))));
-    tmpMap.put(_Fields.SSIO, new org.apache.thrift.meta_data.FieldMetaData("ssio", org.apache.thrift.TFieldRequirementType.DEFAULT, 
-        new org.apache.thrift.meta_data.MapMetaData(org.apache.thrift.protocol.TType.MAP, 
-            new org.apache.thrift.meta_data.FieldValueMetaData(org.apache.thrift.protocol.TType.STRING), 
-            new org.apache.thrift.meta_data.MapMetaData(org.apache.thrift.protocol.TType.MAP, 
-                new org.apache.thrift.meta_data.FieldValueMetaData(org.apache.thrift.protocol.TType.STRING), 
-                new org.apache.thrift.meta_data.FieldValueMetaData(org.apache.thrift.protocol.TType.STRING)))));
+    tmpMap.put(_Fields.ITERATORS, new org.apache.thrift.meta_data.FieldMetaData("iterators", org.apache.thrift.TFieldRequirementType.DEFAULT, 
+        new org.apache.thrift.meta_data.FieldValueMetaData(org.apache.thrift.protocol.TType.STRING        , true)));
     metaDataMap = Collections.unmodifiableMap(tmpMap);
     org.apache.thrift.meta_data.FieldMetaData.addStructMetaDataMap(TCondition.class, metaDataMap);
   }
@@ -194,8 +182,7 @@ import org.slf4j.LoggerFactory;
     long ts,
     boolean hasTimestamp,
     ByteBuffer val,
-    List<IterInfo> ssiList,
-    Map<String,Map<String,String>> ssio)
+    ByteBuffer iterators)
   {
     this();
     this.cf = cf;
@@ -206,8 +193,7 @@ import org.slf4j.LoggerFactory;
     this.hasTimestamp = hasTimestamp;
     setHasTimestampIsSet(true);
     this.val = val;
-    this.ssiList = ssiList;
-    this.ssio = ssio;
+    this.iterators = iterators;
   }
 
   /**
@@ -233,38 +219,9 @@ import org.slf4j.LoggerFactory;
       this.val = org.apache.thrift.TBaseHelper.copyBinary(other.val);
 ;
     }
-    if (other.isSetSsiList()) {
-      List<IterInfo> __this__ssiList = new ArrayList<IterInfo>();
-      for (IterInfo other_element : other.ssiList) {
-        __this__ssiList.add(new IterInfo(other_element));
-      }
-      this.ssiList = __this__ssiList;
-    }
-    if (other.isSetSsio()) {
-      Map<String,Map<String,String>> __this__ssio = new HashMap<String,Map<String,String>>();
-      for (Map.Entry<String, Map<String,String>> other_element : other.ssio.entrySet()) {
-
-        String other_element_key = other_element.getKey();
-        Map<String,String> other_element_value = other_element.getValue();
-
-        String __this__ssio_copy_key = other_element_key;
-
-        Map<String,String> __this__ssio_copy_value = new HashMap<String,String>();
-        for (Map.Entry<String, String> other_element_value_element : other_element_value.entrySet()) {
-
-          String other_element_value_element_key = other_element_value_element.getKey();
-          String other_element_value_element_value = other_element_value_element.getValue();
-
-          String __this__ssio_copy_value_copy_key = other_element_value_element_key;
-
-          String __this__ssio_copy_value_copy_value = other_element_value_element_value;
-
-          __this__ssio_copy_value.put(__this__ssio_copy_value_copy_key, __this__ssio_copy_value_copy_value);
-        }
-
-        __this__ssio.put(__this__ssio_copy_key, __this__ssio_copy_value);
-      }
-      this.ssio = __this__ssio;
+    if (other.isSetIterators()) {
+      this.iterators = org.apache.thrift.TBaseHelper.copyBinary(other.iterators);
+;
     }
   }
 
@@ -282,8 +239,7 @@ import org.slf4j.LoggerFactory;
     setHasTimestampIsSet(false);
     this.hasTimestamp = false;
     this.val = null;
-    this.ssiList = null;
-    this.ssio = null;
+    this.iterators = null;
   }
 
   public byte[] getCf() {
@@ -468,77 +424,37 @@ import org.slf4j.LoggerFactory;
     }
   }
 
-  public int getSsiListSize() {
-    return (this.ssiList == null) ? 0 : this.ssiList.size();
+  public byte[] getIterators() {
+    setIterators(org.apache.thrift.TBaseHelper.rightSize(iterators));
+    return iterators == null ? null : iterators.array();
   }
 
-  public java.util.Iterator<IterInfo> getSsiListIterator() {
-    return (this.ssiList == null) ? null : this.ssiList.iterator();
+  public ByteBuffer bufferForIterators() {
+    return iterators;
   }
 
-  public void addToSsiList(IterInfo elem) {
-    if (this.ssiList == null) {
-      this.ssiList = new ArrayList<IterInfo>();
-    }
-    this.ssiList.add(elem);
-  }
-
-  public List<IterInfo> getSsiList() {
-    return this.ssiList;
-  }
-
-  public TCondition setSsiList(List<IterInfo> ssiList) {
-    this.ssiList = ssiList;
+  public TCondition setIterators(byte[] iterators) {
+    setIterators(iterators == null ? (ByteBuffer)null : ByteBuffer.wrap(iterators));
     return this;
   }
 
-  public void unsetSsiList() {
-    this.ssiList = null;
-  }
-
-  /** Returns true if field ssiList is set (has been assigned a value) and false otherwise */
-  public boolean isSetSsiList() {
-    return this.ssiList != null;
-  }
-
-  public void setSsiListIsSet(boolean value) {
-    if (!value) {
-      this.ssiList = null;
-    }
-  }
-
-  public int getSsioSize() {
-    return (this.ssio == null) ? 0 : this.ssio.size();
-  }
-
-  public void putToSsio(String key, Map<String,String> val) {
-    if (this.ssio == null) {
-      this.ssio = new HashMap<String,Map<String,String>>();
-    }
-    this.ssio.put(key, val);
-  }
-
-  public Map<String,Map<String,String>> getSsio() {
-    return this.ssio;
-  }
-
-  public TCondition setSsio(Map<String,Map<String,String>> ssio) {
-    this.ssio = ssio;
+  public TCondition setIterators(ByteBuffer iterators) {
+    this.iterators = iterators;
     return this;
   }
 
-  public void unsetSsio() {
-    this.ssio = null;
+  public void unsetIterators() {
+    this.iterators = null;
   }
 
-  /** Returns true if field ssio is set (has been assigned a value) and false otherwise */
-  public boolean isSetSsio() {
-    return this.ssio != null;
+  /** Returns true if field iterators is set (has been assigned a value) and false otherwise */
+  public boolean isSetIterators() {
+    return this.iterators != null;
   }
 
-  public void setSsioIsSet(boolean value) {
+  public void setIteratorsIsSet(boolean value) {
     if (!value) {
-      this.ssio = null;
+      this.iterators = null;
     }
   }
 
@@ -592,19 +508,11 @@ import org.slf4j.LoggerFactory;
       }
       break;
 
-    case SSI_LIST:
+    case ITERATORS:
       if (value == null) {
-        unsetSsiList();
+        unsetIterators();
       } else {
-        setSsiList((List<IterInfo>)value);
-      }
-      break;
-
-    case SSIO:
-      if (value == null) {
-        unsetSsio();
-      } else {
-        setSsio((Map<String,Map<String,String>>)value);
+        setIterators((ByteBuffer)value);
       }
       break;
 
@@ -631,11 +539,8 @@ import org.slf4j.LoggerFactory;
     case VAL:
       return getVal();
 
-    case SSI_LIST:
-      return getSsiList();
-
-    case SSIO:
-      return getSsio();
+    case ITERATORS:
+      return getIterators();
 
     }
     throw new IllegalStateException();
@@ -660,10 +565,8 @@ import org.slf4j.LoggerFactory;
       return isSetHasTimestamp();
     case VAL:
       return isSetVal();
-    case SSI_LIST:
-      return isSetSsiList();
-    case SSIO:
-      return isSetSsio();
+    case ITERATORS:
+      return isSetIterators();
     }
     throw new IllegalStateException();
   }
@@ -735,21 +638,12 @@ import org.slf4j.LoggerFactory;
         return false;
     }
 
-    boolean this_present_ssiList = true && this.isSetSsiList();
-    boolean that_present_ssiList = true && that.isSetSsiList();
-    if (this_present_ssiList || that_present_ssiList) {
-      if (!(this_present_ssiList && that_present_ssiList))
+    boolean this_present_iterators = true && this.isSetIterators();
+    boolean that_present_iterators = true && that.isSetIterators();
+    if (this_present_iterators || that_present_iterators) {
+      if (!(this_present_iterators && that_present_iterators))
         return false;
-      if (!this.ssiList.equals(that.ssiList))
-        return false;
-    }
-
-    boolean this_present_ssio = true && this.isSetSsio();
-    boolean that_present_ssio = true && that.isSetSsio();
-    if (this_present_ssio || that_present_ssio) {
-      if (!(this_present_ssio && that_present_ssio))
-        return false;
-      if (!this.ssio.equals(that.ssio))
+      if (!this.iterators.equals(that.iterators))
         return false;
     }
 
@@ -829,22 +723,12 @@ import org.slf4j.LoggerFactory;
         return lastComparison;
       }
     }
-    lastComparison = Boolean.valueOf(isSetSsiList()).compareTo(typedOther.isSetSsiList());
+    lastComparison = Boolean.valueOf(isSetIterators()).compareTo(typedOther.isSetIterators());
     if (lastComparison != 0) {
       return lastComparison;
     }
-    if (isSetSsiList()) {
-      lastComparison = org.apache.thrift.TBaseHelper.compareTo(this.ssiList, typedOther.ssiList);
-      if (lastComparison != 0) {
-        return lastComparison;
-      }
-    }
-    lastComparison = Boolean.valueOf(isSetSsio()).compareTo(typedOther.isSetSsio());
-    if (lastComparison != 0) {
-      return lastComparison;
-    }
-    if (isSetSsio()) {
-      lastComparison = org.apache.thrift.TBaseHelper.compareTo(this.ssio, typedOther.ssio);
+    if (isSetIterators()) {
+      lastComparison = org.apache.thrift.TBaseHelper.compareTo(this.iterators, typedOther.iterators);
       if (lastComparison != 0) {
         return lastComparison;
       }
@@ -909,19 +793,11 @@ import org.slf4j.LoggerFactory;
     }
     first = false;
     if (!first) sb.append(", ");
-    sb.append("ssiList:");
-    if (this.ssiList == null) {
+    sb.append("iterators:");
+    if (this.iterators == null) {
       sb.append("null");
     } else {
-      sb.append(this.ssiList);
-    }
-    first = false;
-    if (!first) sb.append(", ");
-    sb.append("ssio:");
-    if (this.ssio == null) {
-      sb.append("null");
-    } else {
-      sb.append(this.ssio);
+      org.apache.thrift.TBaseHelper.toString(this.iterators, sb);
     }
     first = false;
     sb.append(")");
@@ -1017,53 +893,10 @@ import org.slf4j.LoggerFactory;
               org.apache.thrift.protocol.TProtocolUtil.skip(iprot, schemeField.type);
             }
             break;
-          case 7: // SSI_LIST
-            if (schemeField.type == org.apache.thrift.protocol.TType.LIST) {
-              {
-                org.apache.thrift.protocol.TList _list78 = iprot.readListBegin();
-                struct.ssiList = new ArrayList<IterInfo>(_list78.size);
-                for (int _i79 = 0; _i79 < _list78.size; ++_i79)
-                {
-                  IterInfo _elem80; // required
-                  _elem80 = new IterInfo();
-                  _elem80.read(iprot);
-                  struct.ssiList.add(_elem80);
-                }
-                iprot.readListEnd();
-              }
-              struct.setSsiListIsSet(true);
-            } else { 
-              org.apache.thrift.protocol.TProtocolUtil.skip(iprot, schemeField.type);
-            }
-            break;
-          case 8: // SSIO
-            if (schemeField.type == org.apache.thrift.protocol.TType.MAP) {
-              {
-                org.apache.thrift.protocol.TMap _map81 = iprot.readMapBegin();
-                struct.ssio = new HashMap<String,Map<String,String>>(2*_map81.size);
-                for (int _i82 = 0; _i82 < _map81.size; ++_i82)
-                {
-                  String _key83; // required
-                  Map<String,String> _val84; // required
-                  _key83 = iprot.readString();
-                  {
-                    org.apache.thrift.protocol.TMap _map85 = iprot.readMapBegin();
-                    _val84 = new HashMap<String,String>(2*_map85.size);
-                    for (int _i86 = 0; _i86 < _map85.size; ++_i86)
-                    {
-                      String _key87; // required
-                      String _val88; // required
-                      _key87 = iprot.readString();
-                      _val88 = iprot.readString();
-                      _val84.put(_key87, _val88);
-                    }
-                    iprot.readMapEnd();
-                  }
-                  struct.ssio.put(_key83, _val84);
-                }
-                iprot.readMapEnd();
-              }
-              struct.setSsioIsSet(true);
+          case 7: // ITERATORS
+            if (schemeField.type == org.apache.thrift.protocol.TType.STRING) {
+              struct.iterators = iprot.readBinary();
+              struct.setIteratorsIsSet(true);
             } else { 
               org.apache.thrift.protocol.TProtocolUtil.skip(iprot, schemeField.type);
             }
@@ -1109,37 +942,9 @@ import org.slf4j.LoggerFactory;
         oprot.writeBinary(struct.val);
         oprot.writeFieldEnd();
       }
-      if (struct.ssiList != null) {
-        oprot.writeFieldBegin(SSI_LIST_FIELD_DESC);
-        {
-          oprot.writeListBegin(new org.apache.thrift.protocol.TList(org.apache.thrift.protocol.TType.STRUCT, struct.ssiList.size()));
-          for (IterInfo _iter89 : struct.ssiList)
-          {
-            _iter89.write(oprot);
-          }
-          oprot.writeListEnd();
-        }
-        oprot.writeFieldEnd();
-      }
-      if (struct.ssio != null) {
-        oprot.writeFieldBegin(SSIO_FIELD_DESC);
-        {
-          oprot.writeMapBegin(new org.apache.thrift.protocol.TMap(org.apache.thrift.protocol.TType.STRING, org.apache.thrift.protocol.TType.MAP, struct.ssio.size()));
-          for (Map.Entry<String, Map<String,String>> _iter90 : struct.ssio.entrySet())
-          {
-            oprot.writeString(_iter90.getKey());
-            {
-              oprot.writeMapBegin(new org.apache.thrift.protocol.TMap(org.apache.thrift.protocol.TType.STRING, org.apache.thrift.protocol.TType.STRING, _iter90.getValue().size()));
-              for (Map.Entry<String, String> _iter91 : _iter90.getValue().entrySet())
-              {
-                oprot.writeString(_iter91.getKey());
-                oprot.writeString(_iter91.getValue());
-              }
-              oprot.writeMapEnd();
-            }
-          }
-          oprot.writeMapEnd();
-        }
+      if (struct.iterators != null) {
+        oprot.writeFieldBegin(ITERATORS_FIELD_DESC);
+        oprot.writeBinary(struct.iterators);
         oprot.writeFieldEnd();
       }
       oprot.writeFieldStop();
@@ -1178,13 +983,10 @@ import org.slf4j.LoggerFactory;
       if (struct.isSetVal()) {
         optionals.set(5);
       }
-      if (struct.isSetSsiList()) {
+      if (struct.isSetIterators()) {
         optionals.set(6);
       }
-      if (struct.isSetSsio()) {
-        optionals.set(7);
-      }
-      oprot.writeBitSet(optionals, 8);
+      oprot.writeBitSet(optionals, 7);
       if (struct.isSetCf()) {
         oprot.writeBinary(struct.cf);
       }
@@ -1203,38 +1005,15 @@ import org.slf4j.LoggerFactory;
       if (struct.isSetVal()) {
         oprot.writeBinary(struct.val);
       }
-      if (struct.isSetSsiList()) {
-        {
-          oprot.writeI32(struct.ssiList.size());
-          for (IterInfo _iter92 : struct.ssiList)
-          {
-            _iter92.write(oprot);
-          }
-        }
-      }
-      if (struct.isSetSsio()) {
-        {
-          oprot.writeI32(struct.ssio.size());
-          for (Map.Entry<String, Map<String,String>> _iter93 : struct.ssio.entrySet())
-          {
-            oprot.writeString(_iter93.getKey());
-            {
-              oprot.writeI32(_iter93.getValue().size());
-              for (Map.Entry<String, String> _iter94 : _iter93.getValue().entrySet())
-              {
-                oprot.writeString(_iter94.getKey());
-                oprot.writeString(_iter94.getValue());
-              }
-            }
-          }
-        }
+      if (struct.isSetIterators()) {
+        oprot.writeBinary(struct.iterators);
       }
     }
 
     @Override
     public void read(org.apache.thrift.protocol.TProtocol prot, TCondition struct) throws org.apache.thrift.TException {
       TTupleProtocol iprot = (TTupleProtocol) prot;
-      BitSet incoming = iprot.readBitSet(8);
+      BitSet incoming = iprot.readBitSet(7);
       if (incoming.get(0)) {
         struct.cf = iprot.readBinary();
         struct.setCfIsSet(true);
@@ -1260,44 +1039,8 @@ import org.slf4j.LoggerFactory;
         struct.setValIsSet(true);
       }
       if (incoming.get(6)) {
-        {
-          org.apache.thrift.protocol.TList _list95 = new org.apache.thrift.protocol.TList(org.apache.thrift.protocol.TType.STRUCT, iprot.readI32());
-          struct.ssiList = new ArrayList<IterInfo>(_list95.size);
-          for (int _i96 = 0; _i96 < _list95.size; ++_i96)
-          {
-            IterInfo _elem97; // required
-            _elem97 = new IterInfo();
-            _elem97.read(iprot);
-            struct.ssiList.add(_elem97);
-          }
-        }
-        struct.setSsiListIsSet(true);
-      }
-      if (incoming.get(7)) {
-        {
-          org.apache.thrift.protocol.TMap _map98 = new org.apache.thrift.protocol.TMap(org.apache.thrift.protocol.TType.STRING, org.apache.thrift.protocol.TType.MAP, iprot.readI32());
-          struct.ssio = new HashMap<String,Map<String,String>>(2*_map98.size);
-          for (int _i99 = 0; _i99 < _map98.size; ++_i99)
-          {
-            String _key100; // required
-            Map<String,String> _val101; // required
-            _key100 = iprot.readString();
-            {
-              org.apache.thrift.protocol.TMap _map102 = new org.apache.thrift.protocol.TMap(org.apache.thrift.protocol.TType.STRING, org.apache.thrift.protocol.TType.STRING, iprot.readI32());
-              _val101 = new HashMap<String,String>(2*_map102.size);
-              for (int _i103 = 0; _i103 < _map102.size; ++_i103)
-              {
-                String _key104; // required
-                String _val105; // required
-                _key104 = iprot.readString();
-                _val105 = iprot.readString();
-                _val101.put(_key104, _val105);
-              }
-            }
-            struct.ssio.put(_key100, _val101);
-          }
-        }
-        struct.setSsioIsSet(true);
+        struct.iterators = iprot.readBinary();
+        struct.setIteratorsIsSet(true);
       }
     }
   }

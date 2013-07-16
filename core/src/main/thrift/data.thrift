@@ -133,8 +133,7 @@ struct TCondition {
 	4:i64 ts;
 	5:bool hasTimestamp;
 	6:binary val;
-	7:list<IterInfo> ssiList
-	8:map<string, map<string, string>> ssio 
+	7:binary iterators;
 }
 
 struct TConditionalMutation {

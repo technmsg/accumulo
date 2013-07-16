@@ -17,6 +17,7 @@
 
 package org.apache.accumulo.core.client.impl;
 
+import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -37,14 +38,12 @@ import org.apache.accumulo.core.client.AccumuloException;
 import org.apache.accumulo.core.client.AccumuloSecurityException;
 import org.apache.accumulo.core.client.ConditionalWriter;
 import org.apache.accumulo.core.client.Instance;
-import org.apache.accumulo.core.client.IteratorSetting;
 import org.apache.accumulo.core.client.TableNotFoundException;
 import org.apache.accumulo.core.client.impl.TabletLocator.TabletServerMutations;
 import org.apache.accumulo.core.data.ByteSequence;
 import org.apache.accumulo.core.data.Condition;
 import org.apache.accumulo.core.data.ConditionalMutation;
 import org.apache.accumulo.core.data.KeyExtent;
-import org.apache.accumulo.core.data.thrift.IterInfo;
 import org.apache.accumulo.core.data.thrift.TCMResult;
 import org.apache.accumulo.core.data.thrift.TCMStatus;
 import org.apache.accumulo.core.data.thrift.TCondition;
@@ -346,9 +345,11 @@ class ConditionalWriterImpl implements ConditionalWriter {
 
       Map<TKeyExtent,List<TConditionalMutation>> tmutations = new HashMap<TKeyExtent,List<TConditionalMutation>>();
 
-      convertMutations(mutations, cmidToCm, cmid, tmutations);
+      CompressedIterators compressedIters = new CompressedIterators();
+      convertMutations(mutations, cmidToCm, cmid, tmutations, compressedIters);
 
-      List<TCMResult> tresults = client.conditionalUpdate(tinfo, credentials, ByteBufferUtil.toByteBuffers(auths.getAuthorizations()), tmutations);
+      List<TCMResult> tresults = client.conditionalUpdate(tinfo, credentials, ByteBufferUtil.toByteBuffers(auths.getAuthorizations()), tmutations,
+          compressedIters.getSymbolTable());
 
       HashSet<KeyExtent> extentsToInvalidate = new HashSet<KeyExtent>();
 
@@ -406,9 +407,7 @@ class ConditionalWriterImpl implements ConditionalWriter {
   }
 
   private void convertMutations(TabletServerMutations<QCMutation> mutations, Map<Long,CMK> cmidToCm, MutableLong cmid,
-      Map<TKeyExtent,List<TConditionalMutation>> tmutations) {
-
-    // TODO compress repeated iterator configurations
+      Map<TKeyExtent,List<TConditionalMutation>> tmutations, CompressedIterators compressedIters) {
 
     for (Entry<KeyExtent,List<QCMutation>> entry : mutations.getMutations().entrySet()) {
       TKeyExtent tke = entry.getKey().toThrift();
@@ -419,7 +418,7 @@ class ConditionalWriterImpl implements ConditionalWriter {
       for (QCMutation cm : condMutations) {
         TMutation tm = cm.toThrift();
 
-        List<TCondition> conditions = convertConditions(cm);
+        List<TCondition> conditions = convertConditions(cm, compressedIters);
 
         cmidToCm.put(cmid.longValue(), new CMK(entry.getKey(), cm));
         TConditionalMutation tcm = new TConditionalMutation(conditions, tm, cmid.longValue());
@@ -431,7 +430,7 @@ class ConditionalWriterImpl implements ConditionalWriter {
     }
   }
 
-  private List<TCondition> convertConditions(ConditionalMutation cm) {
+  private List<TCondition> convertConditions(ConditionalMutation cm, CompressedIterators compressedIters) {
     List<TCondition> conditions = new ArrayList<TCondition>(cm.getConditions().size());
     
     for (Condition cond : cm.getConditions()) {
@@ -443,26 +442,10 @@ class ConditionalWriterImpl implements ConditionalWriter {
         hasTs = true;
       }
       
-      IteratorSetting[] iters = cond.getIterators();
-      
-      List<IterInfo> ssiList = new ArrayList<IterInfo>(iters.length);
-      Map<String,Map<String,String>> sso = new HashMap<String,Map<String,String>>();
-      
-      if (iters.length == 0) {
-        ssiList = Collections.emptyList();
-        sso = Collections.emptyMap();
-      } else {
-        ssiList = new ArrayList<IterInfo>(iters.length);
-        sso = new HashMap<String,Map<String,String>>();
-        
-        for (IteratorSetting is : iters) {
-          ssiList.add(new IterInfo(is.getPriority(), is.getIteratorClass(), is.getName()));
-          sso.put(is.getName(), is.getOptions());
-        }
-      }
+      ByteBuffer iters = compressedIters.compress(cond.getIterators());
       
       TCondition tc = new TCondition(ByteBufferUtil.toByteBuffers(cond.getFamily()), ByteBufferUtil.toByteBuffers(cond.getQualifier()),
-          ByteBufferUtil.toByteBuffers(cond.getVisibility()), ts, hasTs, ByteBufferUtil.toByteBuffers(cond.getValue()), ssiList, sso);
+          ByteBufferUtil.toByteBuffers(cond.getVisibility()), ts, hasTs, ByteBufferUtil.toByteBuffers(cond.getValue()), iters);
       
       conditions.add(tc);
     }

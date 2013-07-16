@@ -23,6 +23,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
+import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Random;
 import java.util.SortedSet;
@@ -55,6 +56,7 @@ import org.apache.accumulo.core.data.Range;
 import org.apache.accumulo.core.data.Value;
 import org.apache.accumulo.core.iterators.LongCombiner.Type;
 import org.apache.accumulo.core.iterators.user.SummingCombiner;
+import org.apache.accumulo.core.iterators.user.VersioningIterator;
 import org.apache.accumulo.core.security.Authorizations;
 import org.apache.accumulo.core.security.ColumnVisibility;
 import org.apache.accumulo.core.util.FastFormat;
@@ -378,12 +380,30 @@ public class ConditionalWriterTest {
     bw.addMutation(m);
     bw.addMutation(m);
     bw.addMutation(m);
+    
+    m = new Mutation("ACCUMULO-1001");
+    m.put("count2", "comments", "1");
+    bw.addMutation(m);
+    bw.addMutation(m);
+
+    m = new Mutation("ACCUMULO-1002");
+    m.put("count2", "comments", "1");
+    bw.addMutation(m);
+    bw.addMutation(m);
+
     bw.close();
     
     IteratorSetting iterConfig = new IteratorSetting(10, SummingCombiner.class);
     SummingCombiner.setEncodingType(iterConfig, Type.STRING);
     SummingCombiner.setColumns(iterConfig, Collections.singletonList(new IteratorSetting.Column("count")));
     
+    IteratorSetting iterConfig2 = new IteratorSetting(10, SummingCombiner.class);
+    SummingCombiner.setEncodingType(iterConfig2, Type.STRING);
+    SummingCombiner.setColumns(iterConfig2, Collections.singletonList(new IteratorSetting.Column("count2", "comments")));
+    
+    IteratorSetting iterConfig3 = new IteratorSetting(5, VersioningIterator.class);
+    VersioningIterator.setMaxVersions(iterConfig3, 1);
+
     Scanner scanner = conn.createScanner(table, new Authorizations());
     scanner.addScanIterator(iterConfig);
     scanner.setRange(new Range("ACCUMULO-1000"));
@@ -408,7 +428,34 @@ public class ConditionalWriterTest {
     Assert.assertEquals(Status.REJECTED, cw.write(cm1).getStatus());
     Assert.assertEquals("4", scanner.iterator().next().getValue().toString());
     
-    // TODO test conditions with different iterators
+    // run test with multiple iterators passed in same batch and condition with two iterators
+
+    ConditionalMutation cm3 = new ConditionalMutation("ACCUMULO-1000", new Condition("count", "comments").setIterators(iterConfig).setValue("4"));
+    cm3.put("count", "comments", "1");
+    
+    ConditionalMutation cm4 = new ConditionalMutation("ACCUMULO-1001", new Condition("count2", "comments").setIterators(iterConfig2).setValue("2"));
+    cm4.put("count2", "comments", "1");
+    
+    ConditionalMutation cm5 = new ConditionalMutation("ACCUMULO-1002", new Condition("count2", "comments").setIterators(iterConfig2, iterConfig3).setValue("2"));
+    cm5.put("count2", "comments", "1");
+    
+    Iterator<Result> results = cw.write(Arrays.asList(cm3, cm4, cm5).iterator());
+    Map<String,Status> actual = new HashMap<String,Status>();
+    
+    while (results.hasNext()) {
+      Result result = results.next();
+      String k = new String(result.getMutation().getRow());
+      Assert.assertFalse(actual.containsKey(k));
+      actual.put(k, result.getStatus());
+    }
+
+    Map<String,Status> expected = new HashMap<String,Status>();
+    expected.put("ACCUMULO-1000", Status.ACCEPTED);
+    expected.put("ACCUMULO-1001", Status.ACCEPTED);
+    expected.put("ACCUMULO-1002", Status.REJECTED);
+    
+    Assert.assertEquals(expected, actual);
+
     // TODO test w/ table that has iterators configured
     
     cw.close();
@@ -933,8 +980,7 @@ public class ConditionalWriterTest {
 
     while (rowIter.hasNext()) {
       Iterator<Entry<Key,Value>> row = rowIter.next();
-      Stats stats = new Stats(row);
-      System.out.println(stats);
+      new Stats(row);
     }
   }
 
@@ -959,6 +1005,11 @@ public class ConditionalWriterTest {
   @Test
   public void testOffline() {
     // TODO test against a offline table
+  }
+
+  @Test
+  public void testError() {
+    // test an iterator that throws an exception
   }
 
   @AfterClass

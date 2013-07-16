@@ -205,7 +205,7 @@ public class NullTserver {
 
     @Override
     public List<TCMResult> conditionalUpdate(TInfo tinfo, TCredentials credentials, List<ByteBuffer> authorizations,
-        Map<TKeyExtent,List<TConditionalMutation>> mutations) throws TException {
+        Map<TKeyExtent,List<TConditionalMutation>> mutations, List<String> symbols) throws TException {
       return null;
     }
   }

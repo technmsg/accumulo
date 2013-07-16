@@ -66,6 +66,8 @@ import org.apache.accumulo.core.Constants;
 import org.apache.accumulo.core.client.AccumuloException;
 import org.apache.accumulo.core.client.AccumuloSecurityException;
 import org.apache.accumulo.core.client.Instance;
+import org.apache.accumulo.core.client.impl.CompressedIterators;
+import org.apache.accumulo.core.client.impl.CompressedIterators.IterConfig;
 import org.apache.accumulo.core.client.impl.ScannerImpl;
 import org.apache.accumulo.core.client.impl.TabletType;
 import org.apache.accumulo.core.client.impl.Translator;
@@ -1698,11 +1700,14 @@ public class TabletServer extends AbstractMetricsImpl implements org.apache.accu
     
     private RowLocks rowLocks = new RowLocks();
 
-    private void checkConditions(Map<KeyExtent,List<ServerConditionalMutation>> updates, ArrayList<TCMResult> results, Authorizations authorizations) {
+    private void checkConditions(Map<KeyExtent,List<ServerConditionalMutation>> updates, ArrayList<TCMResult> results, Authorizations authorizations,
+        List<String> symbols) {
       Iterator<Entry<KeyExtent,List<ServerConditionalMutation>>> iter = updates.entrySet().iterator();
       
       // TODO use constant
       HashSet<Column> columns = new HashSet<Column>();
+
+      CompressedIterators compressedIters = new CompressedIterators(symbols);
 
       while (iter.hasNext()) {
         Entry<KeyExtent,List<ServerConditionalMutation>> entry = iter.next();
@@ -1728,8 +1733,10 @@ public class TabletServer extends AbstractMetricsImpl implements org.apache.accu
               
               AtomicBoolean interruptFlag = new AtomicBoolean();
 
+              IterConfig ic = compressedIters.decompress(tc.iterators);
+
               //TODO use one iterator per tablet, push checks into tablet?
-              Scanner scanner = tablet.createScanner(range, 1, columns, authorizations, tc.ssiList, tc.ssio, false, interruptFlag);
+              Scanner scanner = tablet.createScanner(range, 1, columns, authorizations, ic.ssiList, ic.ssio, false, interruptFlag);
               
               try {
                 ScanBatch batch = scanner.read();
@@ -1850,7 +1857,7 @@ public class TabletServer extends AbstractMetricsImpl implements org.apache.accu
     }
 
     private Map<KeyExtent,List<ServerConditionalMutation>> conditionalUpdate(TCredentials credentials, List<ByteBuffer> authorizations,
-        Map<KeyExtent,List<ServerConditionalMutation>> updates, ArrayList<TCMResult> results) {
+        Map<KeyExtent,List<ServerConditionalMutation>> updates, ArrayList<TCMResult> results, List<String> symbols) {
       // sort each list of mutations, this is done to avoid deadlock and doing seeks in order is more efficient and detect duplicate rows.
       ConditionalMutationSet.sortConditionalMutations(updates);
       
@@ -1862,7 +1869,7 @@ public class TabletServer extends AbstractMetricsImpl implements org.apache.accu
       // get as many locks as possible w/o blocking... defer any rows that are locked
       List<RowLock> locks = rowLocks.acquireRowlocks(updates, deferred);
       try {
-        checkConditions(updates, results, new Authorizations(authorizations));
+        checkConditions(updates, results, new Authorizations(authorizations), symbols);
         writeConditionalMutations(updates, results, credentials);
       } finally {
         rowLocks.releaseRowLocks(locks);
@@ -1872,7 +1879,7 @@ public class TabletServer extends AbstractMetricsImpl implements org.apache.accu
     
     @Override
     public List<TCMResult> conditionalUpdate(TInfo tinfo, TCredentials credentials, List<ByteBuffer> authorizations,
-        Map<TKeyExtent,List<TConditionalMutation>> mutations) throws TException {
+        Map<TKeyExtent,List<TConditionalMutation>> mutations, List<String> symbols) throws TException {
       // TODO check credentials, permissions, and authorizations
       // TODO sessions, should show up in list scans
       // TODO timeout like scans do
@@ -1882,10 +1889,10 @@ public class TabletServer extends AbstractMetricsImpl implements org.apache.accu
       
       ArrayList<TCMResult> results = new ArrayList<TCMResult>();
       
-      Map<KeyExtent,List<ServerConditionalMutation>> deferred = conditionalUpdate(credentials, authorizations, updates, results);
+      Map<KeyExtent,List<ServerConditionalMutation>> deferred = conditionalUpdate(credentials, authorizations, updates, results, symbols);
 
       while (deferred.size() > 0) {
-        deferred = conditionalUpdate(credentials, authorizations, deferred, results);
+        deferred = conditionalUpdate(credentials, authorizations, deferred, results, symbols);
       }
 
       return results;
