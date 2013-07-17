@@ -30,18 +30,46 @@ public interface ConditionalWriter {
     
     private Status status;
     private ConditionalMutation mutation;
+    private String server;
+    private Exception exception;
     
-    public Result(Status s, ConditionalMutation m) {
+    public Result(Status s, ConditionalMutation m, String server) {
       this.status = s;
       this.mutation = m;
+      this.server = server;
     }
     
-    public Status getStatus() {
+    public Result(Exception e, ConditionalMutation cm, String server) {
+      this.exception = e;
+      this.mutation = cm;
+      this.server = server;
+    }
+
+    public Status getStatus() throws AccumuloException, AccumuloSecurityException {
+      if (status == null) {
+        if (exception instanceof AccumuloException)
+          throw (AccumuloException) exception;
+        if (exception instanceof AccumuloSecurityException)
+          throw (AccumuloSecurityException) exception;
+        if (exception instanceof RuntimeException)
+          throw (RuntimeException) exception;
+        else
+          throw new AccumuloException(exception);
+      }
+
       return status;
     }
     
     public ConditionalMutation getMutation() {
       return mutation;
+    }
+    
+    /**
+     * 
+     * @return The server this mutation was sent to. Returns null if was not sent to a server.
+     */
+    public String getTabletServer() {
+      return server;
     }
   }
   

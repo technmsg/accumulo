@@ -17,6 +17,7 @@
 package org.apache.accumulo.server.security;
 
 import java.nio.ByteBuffer;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -31,6 +32,7 @@ import org.apache.accumulo.core.client.security.tokens.AuthenticationToken;
 import org.apache.accumulo.core.conf.Property;
 import org.apache.accumulo.core.data.thrift.IterInfo;
 import org.apache.accumulo.core.data.thrift.TColumn;
+import org.apache.accumulo.core.data.thrift.TConditionalMutation;
 import org.apache.accumulo.core.data.thrift.TKeyExtent;
 import org.apache.accumulo.core.data.thrift.TRange;
 import org.apache.accumulo.core.master.thrift.TableOperation;
@@ -311,6 +313,27 @@ public class SecurityOperation {
     return hasTablePermission(credentials.getPrincipal(), table, TablePermission.WRITE, true);
   }
   
+  public boolean canConditionallyUpdate(TCredentials credentials, Map<TKeyExtent,List<TConditionalMutation>> mutations, List<String> symbols,
+      List<ByteBuffer> authorizations) throws ThriftSecurityException {
+    Set<TKeyExtent> ks = mutations.keySet();
+    
+    byte[] table = null;
+    
+    for (TKeyExtent tke : ks) {
+      if (table == null)
+        table = tke.getTable();
+      else if (!Arrays.equals(table, tke.getTable()))
+        return false;
+    }
+    
+    authenticate(credentials);
+    
+    String tableID = new String(table);
+    
+    return hasTablePermission(credentials.getPrincipal(), tableID, TablePermission.WRITE, true)
+        && hasTablePermission(credentials.getPrincipal(), tableID, TablePermission.READ, true);
+  }
+
   public boolean canSplitTablet(TCredentials credentials, String table) throws ThriftSecurityException {
     authenticate(credentials);
     return hasSystemPermission(credentials.getPrincipal(), SystemPermission.ALTER_TABLE, false)

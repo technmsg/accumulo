@@ -51,7 +51,7 @@ public class FaultyConditionalWriter implements ConditionalWriter {
     while (mutations.hasNext()) {
       ConditionalMutation cm = mutations.next();
       if (rand.nextDouble() <= up && rand.nextDouble() > wp)
-        resultList.add(new Result(Status.UNKNOWN, cm));
+        resultList.add(new Result(Status.UNKNOWN, cm, null));
       else
         writes.add(cm);
     }
@@ -63,7 +63,7 @@ public class FaultyConditionalWriter implements ConditionalWriter {
         Result result = results.next();
         
         if (rand.nextDouble() <= up && rand.nextDouble() <= wp)
-          result = new Result(Status.UNKNOWN, result.getMutation());
+          result = new Result(Status.UNKNOWN, result.getMutation(), result.getTabletServer());
         resultList.add(result);
       }
     }

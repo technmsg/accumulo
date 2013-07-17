@@ -34,6 +34,8 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
+import org.apache.accumulo.core.client.AccumuloException;
+import org.apache.accumulo.core.client.AccumuloSecurityException;
 import org.apache.accumulo.core.client.BatchWriter;
 import org.apache.accumulo.core.client.BatchWriterConfig;
 import org.apache.accumulo.core.client.ConditionalWriter;
@@ -44,7 +46,12 @@ import org.apache.accumulo.core.client.IsolatedScanner;
 import org.apache.accumulo.core.client.IteratorSetting;
 import org.apache.accumulo.core.client.RowIterator;
 import org.apache.accumulo.core.client.Scanner;
+import org.apache.accumulo.core.client.TableDeletedException;
+import org.apache.accumulo.core.client.TableNotFoundException;
+import org.apache.accumulo.core.client.TableOfflineException;
 import org.apache.accumulo.core.client.ZooKeeperInstance;
+import org.apache.accumulo.core.client.impl.Tables;
+import org.apache.accumulo.core.client.impl.TabletLocator;
 import org.apache.accumulo.core.client.security.tokens.PasswordToken;
 import org.apache.accumulo.core.data.ArrayByteSequence;
 import org.apache.accumulo.core.data.ByteSequence;
@@ -59,11 +66,14 @@ import org.apache.accumulo.core.iterators.user.SummingCombiner;
 import org.apache.accumulo.core.iterators.user.VersioningIterator;
 import org.apache.accumulo.core.security.Authorizations;
 import org.apache.accumulo.core.security.ColumnVisibility;
+import org.apache.accumulo.core.security.CredentialHelper;
+import org.apache.accumulo.core.security.TablePermission;
 import org.apache.accumulo.core.util.FastFormat;
 import org.apache.accumulo.core.util.UtilWaitThread;
 import org.apache.accumulo.examples.simple.constraints.AlphaNumKeyConstraint;
 import org.apache.accumulo.minicluster.MiniAccumuloCluster;
 import org.apache.accumulo.minicluster.MiniAccumuloConfig;
+import org.apache.accumulo.test.functional.BadIterator;
 import org.apache.hadoop.io.Text;
 import org.junit.AfterClass;
 import org.junit.Assert;
@@ -993,23 +1003,161 @@ public class ConditionalWriterTest {
   }
 
   @Test
-  public void testSecurity() {
+  public void testSecurity() throws Exception {
     // test against table user does not have read and/or write permissions for
+    
+    ZooKeeperInstance zki = new ZooKeeperInstance(cluster.getInstanceName(), cluster.getZooKeepers());
+    Connector conn = zki.getConnector("root", new PasswordToken(secret));
+    
+    conn.securityOperations().createLocalUser("user1", new PasswordToken("u1p"));
+    
+    conn.tableOperations().create("sect1");
+    conn.tableOperations().create("sect2");
+    conn.tableOperations().create("sect3");
+    
+    conn.securityOperations().grantTablePermission("user1", "sect1", TablePermission.READ);
+    conn.securityOperations().grantTablePermission("user1", "sect2", TablePermission.WRITE);
+    conn.securityOperations().grantTablePermission("user1", "sect3", TablePermission.READ);
+    conn.securityOperations().grantTablePermission("user1", "sect3", TablePermission.WRITE);
+    
+    Connector conn2 = zki.getConnector("user1", new PasswordToken("u1p"));
+    
+    ConditionalMutation cm1 = new ConditionalMutation("r1", new Condition("tx", "seq"));
+    cm1.put("tx", "seq", "1");
+    cm1.put("data", "x", "a");
+    
+    ConditionalWriter cw1 = conn2.createConditionalWriter("sect1", Authorizations.EMPTY);
+    ConditionalWriter cw2 = conn2.createConditionalWriter("sect2", Authorizations.EMPTY);
+    ConditionalWriter cw3 = conn2.createConditionalWriter("sect3", Authorizations.EMPTY);
+    
+    Assert.assertEquals(Status.ACCEPTED, cw3.write(cm1).getStatus());
+    
+    try {
+      cw1.write(cm1).getStatus();
+      Assert.assertFalse(true);
+    } catch (AccumuloSecurityException ase) {
+      
+    }
+    
+    try {
+      cw2.write(cm1).getStatus();
+      Assert.assertFalse(true);
+    } catch (AccumuloSecurityException ase) {
+      
+    }
+
   }
+
 
   @Test
   public void testTimeout() {
+    // TODO
+  }
+
+  @Test
+  public void testDeleteTable() throws Exception {
+    String table = "foo12";
+    
+    ZooKeeperInstance zki = new ZooKeeperInstance(cluster.getInstanceName(), cluster.getZooKeepers());
+    Connector conn = zki.getConnector("root", new PasswordToken(secret));
+    
+    try {
+      conn.createConditionalWriter(table, Authorizations.EMPTY);
+      Assert.assertFalse(true);
+    } catch (TableNotFoundException e) {}
+    
+    conn.tableOperations().create(table);
+    
+    ConditionalWriter cw = conn.createConditionalWriter(table, Authorizations.EMPTY);
+    
+    conn.tableOperations().delete(table);
+    
+    ConditionalMutation cm1 = new ConditionalMutation("r1", new Condition("tx", "seq"));
+    cm1.put("tx", "seq", "1");
+    cm1.put("data", "x", "a");
+    
+    Result result = cw.write(cm1);
+    
+    try {
+      result.getStatus();
+      Assert.assertFalse(true);
+    } catch (TableDeletedException ae) {
+      
+    }
     
   }
-
+  
   @Test
-  public void testOffline() {
-    // TODO test against a offline table
+  public void testOffline() throws Exception {
+    String table = "foo11";
+    
+    ZooKeeperInstance zki = new ZooKeeperInstance(cluster.getInstanceName(), cluster.getZooKeepers());
+    Connector conn = zki.getConnector("root", new PasswordToken(secret));
+    
+    conn.tableOperations().create(table);
+    
+    ConditionalWriter cw = conn.createConditionalWriter(table, Authorizations.EMPTY);
+    
+    conn.tableOperations().offline(table);
+
+    waitForSingleTabletTableToGoOffline(table, zki);
+    
+    ConditionalMutation cm1 = new ConditionalMutation("r1", new Condition("tx", "seq"));
+    cm1.put("tx", "seq", "1");
+    cm1.put("data", "x", "a");
+    
+    Result result = cw.write(cm1);
+    
+    try {
+      result.getStatus();
+      Assert.assertFalse(true);
+    } catch (TableOfflineException ae) {
+      
+    }
+    
+    cw.close();
+    
+    try {
+      conn.createConditionalWriter(table, Authorizations.EMPTY);
+      Assert.assertFalse(true);
+    } catch (TableOfflineException e) {}
+  }
+
+  void waitForSingleTabletTableToGoOffline(String table, ZooKeeperInstance zki) throws AccumuloException, AccumuloSecurityException, TableNotFoundException {
+    TabletLocator locator = TabletLocator.getLocator(zki, new Text(Tables.getNameToIdMap(zki).get(table)));
+    while (locator.locateTablet(new Text("a"), false, false, CredentialHelper.create("root", new PasswordToken(secret), zki.getInstanceID())) != null) {
+      UtilWaitThread.sleep(50);
+    }
   }
 
   @Test
-  public void testError() {
-    // test an iterator that throws an exception
+  public void testError() throws Exception {
+    String table = "foo10";
+    
+    ZooKeeperInstance zki = new ZooKeeperInstance(cluster.getInstanceName(), cluster.getZooKeepers());
+    Connector conn = zki.getConnector("root", new PasswordToken(secret));
+    
+    conn.tableOperations().create(table);
+    
+    ConditionalWriter cw = conn.createConditionalWriter(table, Authorizations.EMPTY);
+    
+    IteratorSetting iterSetting = new IteratorSetting(5, BadIterator.class);
+    
+    ConditionalMutation cm1 = new ConditionalMutation("r1", new Condition("tx", "seq").setIterators(iterSetting));
+    cm1.put("tx", "seq", "1");
+    cm1.put("data", "x", "a");
+    
+    Result result = cw.write(cm1);
+    
+    try {
+      result.getStatus();
+      Assert.assertFalse(true);
+    } catch (AccumuloException ae) {
+      
+    }
+    
+    cw.close();
+
   }
 
   @AfterClass

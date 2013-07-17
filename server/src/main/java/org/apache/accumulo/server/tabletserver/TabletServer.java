@@ -1879,8 +1879,17 @@ public class TabletServer extends AbstractMetricsImpl implements org.apache.accu
     
     @Override
     public List<TCMResult> conditionalUpdate(TInfo tinfo, TCredentials credentials, List<ByteBuffer> authorizations,
-        Map<TKeyExtent,List<TConditionalMutation>> mutations, List<String> symbols) throws TException {
-      // TODO check credentials, permissions, and authorizations
+        Map<TKeyExtent,List<TConditionalMutation>> mutations, List<String> symbols) throws ThriftSecurityException {
+      
+      Authorizations userauths = null;
+      if (!security.canConditionallyUpdate(credentials, mutations, symbols, authorizations))
+        throw new ThriftSecurityException(credentials.getPrincipal(), SecurityErrorCode.PERMISSION_DENIED);
+      
+      userauths = security.getUserAuthorizations(credentials);
+      for (ByteBuffer auth : authorizations)
+        if (!userauths.contains(ByteBufferUtil.toBytes(auth)))
+          throw new ThriftSecurityException(credentials.getPrincipal(), SecurityErrorCode.BAD_AUTHORIZATIONS);
+
       // TODO sessions, should show up in list scans
       // TODO timeout like scans do
       

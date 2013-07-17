@@ -34,12 +34,13 @@ import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 
-import org.apache.accumulo.core.client.AccumuloException;
 import org.apache.accumulo.core.client.AccumuloSecurityException;
 import org.apache.accumulo.core.client.ConditionalWriter;
 import org.apache.accumulo.core.client.Instance;
-import org.apache.accumulo.core.client.TableNotFoundException;
+import org.apache.accumulo.core.client.TableDeletedException;
+import org.apache.accumulo.core.client.TableOfflineException;
 import org.apache.accumulo.core.client.impl.TabletLocator.TabletServerMutations;
+import org.apache.accumulo.core.client.impl.thrift.ThriftSecurityException;
 import org.apache.accumulo.core.data.ByteSequence;
 import org.apache.accumulo.core.data.Condition;
 import org.apache.accumulo.core.data.ConditionalMutation;
@@ -50,6 +51,7 @@ import org.apache.accumulo.core.data.thrift.TCondition;
 import org.apache.accumulo.core.data.thrift.TConditionalMutation;
 import org.apache.accumulo.core.data.thrift.TKeyExtent;
 import org.apache.accumulo.core.data.thrift.TMutation;
+import org.apache.accumulo.core.master.state.tables.TableState;
 import org.apache.accumulo.core.security.Authorizations;
 import org.apache.accumulo.core.security.ColumnVisibility;
 import org.apache.accumulo.core.security.VisibilityEvaluator;
@@ -58,12 +60,14 @@ import org.apache.accumulo.core.security.thrift.TCredentials;
 import org.apache.accumulo.core.tabletserver.thrift.TabletClientService;
 import org.apache.accumulo.core.util.BadArgumentException;
 import org.apache.accumulo.core.util.ByteBufferUtil;
+import org.apache.accumulo.core.util.LoggingRunnable;
 import org.apache.accumulo.core.util.ThriftUtil;
 import org.apache.accumulo.trace.instrument.Tracer;
 import org.apache.accumulo.trace.thrift.TInfo;
 import org.apache.commons.collections.map.LRUMap;
 import org.apache.commons.lang.mutable.MutableLong;
 import org.apache.hadoop.io.Text;
+import org.apache.log4j.Logger;
 import org.apache.thrift.TApplicationException;
 import org.apache.thrift.TException;
 import org.apache.thrift.TServiceClient;
@@ -72,13 +76,16 @@ import org.apache.thrift.transport.TTransportException;
 
 class ConditionalWriterImpl implements ConditionalWriter {
   
+  private static final Logger log = Logger.getLogger(ConditionalWriterImpl.class);
+
   private Authorizations auths;
   private VisibilityEvaluator ve;
   @SuppressWarnings("unchecked")
-  private Map<Text,Boolean> cache = Collections.synchronizedMap(new LRUMap(1000));;
+  private Map<Text,Boolean> cache = Collections.synchronizedMap(new LRUMap(1000));
   private Instance instance;
   private TCredentials credentials;
   private TabletLocator locator;
+  private String tableId;
 
 
   private Map<String,BlockingQueue<TabletServerMutations<QCMutation>>> serverQueues;
@@ -106,7 +113,7 @@ class ConditionalWriterImpl implements ConditionalWriter {
         throw new NoSuchElementException();
 
       try {
-        // TODO maybe call drainTo after take to get a batch efficiently
+        // TODO maybe call drainTo after take() to get a batch efficiently
         Result result = rq.poll(1, TimeUnit.SECONDS);
         while (result == null) {
           
@@ -184,15 +191,20 @@ class ConditionalWriterImpl implements ConditionalWriter {
     
     try {
       locator.binMutations(mutations, binnedMutations, failures, credentials);
-    } catch (AccumuloException e) {
-      // TODO Auto-generated catch block
-      e.printStackTrace();
-    } catch (AccumuloSecurityException e) {
-      // TODO Auto-generated catch block
-      e.printStackTrace();
-    } catch (TableNotFoundException e) {
-      // TODO Auto-generated catch block
-      e.printStackTrace();
+      
+      if (failures.size() == mutations.size())
+        if (!Tables.exists(instance, tableId))
+          throw new TableDeletedException(tableId);
+        else if (Tables.getTableState(instance, tableId) == TableState.OFFLINE)
+          throw new TableOfflineException(instance, tableId);
+
+    } catch (Exception e) {
+      for (QCMutation qcm : mutations)
+        qcm.resultQueue.add(new Result(e, qcm, null));
+      
+      // do not want to queue anything that was put in before binMutations() failed
+      failures.clear();
+      binnedMutations.clear();
     }
     
     if (failures.size() > 0)
@@ -202,6 +214,7 @@ class ConditionalWriterImpl implements ConditionalWriter {
       queue(entry.getKey(), entry.getValue());
     }
 
+
   }
 
   private void queue(String location, TabletServerMutations<QCMutation> mutations) {
@@ -209,7 +222,7 @@ class ConditionalWriterImpl implements ConditionalWriter {
     BlockingQueue<TabletServerMutations<QCMutation>> queue = getServerQueue(location);
     
     queue.add(mutations);
-    threadPool.execute(new SendTask(location));
+    threadPool.execute(new LoggingRunnable(log, new SendTask(location)));
   }
 
   private TabletServerMutations<QCMutation> dequeue(String location) {
@@ -253,24 +266,21 @@ class ConditionalWriterImpl implements ConditionalWriter {
     this.threadPool.setMaximumPoolSize(3);
     this.locator = TabletLocator.getLocator(instance, new Text(tableId));
     this.serverQueues = new HashMap<String,BlockingQueue<TabletServerMutations<QCMutation>>>();
-    
+    this.tableId = tableId;
+
     Runnable failureHandler = new Runnable() {
       
       @Override
       public void run() {
-        try {
           List<QCMutation> mutations = new ArrayList<QCMutation>();
           failedMutations.drainTo(mutations);
           queue(mutations);
-        } catch (Exception e) {
-          // TODO log
-          e.printStackTrace();
-        }
-        
       }
     };
     
-    threadPool.scheduleAtFixedRate(failureHandler, 100, 100, TimeUnit.MILLISECONDS);
+    failureHandler = new LoggingRunnable(log, failureHandler);
+    
+    threadPool.scheduleAtFixedRate(failureHandler, 250, 250, TimeUnit.MILLISECONDS);
   }
 
   public Iterator<Result> write(Iterator<ConditionalMutation> mutations) {
@@ -288,7 +298,7 @@ class ConditionalWriterImpl implements ConditionalWriter {
 
       for (Condition cond : mut.getConditions()) {
         if (!isVisible(cond.getVisibility())) {
-          resultQueue.add(new Result(Status.INVISIBLE_VISIBILITY, mut));
+          resultQueue.add(new Result(Status.INVISIBLE_VISIBILITY, mut, null));
           continue mloop;
         }
       }
@@ -362,7 +372,7 @@ class ConditionalWriterImpl implements ConditionalWriter {
           extentsToInvalidate.add(cmk.ke);
         } else {
           QCMutation qcm = cmidToCm.get(tcmResult.cmid).cm;
-          qcm.resultQueue.add(new Result(fromThrift(tcmResult.status), qcm));
+          qcm.resultQueue.add(new Result(fromThrift(tcmResult.status), qcm, location));
         }
       }
 
@@ -375,19 +385,25 @@ class ConditionalWriterImpl implements ConditionalWriter {
 
       queueFailed(ignored);
 
+    } catch (ThriftSecurityException tse) {
+      AccumuloSecurityException ase = new AccumuloSecurityException(credentials.getPrincipal(), tse.getCode(), Tables.getPrintableTableInfoFromId(instance,
+          tableId), tse);
+      for (CMK cmk : cmidToCm.values())
+        cmk.cm.resultQueue.add(new Result(ase, cmk.cm, location));
     } catch (TTransportException e) {
       locator.invalidateCache(location);
       for (CMK cmk : cmidToCm.values())
-        cmk.cm.resultQueue.add(new Result(Status.UNKNOWN, cmk.cm));
+        cmk.cm.resultQueue.add(new Result(Status.UNKNOWN, cmk.cm, location));
     } catch (TApplicationException tae) {
       for (CMK cmk : cmidToCm.values())
-        cmk.cm.resultQueue.add(new Result(Status.UNKNOWN, cmk.cm));
-      // TODO should another status be used?
-      // TODO need to get server where error occurred back to client
+        cmk.cm.resultQueue.add(new Result(new AccumuloServerException(location, tae), cmk.cm, location));
     } catch (TException e) {
       locator.invalidateCache(location);
       for (CMK cmk : cmidToCm.values())
-        cmk.cm.resultQueue.add(new Result(Status.UNKNOWN, cmk.cm));
+        cmk.cm.resultQueue.add(new Result(Status.UNKNOWN, cmk.cm, location));
+    } catch (Exception e) {
+      for (CMK cmk : cmidToCm.values())
+        cmk.cm.resultQueue.add(new Result(e, cmk.cm, location));
     } finally {
       ThriftUtil.returnClient((TServiceClient) client);
     }

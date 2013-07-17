@@ -70,7 +70,7 @@ import org.slf4j.LoggerFactory;
 
     public void update(org.apache.accumulo.trace.thrift.TInfo tinfo, org.apache.accumulo.core.security.thrift.TCredentials credentials, org.apache.accumulo.core.data.thrift.TKeyExtent keyExtent, org.apache.accumulo.core.data.thrift.TMutation mutation) throws org.apache.accumulo.core.client.impl.thrift.ThriftSecurityException, NotServingTabletException, ConstraintViolationException, org.apache.thrift.TException;
 
-    public List<org.apache.accumulo.core.data.thrift.TCMResult> conditionalUpdate(org.apache.accumulo.trace.thrift.TInfo tinfo, org.apache.accumulo.core.security.thrift.TCredentials credentials, List<ByteBuffer> authorizations, Map<org.apache.accumulo.core.data.thrift.TKeyExtent,List<org.apache.accumulo.core.data.thrift.TConditionalMutation>> mutations, List<String> symbols) throws org.apache.thrift.TException;
+    public List<org.apache.accumulo.core.data.thrift.TCMResult> conditionalUpdate(org.apache.accumulo.trace.thrift.TInfo tinfo, org.apache.accumulo.core.security.thrift.TCredentials credentials, List<ByteBuffer> authorizations, Map<org.apache.accumulo.core.data.thrift.TKeyExtent,List<org.apache.accumulo.core.data.thrift.TConditionalMutation>> mutations, List<String> symbols) throws org.apache.accumulo.core.client.impl.thrift.ThriftSecurityException, org.apache.thrift.TException;
 
     public List<org.apache.accumulo.core.data.thrift.TKeyExtent> bulkImport(org.apache.accumulo.trace.thrift.TInfo tinfo, org.apache.accumulo.core.security.thrift.TCredentials credentials, long tid, Map<org.apache.accumulo.core.data.thrift.TKeyExtent,Map<String,org.apache.accumulo.core.data.thrift.MapFileInfo>> files, boolean setTime) throws org.apache.accumulo.core.client.impl.thrift.ThriftSecurityException, org.apache.thrift.TException;
 
@@ -457,7 +457,7 @@ import org.slf4j.LoggerFactory;
       return;
     }
 
-    public List<org.apache.accumulo.core.data.thrift.TCMResult> conditionalUpdate(org.apache.accumulo.trace.thrift.TInfo tinfo, org.apache.accumulo.core.security.thrift.TCredentials credentials, List<ByteBuffer> authorizations, Map<org.apache.accumulo.core.data.thrift.TKeyExtent,List<org.apache.accumulo.core.data.thrift.TConditionalMutation>> mutations, List<String> symbols) throws org.apache.thrift.TException
+    public List<org.apache.accumulo.core.data.thrift.TCMResult> conditionalUpdate(org.apache.accumulo.trace.thrift.TInfo tinfo, org.apache.accumulo.core.security.thrift.TCredentials credentials, List<ByteBuffer> authorizations, Map<org.apache.accumulo.core.data.thrift.TKeyExtent,List<org.apache.accumulo.core.data.thrift.TConditionalMutation>> mutations, List<String> symbols) throws org.apache.accumulo.core.client.impl.thrift.ThriftSecurityException, org.apache.thrift.TException
     {
       send_conditionalUpdate(tinfo, credentials, authorizations, mutations, symbols);
       return recv_conditionalUpdate();
@@ -474,12 +474,15 @@ import org.slf4j.LoggerFactory;
       sendBase("conditionalUpdate", args);
     }
 
-    public List<org.apache.accumulo.core.data.thrift.TCMResult> recv_conditionalUpdate() throws org.apache.thrift.TException
+    public List<org.apache.accumulo.core.data.thrift.TCMResult> recv_conditionalUpdate() throws org.apache.accumulo.core.client.impl.thrift.ThriftSecurityException, org.apache.thrift.TException
     {
       conditionalUpdate_result result = new conditionalUpdate_result();
       receiveBase(result, "conditionalUpdate");
       if (result.isSetSuccess()) {
         return result.success;
+      }
+      if (result.sec != null) {
+        throw result.sec;
       }
       throw new org.apache.thrift.TApplicationException(org.apache.thrift.TApplicationException.MISSING_RESULT, "conditionalUpdate failed: unknown result");
     }
@@ -1284,7 +1287,7 @@ import org.slf4j.LoggerFactory;
         prot.writeMessageEnd();
       }
 
-      public List<org.apache.accumulo.core.data.thrift.TCMResult> getResult() throws org.apache.thrift.TException {
+      public List<org.apache.accumulo.core.data.thrift.TCMResult> getResult() throws org.apache.accumulo.core.client.impl.thrift.ThriftSecurityException, org.apache.thrift.TException {
         if (getState() != org.apache.thrift.async.TAsyncMethodCall.State.RESPONSE_READ) {
           throw new IllegalStateException("Method call not finished!");
         }
@@ -2225,7 +2228,11 @@ import org.slf4j.LoggerFactory;
 
       public conditionalUpdate_result getResult(I iface, conditionalUpdate_args args) throws org.apache.thrift.TException {
         conditionalUpdate_result result = new conditionalUpdate_result();
-        result.success = iface.conditionalUpdate(args.tinfo, args.credentials, args.authorizations, args.mutations, args.symbols);
+        try {
+          result.success = iface.conditionalUpdate(args.tinfo, args.credentials, args.authorizations, args.mutations, args.symbols);
+        } catch (org.apache.accumulo.core.client.impl.thrift.ThriftSecurityException sec) {
+          result.sec = sec;
+        }
         return result;
       }
     }
@@ -14820,6 +14827,7 @@ import org.slf4j.LoggerFactory;
     private static final org.apache.thrift.protocol.TStruct STRUCT_DESC = new org.apache.thrift.protocol.TStruct("conditionalUpdate_result");
 
     private static final org.apache.thrift.protocol.TField SUCCESS_FIELD_DESC = new org.apache.thrift.protocol.TField("success", org.apache.thrift.protocol.TType.LIST, (short)0);
+    private static final org.apache.thrift.protocol.TField SEC_FIELD_DESC = new org.apache.thrift.protocol.TField("sec", org.apache.thrift.protocol.TType.STRUCT, (short)1);
 
     private static final Map<Class<? extends IScheme>, SchemeFactory> schemes = new HashMap<Class<? extends IScheme>, SchemeFactory>();
     static {
@@ -14828,10 +14836,12 @@ import org.slf4j.LoggerFactory;
     }
 
     public List<org.apache.accumulo.core.data.thrift.TCMResult> success; // required
+    public org.apache.accumulo.core.client.impl.thrift.ThriftSecurityException sec; // required
 
     /** The set of fields this struct contains, along with convenience methods for finding and manipulating them. */
     @SuppressWarnings("all") public enum _Fields implements org.apache.thrift.TFieldIdEnum {
-      SUCCESS((short)0, "success");
+      SUCCESS((short)0, "success"),
+      SEC((short)1, "sec");
 
       private static final Map<String, _Fields> byName = new HashMap<String, _Fields>();
 
@@ -14848,6 +14858,8 @@ import org.slf4j.LoggerFactory;
         switch(fieldId) {
           case 0: // SUCCESS
             return SUCCESS;
+          case 1: // SEC
+            return SEC;
           default:
             return null;
         }
@@ -14894,6 +14906,8 @@ import org.slf4j.LoggerFactory;
       tmpMap.put(_Fields.SUCCESS, new org.apache.thrift.meta_data.FieldMetaData("success", org.apache.thrift.TFieldRequirementType.DEFAULT, 
           new org.apache.thrift.meta_data.ListMetaData(org.apache.thrift.protocol.TType.LIST, 
               new org.apache.thrift.meta_data.StructMetaData(org.apache.thrift.protocol.TType.STRUCT, org.apache.accumulo.core.data.thrift.TCMResult.class))));
+      tmpMap.put(_Fields.SEC, new org.apache.thrift.meta_data.FieldMetaData("sec", org.apache.thrift.TFieldRequirementType.DEFAULT, 
+          new org.apache.thrift.meta_data.FieldValueMetaData(org.apache.thrift.protocol.TType.STRUCT)));
       metaDataMap = Collections.unmodifiableMap(tmpMap);
       org.apache.thrift.meta_data.FieldMetaData.addStructMetaDataMap(conditionalUpdate_result.class, metaDataMap);
     }
@@ -14902,10 +14916,12 @@ import org.slf4j.LoggerFactory;
     }
 
     public conditionalUpdate_result(
-      List<org.apache.accumulo.core.data.thrift.TCMResult> success)
+      List<org.apache.accumulo.core.data.thrift.TCMResult> success,
+      org.apache.accumulo.core.client.impl.thrift.ThriftSecurityException sec)
     {
       this();
       this.success = success;
+      this.sec = sec;
     }
 
     /**
@@ -14919,6 +14935,9 @@ import org.slf4j.LoggerFactory;
         }
         this.success = __this__success;
       }
+      if (other.isSetSec()) {
+        this.sec = new org.apache.accumulo.core.client.impl.thrift.ThriftSecurityException(other.sec);
+      }
     }
 
     public conditionalUpdate_result deepCopy() {
@@ -14928,6 +14947,7 @@ import org.slf4j.LoggerFactory;
     @Override
     public void clear() {
       this.success = null;
+      this.sec = null;
     }
 
     public int getSuccessSize() {
@@ -14969,6 +14989,30 @@ import org.slf4j.LoggerFactory;
       }
     }
 
+    public org.apache.accumulo.core.client.impl.thrift.ThriftSecurityException getSec() {
+      return this.sec;
+    }
+
+    public conditionalUpdate_result setSec(org.apache.accumulo.core.client.impl.thrift.ThriftSecurityException sec) {
+      this.sec = sec;
+      return this;
+    }
+
+    public void unsetSec() {
+      this.sec = null;
+    }
+
+    /** Returns true if field sec is set (has been assigned a value) and false otherwise */
+    public boolean isSetSec() {
+      return this.sec != null;
+    }
+
+    public void setSecIsSet(boolean value) {
+      if (!value) {
+        this.sec = null;
+      }
+    }
+
     public void setFieldValue(_Fields field, Object value) {
       switch (field) {
       case SUCCESS:
@@ -14979,6 +15023,14 @@ import org.slf4j.LoggerFactory;
         }
         break;
 
+      case SEC:
+        if (value == null) {
+          unsetSec();
+        } else {
+          setSec((org.apache.accumulo.core.client.impl.thrift.ThriftSecurityException)value);
+        }
+        break;
+
       }
     }
 
@@ -14986,6 +15038,9 @@ import org.slf4j.LoggerFactory;
       switch (field) {
       case SUCCESS:
         return getSuccess();
+
+      case SEC:
+        return getSec();
 
       }
       throw new IllegalStateException();
@@ -15000,6 +15055,8 @@ import org.slf4j.LoggerFactory;
       switch (field) {
       case SUCCESS:
         return isSetSuccess();
+      case SEC:
+        return isSetSec();
       }
       throw new IllegalStateException();
     }
@@ -15023,6 +15080,15 @@ import org.slf4j.LoggerFactory;
         if (!(this_present_success && that_present_success))
           return false;
         if (!this.success.equals(that.success))
+          return false;
+      }
+
+      boolean this_present_sec = true && this.isSetSec();
+      boolean that_present_sec = true && that.isSetSec();
+      if (this_present_sec || that_present_sec) {
+        if (!(this_present_sec && that_present_sec))
+          return false;
+        if (!this.sec.equals(that.sec))
           return false;
       }
 
@@ -15052,6 +15118,16 @@ import org.slf4j.LoggerFactory;
           return lastComparison;
         }
       }
+      lastComparison = Boolean.valueOf(isSetSec()).compareTo(typedOther.isSetSec());
+      if (lastComparison != 0) {
+        return lastComparison;
+      }
+      if (isSetSec()) {
+        lastComparison = org.apache.thrift.TBaseHelper.compareTo(this.sec, typedOther.sec);
+        if (lastComparison != 0) {
+          return lastComparison;
+        }
+      }
       return 0;
     }
 
@@ -15077,6 +15153,14 @@ import org.slf4j.LoggerFactory;
         sb.append("null");
       } else {
         sb.append(this.success);
+      }
+      first = false;
+      if (!first) sb.append(", ");
+      sb.append("sec:");
+      if (this.sec == null) {
+        sb.append("null");
+      } else {
+        sb.append(this.sec);
       }
       first = false;
       sb.append(")");
@@ -15141,6 +15225,15 @@ import org.slf4j.LoggerFactory;
                 org.apache.thrift.protocol.TProtocolUtil.skip(iprot, schemeField.type);
               }
               break;
+            case 1: // SEC
+              if (schemeField.type == org.apache.thrift.protocol.TType.STRUCT) {
+                struct.sec = new org.apache.accumulo.core.client.impl.thrift.ThriftSecurityException();
+                struct.sec.read(iprot);
+                struct.setSecIsSet(true);
+              } else { 
+                org.apache.thrift.protocol.TProtocolUtil.skip(iprot, schemeField.type);
+              }
+              break;
             default:
               org.apache.thrift.protocol.TProtocolUtil.skip(iprot, schemeField.type);
           }
@@ -15168,6 +15261,11 @@ import org.slf4j.LoggerFactory;
           }
           oprot.writeFieldEnd();
         }
+        if (struct.sec != null) {
+          oprot.writeFieldBegin(SEC_FIELD_DESC);
+          struct.sec.write(oprot);
+          oprot.writeFieldEnd();
+        }
         oprot.writeFieldStop();
         oprot.writeStructEnd();
       }
@@ -15189,7 +15287,10 @@ import org.slf4j.LoggerFactory;
         if (struct.isSetSuccess()) {
           optionals.set(0);
         }
-        oprot.writeBitSet(optionals, 1);
+        if (struct.isSetSec()) {
+          optionals.set(1);
+        }
+        oprot.writeBitSet(optionals, 2);
         if (struct.isSetSuccess()) {
           {
             oprot.writeI32(struct.success.size());
@@ -15199,12 +15300,15 @@ import org.slf4j.LoggerFactory;
             }
           }
         }
+        if (struct.isSetSec()) {
+          struct.sec.write(oprot);
+        }
       }
 
       @Override
       public void read(org.apache.thrift.protocol.TProtocol prot, conditionalUpdate_result struct) throws org.apache.thrift.TException {
         TTupleProtocol iprot = (TTupleProtocol) prot;
-        BitSet incoming = iprot.readBitSet(1);
+        BitSet incoming = iprot.readBitSet(2);
         if (incoming.get(0)) {
           {
             org.apache.thrift.protocol.TList _list259 = new org.apache.thrift.protocol.TList(org.apache.thrift.protocol.TType.STRUCT, iprot.readI32());
@@ -15218,6 +15322,11 @@ import org.slf4j.LoggerFactory;
             }
           }
           struct.setSuccessIsSet(true);
+        }
+        if (incoming.get(1)) {
+          struct.sec = new org.apache.accumulo.core.client.impl.thrift.ThriftSecurityException();
+          struct.sec.read(iprot);
+          struct.setSecIsSet(true);
         }
       }
     }
