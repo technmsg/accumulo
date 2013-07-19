@@ -313,22 +313,9 @@ public class SecurityOperation {
     return hasTablePermission(credentials.getPrincipal(), table, TablePermission.WRITE, true);
   }
   
-  public boolean canConditionallyUpdate(TCredentials credentials, Map<TKeyExtent,List<TConditionalMutation>> mutations, List<String> symbols,
-      List<ByteBuffer> authorizations) throws ThriftSecurityException {
-    Set<TKeyExtent> ks = mutations.keySet();
-    
-    byte[] table = null;
-    
-    for (TKeyExtent tke : ks) {
-      if (table == null)
-        table = tke.getTable();
-      else if (!Arrays.equals(table, tke.getTable()))
-        return false;
-    }
+  public boolean canConditionallyUpdate(TCredentials credentials, String tableID, List<ByteBuffer> authorizations) throws ThriftSecurityException {
     
     authenticate(credentials);
-    
-    String tableID = new String(table);
     
     return hasTablePermission(credentials.getPrincipal(), tableID, TablePermission.WRITE, true)
         && hasTablePermission(credentials.getPrincipal(), tableID, TablePermission.READ, true);

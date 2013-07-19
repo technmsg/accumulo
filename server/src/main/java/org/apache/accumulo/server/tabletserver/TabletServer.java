@@ -397,9 +397,30 @@ public class TabletServer extends AbstractMetricsImpl implements org.apache.accu
       
     }
     
+    synchronized Session reserveSession(long sessionId, boolean wait) {
+      Session session = sessions.get(sessionId);
+      if (session != null) {
+        while(wait && session.reserved){
+          try {
+            wait(1000);
+          } catch (InterruptedException e) {
+            throw new RuntimeException();
+          }
+        }
+        
+        if (session.reserved)
+          throw new IllegalStateException();
+        session.reserved = true;
+      }
+      
+      return session;
+      
+    }
+    
     synchronized void unreserveSession(Session session) {
       if (!session.reserved)
         throw new IllegalStateException();
+      notifyAll();
       session.reserved = false;
       session.lastAccessTime = System.currentTimeMillis();
     }
@@ -409,7 +430,7 @@ public class TabletServer extends AbstractMetricsImpl implements org.apache.accu
       if (session != null)
         unreserveSession(session);
     }
-    
+        
     synchronized Session getSession(long sessionId) {
       Session session = sessions.get(sessionId);
       if (session != null)
@@ -418,9 +439,15 @@ public class TabletServer extends AbstractMetricsImpl implements org.apache.accu
     }
     
     Session removeSession(long sessionId) {
+      return removeSession(sessionId, false);
+    }
+    
+    Session removeSession(long sessionId, boolean unreserve) {
       Session session = null;
       synchronized (this) {
         session = sessions.remove(sessionId);
+        if(unreserve && session != null)
+          unreserveSession(session);
       }
       
       // do clean up out side of lock..
@@ -717,6 +744,12 @@ public class TabletServer extends AbstractMetricsImpl implements org.apache.accu
       return runState.get();
     }
     
+  }
+  
+  private static class ConditionalSession extends Session {
+    public TCredentials credentials;
+    public Authorizations auths;
+    public String tableId;
   }
   
   private static class UpdateSession extends Session {
@@ -1856,7 +1889,7 @@ public class TabletServer extends AbstractMetricsImpl implements org.apache.accu
 
     }
 
-    private Map<KeyExtent,List<ServerConditionalMutation>> conditionalUpdate(TCredentials credentials, List<ByteBuffer> authorizations,
+    private Map<KeyExtent,List<ServerConditionalMutation>> conditionalUpdate(TCredentials credentials, Authorizations authorizations,
         Map<KeyExtent,List<ServerConditionalMutation>> updates, ArrayList<TCMResult> results, List<String> symbols) {
       // sort each list of mutations, this is done to avoid deadlock and doing seeks in order is more efficient and detect duplicate rows.
       ConditionalMutationSet.sortConditionalMutations(updates);
@@ -1869,7 +1902,7 @@ public class TabletServer extends AbstractMetricsImpl implements org.apache.accu
       // get as many locks as possible w/o blocking... defer any rows that are locked
       List<RowLock> locks = rowLocks.acquireRowlocks(updates, deferred);
       try {
-        checkConditions(updates, results, new Authorizations(authorizations), symbols);
+        checkConditions(updates, results, authorizations, symbols);
         writeConditionalMutations(updates, results, credentials);
       } finally {
         rowLocks.releaseRowLocks(locks);
@@ -1878,11 +1911,10 @@ public class TabletServer extends AbstractMetricsImpl implements org.apache.accu
     }
     
     @Override
-    public List<TCMResult> conditionalUpdate(TInfo tinfo, TCredentials credentials, List<ByteBuffer> authorizations,
-        Map<TKeyExtent,List<TConditionalMutation>> mutations, List<String> symbols) throws ThriftSecurityException {
+    public long startConditionalUpdate(TInfo tinfo, TCredentials credentials, List<ByteBuffer> authorizations, String tableID) throws ThriftSecurityException, TException {
       
       Authorizations userauths = null;
-      if (!security.canConditionallyUpdate(credentials, mutations, symbols, authorizations))
+      if (!security.canConditionallyUpdate(credentials, tableID, authorizations))
         throw new ThriftSecurityException(credentials.getPrincipal(), SecurityErrorCode.PERMISSION_DENIED);
       
       userauths = security.getUserAuthorizations(credentials);
@@ -1890,23 +1922,58 @@ public class TabletServer extends AbstractMetricsImpl implements org.apache.accu
         if (!userauths.contains(ByteBufferUtil.toBytes(auth)))
           throw new ThriftSecurityException(credentials.getPrincipal(), SecurityErrorCode.BAD_AUTHORIZATIONS);
 
+      ConditionalSession cs = new ConditionalSession();
+      cs.auths = new Authorizations(authorizations);
+      cs.credentials = credentials;
+      cs.tableId = tableID;
+      
+      return sessionManager.createSession(cs, false);
+    }
+
+    @Override
+    public List<TCMResult> conditionalUpdate(TInfo tinfo, long sessID, Map<TKeyExtent,List<TConditionalMutation>> mutations, List<String> symbols)
+        throws NoSuchScanIDException, TException {
       // TODO sessions, should show up in list scans
       // TODO timeout like scans do
       
-      Map<KeyExtent,List<ServerConditionalMutation>> updates = Translator.translate(mutations, Translator.TKET,
-          new Translator.ListTranslator<TConditionalMutation,ServerConditionalMutation>(ServerConditionalMutation.TCMT));
+      ConditionalSession cs = (ConditionalSession) sessionManager.reserveSession(sessID);
       
-      ArrayList<TCMResult> results = new ArrayList<TCMResult>();
+      if(cs == null)
+        throw new NoSuchScanIDException();
       
-      Map<KeyExtent,List<ServerConditionalMutation>> deferred = conditionalUpdate(credentials, authorizations, updates, results, symbols);
-
-      while (deferred.size() > 0) {
-        deferred = conditionalUpdate(credentials, authorizations, deferred, results, symbols);
+      
+      
+      try{
+        Map<KeyExtent,List<ServerConditionalMutation>> updates = Translator.translate(mutations, Translator.TKET,
+            new Translator.ListTranslator<TConditionalMutation,ServerConditionalMutation>(ServerConditionalMutation.TCMT));
+        
+        Text tid = new Text(cs.tableId);
+        for(KeyExtent ke : updates.keySet())
+          if(!ke.getTableId().equals(tid))
+            throw new IllegalArgumentException("Unexpected table id "+tid+" != "+ke.getTableId());
+        
+        ArrayList<TCMResult> results = new ArrayList<TCMResult>();
+        
+        Map<KeyExtent,List<ServerConditionalMutation>> deferred = conditionalUpdate(cs.credentials, cs.auths, updates, results, symbols);
+  
+        while (deferred.size() > 0) {
+          deferred = conditionalUpdate(cs.credentials, cs.auths, deferred, results, symbols);
+        }
+  
+        return results;
+      }finally{
+        sessionManager.removeSession(sessID, true);
       }
-
-      return results;
     }
 
+    @Override
+    public void invalidateConditionalUpdate(TInfo tinfo, long sessID) throws TException {
+      //this method should wait for any running conditional update to complete
+      //after this method returns a conditional update should not be able to start
+      ConditionalSession cs = (ConditionalSession) sessionManager.reserveSession(sessID, true);
+      if(cs != null)
+        sessionManager.removeSession(sessID, true);
+    }
 
     @Override
     public void splitTablet(TInfo tinfo, TCredentials credentials, TKeyExtent tkeyExtent, ByteBuffer splitPoint) throws NotServingTabletException,

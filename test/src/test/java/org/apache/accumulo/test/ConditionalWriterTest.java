@@ -1127,6 +1127,7 @@ public class ConditionalWriterTest {
     TabletLocator locator = TabletLocator.getLocator(zki, new Text(Tables.getNameToIdMap(zki).get(table)));
     while (locator.locateTablet(new Text("a"), false, false, CredentialHelper.create("root", new PasswordToken(secret), zki.getInstanceID())) != null) {
       UtilWaitThread.sleep(50);
+      locator.invalidateCache();
     }
   }
 
