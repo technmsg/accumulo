@@ -361,6 +361,7 @@ class ConditionalWriterImpl implements ConditionalWriter {
       if (mutations != null)
         sendToServer(location, mutations);
       
+      //TODO if exception is thrown, will not reschedule
       reschedule(this);
     }
   }
