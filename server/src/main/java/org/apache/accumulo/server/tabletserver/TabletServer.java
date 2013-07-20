@@ -1962,7 +1962,7 @@ public class TabletServer extends AbstractMetricsImpl implements org.apache.accu
   
         return results;
       }finally{
-        sessionManager.removeSession(sessID, true);
+        sessionManager.unreserveSession(sessID);
       }
     }
 
