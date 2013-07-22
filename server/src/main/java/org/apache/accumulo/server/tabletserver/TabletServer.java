@@ -18,7 +18,6 @@ package org.apache.accumulo.server.tabletserver;
 
 import static org.apache.accumulo.server.problems.ProblemType.TABLET_LOAD;
 
-import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.lang.management.GarbageCollectorMXBean;
@@ -204,7 +203,6 @@ import org.apache.accumulo.server.zookeeper.TransactionWatcher;
 import org.apache.accumulo.server.zookeeper.ZooCache;
 import org.apache.accumulo.server.zookeeper.ZooLock;
 import org.apache.accumulo.server.zookeeper.ZooReaderWriter;
-import org.apache.accumulo.start.Platform;
 import org.apache.accumulo.start.classloader.vfs.AccumuloVFSClassLoader;
 import org.apache.accumulo.start.classloader.vfs.ContextManager;
 import org.apache.accumulo.trace.instrument.Span;
@@ -3325,21 +3323,6 @@ public class TabletServer extends AbstractMetricsImpl implements org.apache.accu
     security = AuditedSecurityOperation.getInstance();
     clientAddress = new InetSocketAddress(hostname, 0);
     logger = new TabletServerLogger(this, getSystemConfiguration().getMemoryInBytes(Property.TSERV_WALOG_MAX_SIZE));
-    
-    if (getSystemConfiguration().getBoolean(Property.TSERV_LOCK_MEMORY)) {
-      String path = "lib/native/mlock/" + System.mapLibraryName("MLock-" + Platform.getPlatform());
-      path = new File(path).getAbsolutePath();
-      try {
-        System.load(path);
-        log.info("Trying to lock memory pages to RAM");
-        if (MLock.lockMemoryPages() < 0)
-          log.error("Failed to lock memory pages to RAM");
-        else
-          log.info("Memory pages are now locked into RAM");
-      } catch (Throwable t) {
-        log.error("Failed to load native library for locking pages to RAM " + path + " (" + t + ")", t);
-      }
-    }
     
     try {
       AccumuloVFSClassLoader.getContextManager().setContextConfig(new ContextManager.DefaultContextsConfig(new Iterable<Entry<String,String>>() {
