@@ -750,6 +750,12 @@ public class TabletServer extends AbstractMetricsImpl implements org.apache.accu
     public TCredentials credentials;
     public Authorizations auths;
     public String tableId;
+    public AtomicBoolean interruptFlag;
+    
+    @Override
+    public void cleanup() {
+      interruptFlag.set(true);
+    }
   }
   
   private static class UpdateSession extends Session {
@@ -901,6 +907,8 @@ public class TabletServer extends AbstractMetricsImpl implements org.apache.accu
     
     WriteTracker writeTracker = new WriteTracker();
     
+    private RowLocks rowLocks = new RowLocks();
+
     ThriftClientHandler() {
       super(instance, watcher);
       log.debug(ThriftClientHandler.class.getName() + " created");
@@ -1730,16 +1738,11 @@ public class TabletServer extends AbstractMetricsImpl implements org.apache.accu
         writeTracker.finishWrite(opid);
       }
     }
-    
-    private RowLocks rowLocks = new RowLocks();
 
-    private void checkConditions(Map<KeyExtent,List<ServerConditionalMutation>> updates, ArrayList<TCMResult> results, Authorizations authorizations,
-        List<String> symbols) {
+    private void checkConditions(Map<KeyExtent,List<ServerConditionalMutation>> updates, ArrayList<TCMResult> results, ConditionalSession cs,
+        List<String> symbols) throws IOException {
       Iterator<Entry<KeyExtent,List<ServerConditionalMutation>>> iter = updates.entrySet().iterator();
       
-      // TODO use constant
-      HashSet<Column> columns = new HashSet<Column>();
-
       CompressedIterators compressedIters = new CompressedIterators(symbols);
 
       while (iter.hasNext()) {
@@ -1752,97 +1755,91 @@ public class TabletServer extends AbstractMetricsImpl implements org.apache.accu
           iter.remove();
         } else {
           List<ServerConditionalMutation> okMutations = new ArrayList<ServerConditionalMutation>(entry.getValue().size());
-          
-          // TODO extract to method
+
           for (ServerConditionalMutation scm : entry.getValue()) {
-            boolean add = true;
-            for(TCondition tc : scm.getConditions()){
-            
-              Range range;
-              if (tc.hasTimestamp)
-                range = Range.exact(new Text(scm.getRow()), new Text(tc.getCf()), new Text(tc.getCq()), new Text(tc.getCv()), tc.getTs());
-              else
-                range = Range.exact(new Text(scm.getRow()), new Text(tc.getCf()), new Text(tc.getCq()), new Text(tc.getCv()));
-              
-              AtomicBoolean interruptFlag = new AtomicBoolean();
-
-              IterConfig ic = compressedIters.decompress(tc.iterators);
-
-              //TODO use one iterator per tablet, push checks into tablet?
-              Scanner scanner = tablet.createScanner(range, 1, columns, authorizations, ic.ssiList, ic.ssio, false, interruptFlag);
-              
-              try {
-                ScanBatch batch = scanner.read();
-                
-                Value val = null;
-                
-                for (KVEntry entry2 : batch.results) {
-                  val = entry2.getValue();
-                  break;
-                }
-                
-                if ((val == null ^ tc.getVal() == null) || (val != null && !Arrays.equals(tc.getVal(), val.get()))) {
-                  results.add(new TCMResult(scm.getID(), TCMStatus.REJECTED));
-                  add = false;
-                  break;
-                }
-                
-              } catch (TabletClosedException e) {
-                // TODO ignore rest of tablets mutations
-                results.add(new TCMResult(scm.getID(), TCMStatus.IGNORED));
-                add = false;
-                break;
-              } catch (IterationInterruptedException iie) {
-                // TODO determine why this happened, ignore rest of tablets mutations?
-                results.add(new TCMResult(scm.getID(), TCMStatus.IGNORED));
-                add = false;
-                break;
-              } catch (TooManyFilesException tmfe) {
-                // TODO handle differently?
-                results.add(new TCMResult(scm.getID(), TCMStatus.IGNORED));
-                add = false;
-                break;
-              } catch (IOException e) {
-                // TODO Auto-generated catch block
-                e.printStackTrace();
-              } finally {
-                scanner.close();
-              }
-            }
-            
-            if (add)
+            if (checkCondition(results, cs, compressedIters, tablet, scm))
               okMutations.add(scm);
           }
           
-          // TODO just rebuild map
-          entry.getValue().clear();
-          entry.getValue().addAll(okMutations);
+          entry.setValue(okMutations);
         }
         
       }
     }
 
-    private void writeConditionalMutations(Map<KeyExtent,List<ServerConditionalMutation>> updates, ArrayList<TCMResult> results, TCredentials credentials) {
+    boolean checkCondition(ArrayList<TCMResult> results, ConditionalSession cs, CompressedIterators compressedIters,
+        Tablet tablet, ServerConditionalMutation scm) throws IOException {
+      boolean add = true;
+      
+      Set<Column> emptyCols = Collections.emptySet();
+
+      for(TCondition tc : scm.getConditions()){
+      
+        Range range;
+        if (tc.hasTimestamp)
+          range = Range.exact(new Text(scm.getRow()), new Text(tc.getCf()), new Text(tc.getCq()), new Text(tc.getCv()), tc.getTs());
+        else
+          range = Range.exact(new Text(scm.getRow()), new Text(tc.getCf()), new Text(tc.getCq()), new Text(tc.getCv()));
+        
+        IterConfig ic = compressedIters.decompress(tc.iterators);
+
+        //TODO use one iterator per tablet, push checks into tablet?
+        Scanner scanner = tablet.createScanner(range, 1, emptyCols, cs.auths, ic.ssiList, ic.ssio, false, cs.interruptFlag);
+        
+        try {
+          ScanBatch batch = scanner.read();
+          
+          Value val = null;
+          
+          for (KVEntry entry2 : batch.results) {
+            val = entry2.getValue();
+            break;
+          }
+          
+          if ((val == null ^ tc.getVal() == null) || (val != null && !Arrays.equals(tc.getVal(), val.get()))) {
+            results.add(new TCMResult(scm.getID(), TCMStatus.REJECTED));
+            add = false;
+            break;
+          }
+          
+        } catch (TabletClosedException e) {
+          results.add(new TCMResult(scm.getID(), TCMStatus.IGNORED));
+          add = false;
+          break;
+        } catch (IterationInterruptedException iie) {
+          results.add(new TCMResult(scm.getID(), TCMStatus.IGNORED));
+          add = false;
+          break;
+        } catch (TooManyFilesException tmfe) {
+          results.add(new TCMResult(scm.getID(), TCMStatus.IGNORED));
+          add = false;
+          break;
+        }
+      }
+      return add;
+    }
+
+    private void writeConditionalMutations(Map<KeyExtent,List<ServerConditionalMutation>> updates, ArrayList<TCMResult> results, ConditionalSession sess) {
       Set<Entry<KeyExtent,List<ServerConditionalMutation>>> es = updates.entrySet();
       
       Map<CommitSession,List<Mutation>> sendables = new HashMap<CommitSession,List<Mutation>>();
 
       // TODO stats
 
+      boolean sessionCanceled = sess.interruptFlag.get();
+
       for (Entry<KeyExtent,List<ServerConditionalMutation>> entry : es) {
         Tablet tablet = onlineTablets.get(entry.getKey());
-        if (tablet == null || tablet.isClosed()) {
+        if (tablet == null || tablet.isClosed() || sessionCanceled) {
           for (ServerConditionalMutation scm : entry.getValue())
             results.add(new TCMResult(scm.getID(), TCMStatus.IGNORED));
         } else {
-          // TODO write tracker
-          
           try {
             
             List<Mutation> mutations = (List<Mutation>) (List<? extends Mutation>) entry.getValue();
             if (mutations.size() > 0) {
 
-              CommitSession cs = tablet.prepareMutationsForCommit(new TservConstraintEnv(security, credentials), mutations);
+              CommitSession cs = tablet.prepareMutationsForCommit(new TservConstraintEnv(security, sess.credentials), mutations);
               
               if (cs == null) {
                 for (ServerConditionalMutation scm : entry.getValue())
@@ -1889,8 +1886,8 @@ public class TabletServer extends AbstractMetricsImpl implements org.apache.accu
 
     }
 
-    private Map<KeyExtent,List<ServerConditionalMutation>> conditionalUpdate(TCredentials credentials, Authorizations authorizations,
-        Map<KeyExtent,List<ServerConditionalMutation>> updates, ArrayList<TCMResult> results, List<String> symbols) {
+    private Map<KeyExtent,List<ServerConditionalMutation>> conditionalUpdate(ConditionalSession cs, Map<KeyExtent,List<ServerConditionalMutation>> updates,
+        ArrayList<TCMResult> results, List<String> symbols) throws IOException {
       // sort each list of mutations, this is done to avoid deadlock and doing seeks in order is more efficient and detect duplicate rows.
       ConditionalMutationSet.sortConditionalMutations(updates);
       
@@ -1902,8 +1899,8 @@ public class TabletServer extends AbstractMetricsImpl implements org.apache.accu
       // get as many locks as possible w/o blocking... defer any rows that are locked
       List<RowLock> locks = rowLocks.acquireRowlocks(updates, deferred);
       try {
-        checkConditions(updates, results, authorizations, symbols);
-        writeConditionalMutations(updates, results, credentials);
+        checkConditions(updates, results, cs, symbols);
+        writeConditionalMutations(updates, results, cs);
       } finally {
         rowLocks.releaseRowLocks(locks);
       }
@@ -1926,6 +1923,7 @@ public class TabletServer extends AbstractMetricsImpl implements org.apache.accu
       cs.auths = new Authorizations(authorizations);
       cs.credentials = credentials;
       cs.tableId = tableID;
+      cs.interruptFlag = new AtomicBoolean();
       
       return sessionManager.createSession(cs, false);
     }
@@ -1934,34 +1932,36 @@ public class TabletServer extends AbstractMetricsImpl implements org.apache.accu
     public List<TCMResult> conditionalUpdate(TInfo tinfo, long sessID, Map<TKeyExtent,List<TConditionalMutation>> mutations, List<String> symbols)
         throws NoSuchScanIDException, TException {
       // TODO sessions, should show up in list scans
-      // TODO timeout like scans do
       
       ConditionalSession cs = (ConditionalSession) sessionManager.reserveSession(sessID);
       
       if(cs == null)
         throw new NoSuchScanIDException();
       
-      
+      Text tid = new Text(cs.tableId);
+      long opid = writeTracker.startWrite(TabletType.type(new KeyExtent(tid, null, null)));
       
       try{
         Map<KeyExtent,List<ServerConditionalMutation>> updates = Translator.translate(mutations, Translator.TKET,
             new Translator.ListTranslator<TConditionalMutation,ServerConditionalMutation>(ServerConditionalMutation.TCMT));
-        
-        Text tid = new Text(cs.tableId);
+
         for(KeyExtent ke : updates.keySet())
           if(!ke.getTableId().equals(tid))
             throw new IllegalArgumentException("Unexpected table id "+tid+" != "+ke.getTableId());
         
         ArrayList<TCMResult> results = new ArrayList<TCMResult>();
         
-        Map<KeyExtent,List<ServerConditionalMutation>> deferred = conditionalUpdate(cs.credentials, cs.auths, updates, results, symbols);
+        Map<KeyExtent,List<ServerConditionalMutation>> deferred = conditionalUpdate(cs, updates, results, symbols);
   
         while (deferred.size() > 0) {
-          deferred = conditionalUpdate(cs.credentials, cs.auths, deferred, results, symbols);
+          deferred = conditionalUpdate(cs, deferred, results, symbols);
         }
   
         return results;
+      } catch (IOException ioe) {
+        throw new TException(ioe);
       }finally{
+        writeTracker.finishWrite(opid);
         sessionManager.unreserveSession(sessID);
       }
     }
@@ -1970,7 +1970,12 @@ public class TabletServer extends AbstractMetricsImpl implements org.apache.accu
     public void invalidateConditionalUpdate(TInfo tinfo, long sessID) throws TException {
       //this method should wait for any running conditional update to complete
       //after this method returns a conditional update should not be able to start
-      ConditionalSession cs = (ConditionalSession) sessionManager.reserveSession(sessID, true);
+      
+      ConditionalSession cs = (ConditionalSession) sessionManager.getSession(sessID);
+      if (cs != null)
+        cs.interruptFlag.set(true);
+      
+      cs = (ConditionalSession) sessionManager.reserveSession(sessID, true);
       if(cs != null)
         sessionManager.removeSession(sessID, true);
     }

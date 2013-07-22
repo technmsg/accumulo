@@ -65,6 +65,7 @@ import org.apache.accumulo.core.util.BadArgumentException;
 import org.apache.accumulo.core.util.ByteBufferUtil;
 import org.apache.accumulo.core.util.LoggingRunnable;
 import org.apache.accumulo.core.util.ThriftUtil;
+import org.apache.accumulo.core.util.UtilWaitThread;
 import org.apache.accumulo.trace.instrument.Tracer;
 import org.apache.accumulo.trace.thrift.TInfo;
 import org.apache.commons.collections.map.LRUMap;
@@ -80,6 +81,10 @@ import org.apache.thrift.transport.TTransportException;
 class ConditionalWriterImpl implements ConditionalWriter {
   
   private static final Logger log = Logger.getLogger(ConditionalWriterImpl.class);
+
+  private static final int MAX_SLEEP = 5000;
+
+  private static final long SESSION_CACHE_TIME = 60000;
 
   private Authorizations auths;
   private VisibilityEvaluator ve;
@@ -167,7 +172,7 @@ class ConditionalWriterImpl implements ConditionalWriter {
     
     void resetDelay() {
       // TODO eventually timeout a mutation
-      delay = Math.min(delay * 2, 5000);
+      delay = Math.min(delay * 2, MAX_SLEEP);
       resetTime = System.currentTimeMillis();
     }
   }
@@ -231,7 +236,7 @@ class ConditionalWriterImpl implements ConditionalWriter {
     
     synchronized (serverQueue) {
       serverQueue.queue.add(mutations);
-      //never execute more that one task per server
+      // never execute more than one task per server
       if(!serverQueue.taskQueued){
         threadPool.execute(new LoggingRunnable(log, new SendTask(location)));
         serverQueue.taskQueued = true;
@@ -357,12 +362,13 @@ class ConditionalWriterImpl implements ConditionalWriter {
     
     @Override
     public void run() {
-      TabletServerMutations<QCMutation> mutations = dequeue(location);
-      if (mutations != null)
-        sendToServer(location, mutations);
-      
-      //TODO if exception is thrown, will not reschedule
-      reschedule(this);
+      try {
+        TabletServerMutations<QCMutation> mutations = dequeue(location);
+        if (mutations != null)
+          sendToServer(location, mutations);
+      } finally {
+        reschedule(this);
+      }
     }
   }
   
@@ -380,6 +386,7 @@ class ConditionalWriterImpl implements ConditionalWriter {
   private static class SessionID {
     long sessionID;
     boolean reserved;
+    long lastAccessTime;
   }
   
   private HashMap<String, SessionID> cachedSessionIDs = new HashMap<String, SessionID>();
@@ -392,8 +399,12 @@ class ConditionalWriterImpl implements ConditionalWriter {
         if (sid.reserved)
           throw new IllegalStateException();
         
-        sid.reserved = true;
-        return sid.sessionID;
+        if (System.currentTimeMillis() - sid.lastAccessTime > SESSION_CACHE_TIME) {
+          cachedSessionIDs.remove(location);
+        } else {
+          sid.reserved = true;
+          return sid.sessionID;
+        }
       }
     }
     
@@ -423,6 +434,7 @@ class ConditionalWriterImpl implements ConditionalWriter {
       if(!sid.reserved)
         throw new IllegalStateException();
       sid.reserved = false;
+      sid.lastAccessTime = System.currentTimeMillis();
     }
   }
   
@@ -469,9 +481,6 @@ class ConditionalWriterImpl implements ConditionalWriter {
           qcm.resultQueue.add(new Result(fromThrift(tcmResult.status), qcm, location));
         }
       }
-
-
-      // TODO maybe have thrift call return bad extents
 
       for (KeyExtent ke : extentsToInvalidate) {
         locator.invalidateCache(ke);
@@ -533,14 +542,14 @@ class ConditionalWriterImpl implements ConditionalWriter {
    */
   private void invalidateSession(long sessionId, String location, TabletServerMutations<QCMutation> mutations) throws AccumuloException, AccumuloSecurityException, TableNotFoundException {
     
-    // TODO could assume tserver will invalidate sessions after a given time period
-    
     ArrayList<QCMutation> mutList = new ArrayList<QCMutation>();
     
     for (List<QCMutation> tml : mutations.getMutations().values()) {
       mutList.addAll(tml);
     }
     
+    long sleepTime = 50;
+
     while (true) {
       Map<String,TabletServerMutations<QCMutation>> binnedMutations = new HashMap<String,TabletLocator.TabletServerMutations<QCMutation>>();
       List<QCMutation> failures = new ArrayList<QCMutation>();
@@ -565,7 +574,9 @@ class ConditionalWriterImpl implements ConditionalWriter {
         locator.invalidateCache(location);
       }
       
-      //TODO sleep
+      UtilWaitThread.sleep(sleepTime);
+      sleepTime = Math.min(2 * sleepTime, MAX_SLEEP);
+
     }
 	
   }
