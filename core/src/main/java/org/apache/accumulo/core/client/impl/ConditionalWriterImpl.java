@@ -85,7 +85,7 @@ class ConditionalWriterImpl implements ConditionalWriter {
   
   private static final Logger log = Logger.getLogger(ConditionalWriterImpl.class);
 
-  private static final int MAX_SLEEP = 5000;
+  private static final int MAX_SLEEP = 30000;
 
   private static final long SESSION_CACHE_TIME = 60000;
 
@@ -592,13 +592,15 @@ class ConditionalWriterImpl implements ConditionalWriter {
     
     long sleepTime = 50;
 
+    long startTime = System.currentTimeMillis();
+
     while (true) {
       Map<String,TabletServerMutations<QCMutation>> binnedMutations = new HashMap<String,TabletLocator.TabletServerMutations<QCMutation>>();
       List<QCMutation> failures = new ArrayList<QCMutation>();
       
       locator.binMutations(mutList, binnedMutations, failures, credentials);
       
-      // TODO do failures matter? not if failures only indicates tablets are not assigned
+      // failures should not matter, if failures only indicates tablets are not assigned
       
       if (!binnedMutations.containsKey(location)) {
         // the tablets are at different locations now, so there is no need to invalidate the session
@@ -616,6 +618,9 @@ class ConditionalWriterImpl implements ConditionalWriter {
         locator.invalidateCache(location);
       }
       
+      if ((System.currentTimeMillis() - startTime) + sleepTime > timeout)
+        throw new TimedOutException(Collections.singleton(location));
+
       UtilWaitThread.sleep(sleepTime);
       sleepTime = Math.min(2 * sleepTime, MAX_SLEEP);
 
