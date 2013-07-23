@@ -18,8 +18,8 @@
 package org.apache.accumulo.core.client;
 
 import java.util.Iterator;
-import java.util.concurrent.TimeUnit;
 
+import org.apache.accumulo.core.client.impl.thrift.SecurityErrorCode;
 import org.apache.accumulo.core.data.ConditionalMutation;
 
 /**
@@ -48,11 +48,11 @@ public interface ConditionalWriter {
     public Status getStatus() throws AccumuloException, AccumuloSecurityException {
       if (status == null) {
         if (exception instanceof AccumuloException)
-          throw (AccumuloException) exception;
-        if (exception instanceof AccumuloSecurityException)
-          throw (AccumuloSecurityException) exception;
-        if (exception instanceof RuntimeException)
-          throw (RuntimeException) exception;
+          throw new AccumuloException(exception);
+        if (exception instanceof AccumuloSecurityException) {
+          AccumuloSecurityException ase = (AccumuloSecurityException) exception;
+          throw new AccumuloSecurityException(ase.getUser(), SecurityErrorCode.valueOf(ase.getSecurityErrorCode().name()), ase.getTableInfo(), ase);
+        }
         else
           throw new AccumuloException(exception);
       }
@@ -94,33 +94,12 @@ public interface ConditionalWriter {
      * A condition contained a column visibility that could never be seen
      */
     INVISIBLE_VISIBILITY,
-    /**
-     * nothing was done with this mutation, this is caused by previous mutations failing in some way like timing out
-     */
-    IGNORED
+
   }
 
   public abstract Iterator<Result> write(Iterator<ConditionalMutation> mutations);
   
   public abstract Result write(ConditionalMutation mutation);
-  
-  /**
-   * This setting determines how long a scanner will automatically retry when a failure occurs. By default a scanner will retry forever.
-   * 
-   * Setting to zero or Long.MAX_VALUE and TimeUnit.MILLISECONDS means to retry forever.
-   * 
-   * @param timeOut
-   * @param timeUnit
-   *          determines how timeout is interpreted
-   */
-  public void setTimeout(long timeOut, TimeUnit timeUnit);
-  
-  /**
-   * Returns the setting for how long a scanner will automatically retry when a failure occurs.
-   * 
-   * @return the timeout configured for this scanner
-   */
-  public long getTimeout(TimeUnit timeUnit);
 
   public void close();
 }

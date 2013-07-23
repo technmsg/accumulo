@@ -41,6 +41,7 @@ import org.apache.accumulo.core.client.BatchWriterConfig;
 import org.apache.accumulo.core.client.ConditionalWriter;
 import org.apache.accumulo.core.client.ConditionalWriter.Result;
 import org.apache.accumulo.core.client.ConditionalWriter.Status;
+import org.apache.accumulo.core.client.ConditionalWriterConfig;
 import org.apache.accumulo.core.client.Connector;
 import org.apache.accumulo.core.client.IsolatedScanner;
 import org.apache.accumulo.core.client.IteratorSetting;
@@ -74,6 +75,7 @@ import org.apache.accumulo.examples.simple.constraints.AlphaNumKeyConstraint;
 import org.apache.accumulo.minicluster.MiniAccumuloCluster;
 import org.apache.accumulo.minicluster.MiniAccumuloConfig;
 import org.apache.accumulo.test.functional.BadIterator;
+import org.apache.accumulo.test.functional.SlowIterator;
 import org.apache.hadoop.io.Text;
 import org.junit.AfterClass;
 import org.junit.Assert;
@@ -107,7 +109,7 @@ public class ConditionalWriterTest {
     
     conn.tableOperations().create("foo");
 
-    ConditionalWriter cw = conn.createConditionalWriter("foo", Authorizations.EMPTY);
+    ConditionalWriter cw = conn.createConditionalWriter("foo", new ConditionalWriterConfig());
     
     // mutation conditional on column tx:seq not exiting
     ConditionalMutation cm0 = new ConditionalMutation("99006", new Condition("tx", "seq"));
@@ -190,7 +192,7 @@ public class ConditionalWriterTest {
     
     conn.securityOperations().changeUserAuthorizations("root", auths);
     
-    ConditionalWriter cw = conn.createConditionalWriter(table, auths);
+    ConditionalWriter cw = conn.createConditionalWriter(table, new ConditionalWriterConfig().setAuthorizations(auths));
     
     ColumnVisibility cva = new ColumnVisibility("A");
     ColumnVisibility cvb = new ColumnVisibility("B");
@@ -278,7 +280,7 @@ public class ConditionalWriterTest {
 
     Authorizations filteredAuths = new Authorizations("A");
     
-    ConditionalWriter cw = conn.createConditionalWriter(table, filteredAuths);
+    ConditionalWriter cw = conn.createConditionalWriter(table, new ConditionalWriterConfig().setAuthorizations(filteredAuths));
     
     ColumnVisibility cva = new ColumnVisibility("A");
     ColumnVisibility cvb = new ColumnVisibility("B");
@@ -340,6 +342,25 @@ public class ConditionalWriterTest {
     Assert.assertEquals(Status.INVISIBLE_VISIBILITY, cw.write(cm7).getStatus());
     
     cw.close();
+
+    // test passing auths that exceed users configured auths
+    
+    Authorizations exceedingAuths = new Authorizations("A", "B", "D");
+    ConditionalWriter cw2 = conn.createConditionalWriter(table, new ConditionalWriterConfig().setAuthorizations(exceedingAuths));
+    
+    ConditionalMutation cm8 = new ConditionalMutation("99006", new Condition("tx", "seq").setVisibility(cvb), new Condition("tx", "seq").setVisibility(cva)
+        .setValue("1"));
+    cm8.put("name", "last", cva, "doe");
+    cm8.put("name", "first", cva, "john");
+    cm8.put("tx", "seq", cva, "1");
+
+    try {
+      cw2.write(cm8).getStatus();
+      Assert.assertTrue(false);
+    } catch (AccumuloSecurityException ase) {}
+    
+
+    cw2.close();
   }
   
   @Test
@@ -356,7 +377,7 @@ public class ConditionalWriterTest {
     
     Scanner scanner = conn.createScanner(table + "_clone", new Authorizations());
 
-    ConditionalWriter cw = conn.createConditionalWriter(table + "_clone", new Authorizations());
+    ConditionalWriter cw = conn.createConditionalWriter(table + "_clone", new ConditionalWriterConfig());
 
     ConditionalMutation cm0 = new ConditionalMutation("99006+", new Condition("tx", "seq"));
     cm0.put("tx", "seq", "1");
@@ -421,7 +442,7 @@ public class ConditionalWriterTest {
     
     Assert.assertEquals("3", scanner.iterator().next().getValue().toString());
 
-    ConditionalWriter cw = conn.createConditionalWriter(table, new Authorizations());
+    ConditionalWriter cw = conn.createConditionalWriter(table, new ConditionalWriterConfig());
     
     ConditionalMutation cm0 = new ConditionalMutation("ACCUMULO-1000", new Condition("count", "comments").setValue("3"));
     cm0.put("count", "comments", "1");
@@ -504,7 +525,7 @@ public class ConditionalWriterTest {
     cm2.put("tx", "seq", cvab, "1");
     mutations.add(cm2);
     
-    ConditionalWriter cw = conn.createConditionalWriter(table, new Authorizations("A"));
+    ConditionalWriter cw = conn.createConditionalWriter(table, new ConditionalWriterConfig().setAuthorizations(new Authorizations("A")));
     Iterator<Result> results = cw.write(mutations.iterator());
     int count = 0;
     while (results.hasNext()) {
@@ -611,7 +632,7 @@ public class ConditionalWriterTest {
       cml.add(cm);
     }
 
-    ConditionalWriter cw = conn.createConditionalWriter(table, Authorizations.EMPTY);
+    ConditionalWriter cw = conn.createConditionalWriter(table, new ConditionalWriterConfig());
 
     Iterator<Result> results = cw.write(cml.iterator());
 
@@ -704,7 +725,7 @@ public class ConditionalWriterTest {
     cm3.put("tx", "seq", cvaob, "2");
     mutations.add(cm3);
 
-    ConditionalWriter cw = conn.createConditionalWriter(table, new Authorizations("A"));
+    ConditionalWriter cw = conn.createConditionalWriter(table, new ConditionalWriterConfig().setAuthorizations(new Authorizations("A")));
     Iterator<Result> results = cw.write(mutations.iterator());
     HashSet<String> rows = new HashSet<String>();
     while (results.hasNext()) {
@@ -745,7 +766,7 @@ public class ConditionalWriterTest {
     
     conn.tableOperations().create(table);
     
-    ConditionalWriter cw = conn.createConditionalWriter(table, Authorizations.EMPTY);
+    ConditionalWriter cw = conn.createConditionalWriter(table, new ConditionalWriterConfig());
     
     ConditionalMutation cm1 = new ConditionalMutation("r1", new Condition("tx", "seq"));
     cm1.put("tx", "seq", "1");
@@ -942,7 +963,7 @@ public class ConditionalWriterTest {
         break;
     }
     
-    ConditionalWriter cw = conn.createConditionalWriter(table, Authorizations.EMPTY);
+    ConditionalWriter cw = conn.createConditionalWriter(table, new ConditionalWriterConfig());
     
     ArrayList<ByteSequence> rows = new ArrayList<ByteSequence>();
 
@@ -1026,9 +1047,9 @@ public class ConditionalWriterTest {
     cm1.put("tx", "seq", "1");
     cm1.put("data", "x", "a");
     
-    ConditionalWriter cw1 = conn2.createConditionalWriter("sect1", Authorizations.EMPTY);
-    ConditionalWriter cw2 = conn2.createConditionalWriter("sect2", Authorizations.EMPTY);
-    ConditionalWriter cw3 = conn2.createConditionalWriter("sect3", Authorizations.EMPTY);
+    ConditionalWriter cw1 = conn2.createConditionalWriter("sect1", new ConditionalWriterConfig());
+    ConditionalWriter cw2 = conn2.createConditionalWriter("sect2", new ConditionalWriterConfig());
+    ConditionalWriter cw3 = conn2.createConditionalWriter("sect3", new ConditionalWriterConfig());
     
     Assert.assertEquals(Status.ACCEPTED, cw3.write(cm1).getStatus());
     
@@ -1050,8 +1071,54 @@ public class ConditionalWriterTest {
 
 
   @Test
-  public void testTimeout() {
-    // TODO
+  public void testTimeout() throws Exception {
+    ZooKeeperInstance zki = new ZooKeeperInstance(cluster.getInstanceName(), cluster.getZooKeepers());
+    Connector conn = zki.getConnector("root", new PasswordToken(secret));
+    
+    String table = "fooT";
+    
+    conn.tableOperations().create(table);
+
+    ConditionalWriter cw = conn.createConditionalWriter(table, new ConditionalWriterConfig().setTimeout(1, TimeUnit.SECONDS));
+
+    ConditionalMutation cm1 = new ConditionalMutation("r1", new Condition("tx", "seq"));
+    cm1.put("tx", "seq", "1");
+    cm1.put("data", "x", "a");
+    
+    Assert.assertEquals(cw.write(cm1).getStatus(), Status.ACCEPTED);
+    
+    IteratorSetting is = new IteratorSetting(5, SlowIterator.class);
+    SlowIterator.setSeekSleepTime(is, 4000);
+    
+    ConditionalMutation cm2 = new ConditionalMutation("r1", new Condition("tx", "seq").setValue("1").setIterators(is));
+    cm2.put("tx", "seq", "2");
+    cm2.put("data", "x", "b");
+    
+    Assert.assertEquals(cw.write(cm2).getStatus(), Status.UNKNOWN);
+    
+    Scanner scanner = conn.createScanner(table, Authorizations.EMPTY);
+    
+    for (Entry<Key,Value> entry : scanner) {
+      String cf = entry.getKey().getColumnFamilyData().toString();
+      String cq = entry.getKey().getColumnQualifierData().toString();
+      String val = entry.getValue().toString();
+      
+      if (cf.equals("tx") && cq.equals("seq"))
+        Assert.assertEquals("1", val);
+      else if (cf.equals("data") && cq.equals("x"))
+        Assert.assertEquals("a", val);
+      else
+        Assert.assertTrue(false);
+    }
+    
+    ConditionalMutation cm3 = new ConditionalMutation("r1", new Condition("tx", "seq").setValue("1"));
+    cm3.put("tx", "seq", "2");
+    cm3.put("data", "x", "b");
+    
+    Assert.assertEquals(cw.write(cm3).getStatus(), Status.ACCEPTED);
+    
+    cw.close();
+
   }
 
   @Test
@@ -1062,13 +1129,13 @@ public class ConditionalWriterTest {
     Connector conn = zki.getConnector("root", new PasswordToken(secret));
     
     try {
-      conn.createConditionalWriter(table, Authorizations.EMPTY);
+      conn.createConditionalWriter(table, new ConditionalWriterConfig());
       Assert.assertFalse(true);
     } catch (TableNotFoundException e) {}
     
     conn.tableOperations().create(table);
     
-    ConditionalWriter cw = conn.createConditionalWriter(table, Authorizations.EMPTY);
+    ConditionalWriter cw = conn.createConditionalWriter(table, new ConditionalWriterConfig());
     
     conn.tableOperations().delete(table);
     
@@ -1081,8 +1148,8 @@ public class ConditionalWriterTest {
     try {
       result.getStatus();
       Assert.assertFalse(true);
-    } catch (TableDeletedException ae) {
-      
+    } catch (AccumuloException ae) {
+      Assert.assertEquals(TableDeletedException.class, ae.getCause().getClass());
     }
     
   }
@@ -1096,7 +1163,7 @@ public class ConditionalWriterTest {
     
     conn.tableOperations().create(table);
     
-    ConditionalWriter cw = conn.createConditionalWriter(table, Authorizations.EMPTY);
+    ConditionalWriter cw = conn.createConditionalWriter(table, new ConditionalWriterConfig());
     
     conn.tableOperations().offline(table);
 
@@ -1111,14 +1178,14 @@ public class ConditionalWriterTest {
     try {
       result.getStatus();
       Assert.assertFalse(true);
-    } catch (TableOfflineException ae) {
-      
+    } catch (AccumuloException ae) {
+      Assert.assertEquals(TableOfflineException.class, ae.getCause().getClass());
     }
     
     cw.close();
     
     try {
-      conn.createConditionalWriter(table, Authorizations.EMPTY);
+      conn.createConditionalWriter(table, new ConditionalWriterConfig());
       Assert.assertFalse(true);
     } catch (TableOfflineException e) {}
   }
@@ -1140,7 +1207,7 @@ public class ConditionalWriterTest {
     
     conn.tableOperations().create(table);
     
-    ConditionalWriter cw = conn.createConditionalWriter(table, Authorizations.EMPTY);
+    ConditionalWriter cw = conn.createConditionalWriter(table, new ConditionalWriterConfig());
     
     IteratorSetting iterSetting = new IteratorSetting(5, BadIterator.class);
     

@@ -25,6 +25,7 @@ import org.apache.accumulo.core.client.BatchScanner;
 import org.apache.accumulo.core.client.BatchWriter;
 import org.apache.accumulo.core.client.BatchWriterConfig;
 import org.apache.accumulo.core.client.ConditionalWriter;
+import org.apache.accumulo.core.client.ConditionalWriterConfig;
 import org.apache.accumulo.core.client.Connector;
 import org.apache.accumulo.core.client.Instance;
 import org.apache.accumulo.core.client.MultiTableBatchWriter;
@@ -131,10 +132,8 @@ public class ConnectorImpl extends Connector {
   }
   
   @Override
-  public ConditionalWriter createConditionalWriter(String tableName, Authorizations authorizations) throws TableNotFoundException {
-    ArgumentChecker.notNull(tableName, authorizations);
-    // TODO resolve table name to table id here and pass that
-    return new ConditionalWriterImpl(instance, credentials, getTableId(tableName), authorizations);
+  public ConditionalWriter createConditionalWriter(String tableName, ConditionalWriterConfig config) throws TableNotFoundException {
+    return new ConditionalWriterImpl(instance, credentials, getTableId(tableName), config);
   }
   
   @Override

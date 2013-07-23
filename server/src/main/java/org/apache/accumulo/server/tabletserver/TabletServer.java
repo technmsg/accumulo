@@ -1933,7 +1933,7 @@ public class TabletServer extends AbstractMetricsImpl implements org.apache.accu
       
       ConditionalSession cs = (ConditionalSession) sessionManager.reserveSession(sessID);
       
-      if(cs == null)
+      if (cs == null || cs.interruptFlag.get())
         throw new NoSuchScanIDException();
       
       Text tid = new Text(cs.tableId);

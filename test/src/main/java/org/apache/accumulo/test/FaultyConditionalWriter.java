@@ -20,7 +20,6 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.Random;
-import java.util.concurrent.TimeUnit;
 
 import org.apache.accumulo.core.client.ConditionalWriter;
 import org.apache.accumulo.core.data.ConditionalMutation;
@@ -72,14 +71,6 @@ public class FaultyConditionalWriter implements ConditionalWriter {
   
   public Result write(ConditionalMutation mutation) {
     return write(Collections.singleton(mutation).iterator()).next();
-  }
-  
-  public void setTimeout(long timeOut, TimeUnit timeUnit) {
-    cw.setTimeout(timeOut, timeUnit);
-  }
-  
-  public long getTimeout(TimeUnit timeUnit) {
-    return cw.getTimeout(timeUnit);
   }
   
   @Override
