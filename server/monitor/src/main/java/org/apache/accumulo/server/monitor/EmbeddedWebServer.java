@@ -14,12 +14,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.accumulo.server.util;
+package org.apache.accumulo.server.monitor;
 
 import javax.servlet.http.HttpServlet;
 
 import org.apache.accumulo.core.conf.Property;
-import org.apache.accumulo.server.monitor.Monitor;
 import org.mortbay.jetty.Server;
 import org.mortbay.jetty.bio.SocketConnector;
 import org.mortbay.jetty.handler.ContextHandlerCollection;

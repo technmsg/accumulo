@@ -28,6 +28,7 @@
   <modules>
     <module>base</module>
     <module>gc</module>
+    <module>monitor</module>
     <module>server</module>
   </modules>
 </project>

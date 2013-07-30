@@ -51,7 +51,7 @@ import org.apache.accumulo.server.monitor.util.celltypes.ProgressChartType;
 import org.apache.accumulo.server.monitor.util.celltypes.TServerLinkType;
 import org.apache.accumulo.server.monitor.util.celltypes.TableLinkType;
 import org.apache.accumulo.server.security.SystemCredentials;
-import org.apache.accumulo.server.tabletserver.TabletStatsKeeper;
+import org.apache.accumulo.server.util.ActionStatsUpdator;
 import org.apache.accumulo.trace.instrument.Tracer;
 import org.apache.commons.codec.binary.Base64;
 
@@ -158,8 +158,8 @@ public class TServersServlet extends BasicServlet {
         continue;
       }
       total.numEntries += info.numEntries;
-      TabletStatsKeeper.update(total.minors, info.minors);
-      TabletStatsKeeper.update(total.majors, info.majors);
+      ActionStatsUpdator.update(total.minors, info.minors);
+      ActionStatsUpdator.update(total.majors, info.majors);
       
       KeyExtent extent = new KeyExtent(info.extent);
       String tableId = extent.getTableId().toString();
@@ -197,8 +197,8 @@ public class TServersServlet extends BasicServlet {
     
     // After these += operations, these variables are now total for current
     // tablets and historical tablets
-    TabletStatsKeeper.update(total.minors, historical.minors);
-    TabletStatsKeeper.update(total.majors, historical.majors);
+    ActionStatsUpdator.update(total.minors, historical.minors);
+    ActionStatsUpdator.update(total.majors, historical.majors);
     totalElapsedForAll += total.majors.elapsed + historical.splits.elapsed + total.minors.elapsed;
     
     minorStdDev = stddev(total.minors.elapsed, total.minors.num, total.minors.sumDev);

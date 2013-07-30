@@ -72,7 +72,7 @@ import org.apache.accumulo.server.monitor.servlets.trace.Summary;
 import org.apache.accumulo.server.problems.ProblemReports;
 import org.apache.accumulo.server.problems.ProblemType;
 import org.apache.accumulo.server.security.SystemCredentials;
-import org.apache.accumulo.server.util.EmbeddedWebServer;
+import org.apache.accumulo.server.monitor.EmbeddedWebServer;
 import org.apache.accumulo.trace.instrument.Tracer;
 import org.apache.log4j.Logger;
 import org.apache.zookeeper.WatchedEvent;

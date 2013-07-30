@@ -18,19 +18,9 @@ package org.apache.accumulo.server.tabletserver;
 
 import org.apache.accumulo.core.tabletserver.thrift.ActionStats;
 import org.apache.accumulo.core.tabletserver.thrift.TabletStats;
+import org.apache.accumulo.server.util.ActionStatsUpdator;
 
 public class TabletStatsKeeper {
-  
-  public static void update(ActionStats summary, ActionStats td) {
-    summary.status += td.status;
-    summary.elapsed += td.elapsed;
-    summary.num += td.num;
-    summary.count += td.count;
-    summary.sumDev += td.sumDev;
-    summary.queueTime += td.queueTime;
-    summary.queueSumDev += td.queueSumDev;
-    summary.fail += td.fail;
-  }
   
   private ActionStats major = new ActionStats();
   private ActionStats minor = new ActionStats();
@@ -92,11 +82,11 @@ public class TabletStatsKeeper {
   }
   
   public void saveMinorTimes(TabletStatsKeeper t) {
-    update(minor, t.minor);
+    ActionStatsUpdator.update(minor, t.minor);
   }
   
   public void saveMajorTimes(TabletStatsKeeper t) {
-    update(major, t.major);
+    ActionStatsUpdator.update(major, t.major);
   }
   
   public void resetTimes() {
