@@ -20,7 +20,7 @@ import org.apache.accumulo.core.client.impl.thrift.TableOperation;
 import org.apache.accumulo.core.master.state.tables.TableState;
 import org.apache.accumulo.fate.Repo;
 import org.apache.accumulo.server.master.Master;
-import org.apache.accumulo.server.master.state.tables.TableManager;
+import org.apache.accumulo.server.tables.TableManager;
 import org.apache.log4j.Logger;
 
 public class ChangeTableState extends MasterRepo {

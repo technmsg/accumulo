@@ -43,7 +43,6 @@ import org.apache.accumulo.server.ServerConstants;
 import org.apache.accumulo.server.fs.VolumeManager;
 import org.apache.accumulo.server.security.SystemCredentials;
 import org.apache.accumulo.server.util.MetadataTableUtil;
-import org.apache.accumulo.server.util.MetadataTableUtil.LogEntry;
 import org.apache.accumulo.server.zookeeper.ZooReaderWriter;
 import org.apache.accumulo.trace.instrument.Span;
 import org.apache.accumulo.trace.instrument.Trace;
@@ -224,7 +223,7 @@ public class GarbageCollectWriteAheadLogs {
   private static int removeMetadataEntries(Map<Path,String> fileToServerMap, Set<Path> sortedWALogs, GCStatus status) throws IOException, KeeperException,
       InterruptedException {
     int count = 0;
-    Iterator<LogEntry> iterator = MetadataTableUtil.getLogEntries(SystemCredentials.get());
+    Iterator<MetadataTableUtil.LogEntry> iterator = MetadataTableUtil.getLogEntries(SystemCredentials.get());
     while (iterator.hasNext()) {
       for (String entry : iterator.next().logSet) {
         String parts[] = entry.split("/", 2);

@@ -26,6 +26,8 @@
   <packaging>pom</packaging>
   <name>Server Parent</name>
   <modules>
+    <module>base</module>
+    <module>gc</module>
     <module>server</module>
   </modules>
 </project>

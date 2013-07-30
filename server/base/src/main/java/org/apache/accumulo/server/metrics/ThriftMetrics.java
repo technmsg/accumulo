@@ -14,11 +14,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.accumulo.server.thrift.metrics;
+package org.apache.accumulo.server.metrics;
 
 import javax.management.ObjectName;
 
-import org.apache.accumulo.server.metrics.AbstractMetricsImpl;
 
 public class ThriftMetrics extends AbstractMetricsImpl implements ThriftMetricsMBean {
   

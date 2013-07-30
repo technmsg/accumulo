@@ -193,6 +193,7 @@ import org.apache.accumulo.server.tabletserver.metrics.TabletServerUpdateMetrics
 import org.apache.accumulo.server.util.FileSystemMonitor;
 import org.apache.accumulo.server.util.Halt;
 import org.apache.accumulo.server.util.MapCounter;
+import org.apache.accumulo.server.util.MasterMetadataUtil;
 import org.apache.accumulo.server.util.MetadataTableUtil;
 import org.apache.accumulo.server.util.MetadataTableUtil.LogEntry;
 import org.apache.accumulo.server.util.TServerUtils;
@@ -3248,7 +3249,7 @@ public class TabletServer extends AbstractMetricsImpl implements org.apache.accu
       
       KeyExtent fke;
       try {
-        fke = MetadataTableUtil.fixSplit(metadataEntry, tabletEntries.get(metadataEntry), instance, SystemCredentials.get(), lock);
+        fke = MasterMetadataUtil.fixSplit(metadataEntry, tabletEntries.get(metadataEntry), instance, SystemCredentials.get(), lock);
       } catch (IOException e) {
         log.error("Error fixing split " + metadataEntry);
         throw new AccumuloException(e.toString());

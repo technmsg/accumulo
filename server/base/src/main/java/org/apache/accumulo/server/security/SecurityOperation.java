@@ -44,7 +44,6 @@ import org.apache.accumulo.core.security.TablePermission;
 import org.apache.accumulo.core.security.thrift.TCredentials;
 import org.apache.accumulo.server.client.HdfsZooInstance;
 import org.apache.accumulo.server.conf.ServerConfiguration;
-import org.apache.accumulo.server.master.Master;
 import org.apache.accumulo.server.security.handler.Authenticator;
 import org.apache.accumulo.server.security.handler.Authorizor;
 import org.apache.accumulo.server.security.handler.PermissionHandler;
@@ -84,21 +83,21 @@ public class SecurityOperation {
   }
   
   protected static Authorizor getAuthorizor(String instanceId, boolean initialize) {
-    Authorizor toRet = Master.createInstanceFromPropertyName(ServerConfiguration.getSiteConfiguration(), Property.INSTANCE_SECURITY_AUTHORIZOR,
-        Authorizor.class, ZKAuthorizor.getInstance());
+    Authorizor toRet = ServerConfiguration.getSiteConfiguration().instantiateClassProperty(Property.INSTANCE_SECURITY_AUTHORIZOR, Authorizor.class,
+        ZKAuthorizor.getInstance());
     toRet.initialize(instanceId, initialize);
     return toRet;
   }
   
   protected static Authenticator getAuthenticator(String instanceId, boolean initialize) {
-    Authenticator toRet = Master.createInstanceFromPropertyName(ServerConfiguration.getSiteConfiguration(), Property.INSTANCE_SECURITY_AUTHENTICATOR,
-        Authenticator.class, ZKAuthenticator.getInstance());
+    Authenticator toRet = ServerConfiguration.getSiteConfiguration().instantiateClassProperty(Property.INSTANCE_SECURITY_AUTHENTICATOR, Authenticator.class,
+        ZKAuthenticator.getInstance());
     toRet.initialize(instanceId, initialize);
     return toRet;
   }
   
   protected static PermissionHandler getPermHandler(String instanceId, boolean initialize) {
-    PermissionHandler toRet = Master.createInstanceFromPropertyName(ServerConfiguration.getSiteConfiguration(), Property.INSTANCE_SECURITY_PERMISSION_HANDLER,
+    PermissionHandler toRet = ServerConfiguration.getSiteConfiguration().instantiateClassProperty(Property.INSTANCE_SECURITY_PERMISSION_HANDLER,
         PermissionHandler.class, ZKPermHandler.getInstance());
     toRet.initialize(instanceId, initialize);
     return toRet;

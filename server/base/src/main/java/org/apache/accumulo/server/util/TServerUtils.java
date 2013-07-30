@@ -36,7 +36,7 @@ import org.apache.accumulo.core.util.SimpleThreadPool;
 import org.apache.accumulo.core.util.TBufferedSocket;
 import org.apache.accumulo.core.util.ThriftUtil;
 import org.apache.accumulo.core.util.UtilWaitThread;
-import org.apache.accumulo.server.thrift.metrics.ThriftMetrics;
+import org.apache.accumulo.server.metrics.ThriftMetrics;
 import org.apache.accumulo.server.util.time.SimpleTimer;
 import org.apache.log4j.Logger;
 import org.apache.thrift.TException;
@@ -84,11 +84,9 @@ public class TServerUtils {
    * @throws UnknownHostException
    *           when we don't know our own address
    */
-  public static ServerAddress startServer(AccumuloConfiguration conf, String address, Property portHintProperty, TProcessor processor, String serverName, String threadName,
-      Property portSearchProperty,
-      Property minThreadProperty, 
-      Property timeBetweenThreadChecksProperty, 
-      Property maxMessageSizeProperty) throws UnknownHostException {
+  public static ServerAddress startServer(AccumuloConfiguration conf, String address, Property portHintProperty, TProcessor processor, String serverName,
+      String threadName, Property portSearchProperty, Property minThreadProperty, Property timeBetweenThreadChecksProperty, Property maxMessageSizeProperty)
+      throws UnknownHostException {
     int portHint = conf.getPort(portHintProperty);
     int minThreads = 2;
     if (minThreadProperty != null)
@@ -177,6 +175,7 @@ public class TServerUtils {
       super(processor);
     }
     
+    @Override
     public TProcessor getProcessor(TTransport trans) {
       if (trans instanceof TBufferedSocket) {
         TBufferedSocket tsock = (TBufferedSocket) trans;
@@ -191,6 +190,7 @@ public class TServerUtils {
       super(args);
     }
     
+    @Override
     protected Runnable getRunnable(FrameBuffer frameBuffer) {
       return new Invocation(frameBuffer);
     }
@@ -203,6 +203,7 @@ public class TServerUtils {
         this.frameBuffer = frameBuffer;
       }
       
+      @Override
       public void run() {
         if (frameBuffer.trans_ instanceof TNonblockingSocket) {
           TNonblockingSocket tsock = (TNonblockingSocket) frameBuffer.trans_;
@@ -214,8 +215,8 @@ public class TServerUtils {
     }
   }
   
-  public static ServerAddress startHsHaServer(InetSocketAddress address, TProcessor processor, final String serverName, String threadName, final int numThreads,
-      long timeBetweenThreadChecks, long maxMessageSize) throws TTransportException {
+  public static ServerAddress startHsHaServer(InetSocketAddress address, TProcessor processor, final String serverName, String threadName,
+      final int numThreads, long timeBetweenThreadChecks, long maxMessageSize) throws TTransportException {
     TNonblockingServerSocket transport = new TNonblockingServerSocket(address);
     // check for the special "bind to everything address"
     if (address.getAddress().getHostAddress().equals("0.0.0.0")) {
@@ -284,17 +285,19 @@ public class TServerUtils {
     return new ServerAddress(new TThreadPoolServer(options), address);
   }
   
-  public static ServerAddress startTServer(InetSocketAddress address, TProcessor processor, String serverName, String threadName, int numThreads, long timeBetweenThreadChecks, long maxMessageSize)
-      throws TTransportException {
-    return startTServer(address, new TimedProcessor(processor, serverName, threadName), serverName, threadName, numThreads, timeBetweenThreadChecks, maxMessageSize);
+  public static ServerAddress startTServer(InetSocketAddress address, TProcessor processor, String serverName, String threadName, int numThreads,
+      long timeBetweenThreadChecks, long maxMessageSize) throws TTransportException {
+    return startTServer(address, new TimedProcessor(processor, serverName, threadName), serverName, threadName, numThreads, timeBetweenThreadChecks,
+        maxMessageSize);
   }
   
-  public static ServerAddress startTServer(InetSocketAddress address, TimedProcessor processor, String serverName, String threadName, int numThreads, long timeBetweenThreadChecks, long maxMessageSize)
-      throws TTransportException {
+  public static ServerAddress startTServer(InetSocketAddress address, TimedProcessor processor, String serverName, String threadName, int numThreads,
+      long timeBetweenThreadChecks, long maxMessageSize) throws TTransportException {
     ServerAddress result = startHsHaServer(address, processor, serverName, threadName, numThreads, timeBetweenThreadChecks, maxMessageSize);
     // ServerPort result = startThreadPoolServer(port, processor, serverName, threadName, -1);
     final TServer finalServer = result.server;
     Runnable serveTask = new Runnable() {
+      @Override
       public void run() {
         try {
           finalServer.serve();

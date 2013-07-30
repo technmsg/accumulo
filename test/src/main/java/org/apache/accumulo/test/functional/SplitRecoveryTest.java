@@ -56,6 +56,7 @@ import org.apache.accumulo.server.security.SystemCredentials;
 import org.apache.accumulo.server.tabletserver.TabletServer;
 import org.apache.accumulo.server.tabletserver.TabletTime;
 import org.apache.accumulo.server.util.FileUtil;
+import org.apache.accumulo.server.util.MasterMetadataUtil;
 import org.apache.accumulo.server.util.MetadataTableUtil;
 import org.apache.accumulo.server.zookeeper.TransactionWatcher;
 import org.apache.accumulo.server.zookeeper.ZooLock;
@@ -180,7 +181,7 @@ public class SplitRecoveryTest extends FunctionalTest {
     
     if (steps >= 1) {
       Map<FileRef,Long> bulkFiles = MetadataTableUtil.getBulkFilesLoaded(SystemCredentials.get(), extent);
-      MetadataTableUtil.addNewTablet(low, "/lowDir", instance, lowDatafileSizes, bulkFiles, SystemCredentials.get(), TabletTime.LOGICAL_TIME_ID + "0", -1l,
+      MasterMetadataUtil.addNewTablet(low, "/lowDir", instance, lowDatafileSizes, bulkFiles, SystemCredentials.get(), TabletTime.LOGICAL_TIME_ID + "0", -1l,
           -1l, zl);
     }
     if (steps >= 2)

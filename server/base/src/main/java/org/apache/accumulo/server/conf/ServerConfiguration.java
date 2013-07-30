@@ -58,7 +58,7 @@ public class ServerConfiguration {
   public static synchronized AccumuloConfiguration getSystemConfiguration(Instance instance) {
     return getZooConfiguration(instance);
   }
-
+  
   public static TableConfiguration getTableConfiguration(Instance instance, String tableId) {
     checkPermissions();
     synchronized (tableInstances) {
@@ -99,7 +99,7 @@ public class ServerConfiguration {
   public TableConfiguration getTableConfiguration(KeyExtent extent) {
     return getTableConfiguration(extent.getTableId().toString());
   }
-
+  
   public synchronized AccumuloConfiguration getConfiguration() {
     return getZooConfiguration(instance);
   }
@@ -107,5 +107,5 @@ public class ServerConfiguration {
   public Instance getInstance() {
     return instance;
   }
-
+  
 }

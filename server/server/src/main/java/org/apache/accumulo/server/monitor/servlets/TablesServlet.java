@@ -38,7 +38,6 @@ import org.apache.accumulo.core.metadata.RootTable;
 import org.apache.accumulo.server.client.HdfsZooInstance;
 import org.apache.accumulo.server.master.state.MetaDataTableScanner;
 import org.apache.accumulo.server.master.state.TabletLocationState;
-import org.apache.accumulo.server.master.state.tables.TableManager;
 import org.apache.accumulo.server.monitor.Monitor;
 import org.apache.accumulo.server.monitor.util.Table;
 import org.apache.accumulo.server.monitor.util.TableRow;
@@ -48,6 +47,7 @@ import org.apache.accumulo.server.monitor.util.celltypes.NumberType;
 import org.apache.accumulo.server.monitor.util.celltypes.TableLinkType;
 import org.apache.accumulo.server.monitor.util.celltypes.TableStateType;
 import org.apache.accumulo.server.security.SystemCredentials;
+import org.apache.accumulo.server.tables.TableManager;
 import org.apache.hadoop.io.Text;
 
 public class TablesServlet extends BasicServlet {

@@ -107,7 +107,7 @@ public class RecoveryManager {
   }
   
   private void initiateSort(String sortId, String source, final String destination) throws KeeperException, InterruptedException, IOException {
-    String work =  source + "|" + destination; 
+    String work = source + "|" + destination;
     new DistributedWorkQueue(ZooUtil.getRoot(master.getInstance()) + Constants.ZRECOVERY).addWork(sortId, work.getBytes());
     
     synchronized (this) {
@@ -141,7 +141,7 @@ public class RecoveryManager {
             sortsQueued.remove(sortId);
           }
         }
-
+        
         if (master.getFileSystem().exists(new Path(dest, "finished"))) {
           synchronized (this) {
             closeTasksQueued.remove(sortId);
@@ -155,7 +155,7 @@ public class RecoveryManager {
         synchronized (this) {
           if (!closeTasksQueued.contains(sortId) && !sortsQueued.contains(sortId)) {
             AccumuloConfiguration aconf = master.getConfiguration().getConfiguration();
-            LogCloser closer = Master.createInstanceFromPropertyName(aconf, Property.MASTER_WALOG_CLOSER_IMPLEMETATION, LogCloser.class, new HadoopLogCloser());
+            LogCloser closer = aconf.instantiateClassProperty(Property.MASTER_WALOG_CLOSER_IMPLEMETATION, LogCloser.class, new HadoopLogCloser());
             Long delay = recoveryDelay.get(sortId);
             if (delay == null) {
               delay = master.getSystemConfiguration().getTimeInMillis(Property.MASTER_RECOVERY_DELAY);

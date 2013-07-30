@@ -114,8 +114,6 @@ import org.apache.accumulo.server.master.state.TabletServerState;
 import org.apache.accumulo.server.master.state.TabletState;
 import org.apache.accumulo.server.master.state.ZooStore;
 import org.apache.accumulo.server.master.state.ZooTabletStateStore;
-import org.apache.accumulo.server.master.state.tables.TableManager;
-import org.apache.accumulo.server.master.state.tables.TableObserver;
 import org.apache.accumulo.server.master.tableOps.BulkImport;
 import org.apache.accumulo.server.master.tableOps.CancelCompactions;
 import org.apache.accumulo.server.master.tableOps.ChangeTableState;
@@ -133,6 +131,8 @@ import org.apache.accumulo.server.monitor.Monitor;
 import org.apache.accumulo.server.security.AuditedSecurityOperation;
 import org.apache.accumulo.server.security.SecurityOperation;
 import org.apache.accumulo.server.security.SystemCredentials;
+import org.apache.accumulo.server.tables.TableManager;
+import org.apache.accumulo.server.tables.TableObserver;
 import org.apache.accumulo.server.util.DefaultMap;
 import org.apache.accumulo.server.util.Halt;
 import org.apache.accumulo.server.util.MetadataTableUtil;
@@ -143,7 +143,6 @@ import org.apache.accumulo.server.util.TabletIterator.TabletDeletedException;
 import org.apache.accumulo.server.util.time.SimpleTimer;
 import org.apache.accumulo.server.zookeeper.ZooLock;
 import org.apache.accumulo.server.zookeeper.ZooReaderWriter;
-import org.apache.accumulo.start.classloader.vfs.AccumuloVFSClassLoader;
 import org.apache.accumulo.trace.instrument.thrift.TraceWrap;
 import org.apache.accumulo.trace.thrift.TInfo;
 import org.apache.hadoop.io.DataInputBuffer;
@@ -417,26 +416,6 @@ public class Master implements LiveTServerSet.Listener, TableObserver, CurrentSt
     listener.waitForEvents(ONE_SECOND);
   }
   
-  // TODO: maybe move this to Property? We do this in TabletServer, Master, TableLoadBalancer, etc. - ACCUMULO-1295
-  public static <T> T createInstanceFromPropertyName(AccumuloConfiguration conf, Property property, Class<T> base, T defaultInstance) {
-    String clazzName = conf.get(property);
-    T instance = null;
-    
-    try {
-      Class<? extends T> clazz = AccumuloVFSClassLoader.loadClass(clazzName, base);
-      instance = clazz.newInstance();
-      log.info("Loaded class : " + clazzName);
-    } catch (Exception e) {
-      log.warn("Failed to load class ", e);
-    }
-    
-    if (instance == null) {
-      log.info("Using " + defaultInstance.getClass().getName());
-      instance = defaultInstance;
-    }
-    return instance;
-  }
-  
   public Master(ServerConfiguration config, VolumeManager fs, String hostname) throws IOException {
     this.serverConfig = config;
     this.instance = config.getInstance();
@@ -450,7 +429,7 @@ public class Master implements LiveTServerSet.Listener, TableObserver, CurrentSt
     ThriftTransportPool.getInstance().setIdleTime(aconf.getTimeInMillis(Property.GENERAL_RPC_TIMEOUT));
     security = AuditedSecurityOperation.getInstance();
     tserverSet = new LiveTServerSet(instance, config.getConfiguration(), this);
-    this.tabletBalancer = createInstanceFromPropertyName(aconf, Property.MASTER_TABLET_BALANCER, TabletBalancer.class, new DefaultLoadBalancer());
+    this.tabletBalancer = aconf.instantiateClassProperty(Property.MASTER_TABLET_BALANCER, TabletBalancer.class, new DefaultLoadBalancer());
     this.tabletBalancer.init(serverConfig);
   }
   
@@ -754,7 +733,7 @@ public class Master implements LiveTServerSet.Listener, TableObserver, CurrentSt
     
     private void updatePlugins(String property) {
       if (property.equals(Property.MASTER_TABLET_BALANCER.getKey())) {
-        TabletBalancer balancer = createInstanceFromPropertyName(instance.getConfiguration(), Property.MASTER_TABLET_BALANCER, TabletBalancer.class,
+        TabletBalancer balancer = instance.getConfiguration().instantiateClassProperty(Property.MASTER_TABLET_BALANCER, TabletBalancer.class,
             new DefaultLoadBalancer());
         balancer.init(serverConfig);
         tabletBalancer = balancer;

@@ -120,6 +120,7 @@ import org.apache.accumulo.server.tabletserver.mastermessage.TabletStatusMessage
 import org.apache.accumulo.server.tabletserver.metrics.TabletServerMinCMetrics;
 import org.apache.accumulo.server.util.FileUtil;
 import org.apache.accumulo.server.util.MapCounter;
+import org.apache.accumulo.server.util.MasterMetadataUtil;
 import org.apache.accumulo.server.util.MetadataTableUtil;
 import org.apache.accumulo.server.util.MetadataTableUtil.LogEntry;
 import org.apache.accumulo.server.util.TabletOperations;
@@ -863,7 +864,7 @@ public class Tablet {
             persistedTime = commitSession.getMaxCommittedTime();
           
           String time = tabletTime.getMetadataValue(persistedTime);
-          MetadataTableUtil.updateTabletDataFile(extent, newDatafile, absMergeFile, dfv, time, SystemCredentials.get(), filesInUseByScans,
+          MasterMetadataUtil.updateTabletDataFile(extent, newDatafile, absMergeFile, dfv, time, SystemCredentials.get(), filesInUseByScans,
               tabletServer.getClientAddressString(), tabletServer.getLock(), unusedWalLogs, lastLocation, flushId);
         }
         
@@ -1047,7 +1048,7 @@ public class Tablet {
         Set<FileRef> filesInUseByScans = waitForScansToFinish(oldDatafiles, false, 10000);
         if (filesInUseByScans.size() > 0)
           log.debug("Adding scan refs to metadata " + extent + " " + filesInUseByScans);
-        MetadataTableUtil.replaceDatafiles(extent, oldDatafiles, filesInUseByScans, newDatafile, compactionId, dfv, SystemCredentials.get(),
+        MasterMetadataUtil.replaceDatafiles(extent, oldDatafiles, filesInUseByScans, newDatafile, compactionId, dfv, SystemCredentials.get(),
             tabletServer.getClientAddressString(), lastLocation, tabletServer.getLock());
         removeFilesAfterScan(filesInUseByScans);
       }
@@ -1749,8 +1750,8 @@ public class Tablet {
     public long numBytes;
   }
   
-  Scanner createScanner(Range range, int num, Set<Column> columns, Authorizations authorizations, List<IterInfo> ssiList,
-      Map<String,Map<String,String>> ssio, boolean isolated, AtomicBoolean interruptFlag) {
+  Scanner createScanner(Range range, int num, Set<Column> columns, Authorizations authorizations, List<IterInfo> ssiList, Map<String,Map<String,String>> ssio,
+      boolean isolated, AtomicBoolean interruptFlag) {
     // do a test to see if this range falls within the tablet, if it does not
     // then clip will throw an exception
     extent.toDataRange().clip(range);
@@ -3535,7 +3536,7 @@ public class Tablet {
       Map<FileRef,Long> bulkLoadedFiles = MetadataTableUtil.getBulkFilesLoaded(SystemCredentials.get(), extent);
       
       MetadataTableUtil.splitTablet(high, extent.getPrevEndRow(), splitRatio, SystemCredentials.get(), tabletServer.getLock());
-      MetadataTableUtil.addNewTablet(low, lowDirectory, tabletServer.getTabletSession(), lowDatafileSizes, bulkLoadedFiles, SystemCredentials.get(), time,
+      MasterMetadataUtil.addNewTablet(low, lowDirectory, tabletServer.getTabletSession(), lowDatafileSizes, bulkLoadedFiles, SystemCredentials.get(), time,
           lastFlushID, lastCompactID, tabletServer.getLock());
       MetadataTableUtil.finishSplit(high, highDatafileSizes, highDatafilesToRemove, SystemCredentials.get(), tabletServer.getLock());
       
