@@ -55,9 +55,9 @@ public class Main {
       } else if (args[0].equals("admin")) {
         runTMP = cl.loadClass("org.apache.accumulo.server.util.Admin");
       } else if (args[0].equals("gc")) {
-        runTMP = cl.loadClass("org.apache.accumulo.server.gc.SimpleGarbageCollector");
+        runTMP = cl.loadClass("org.apache.accumulo.gc.SimpleGarbageCollector");
       } else if (args[0].equals("monitor")) {
-        runTMP = cl.loadClass("org.apache.accumulo.server.monitor.Monitor");
+        runTMP = cl.loadClass("org.apache.accumulo.monitor.Monitor");
       } else if (args[0].equals("tracer")) {
         runTMP = cl.loadClass("org.apache.accumulo.server.trace.TraceServer");
       } else if (args[0].equals("proxy")) {
@@ -100,6 +100,7 @@ public class Main {
       final Object thisIsJustOneArgument = argsToPass;
       final Method finalMain = main;
       r = new Runnable() {
+        @Override
         public void run() {
           try {
             finalMain.invoke(null, thisIsJustOneArgument);
@@ -121,6 +122,7 @@ public class Main {
   }
   
   private static void printUsage() {
-    System.out.println("accumulo init | master | tserver | monitor | shell | admin | gc | classpath | rfile-info | login-info | tracer | minicluster | proxy | zookeeper | create-token | <accumulo class> args");
+    System.out
+        .println("accumulo init | master | tserver | monitor | shell | admin | gc | classpath | rfile-info | login-info | tracer | minicluster | proxy | zookeeper | create-token | <accumulo class> args");
   }
 }
