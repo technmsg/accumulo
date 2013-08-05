@@ -75,7 +75,6 @@
     <module>trace</module>
     <module>core</module>
     <module>fate</module>
-    <module>server</module>
     <module>start</module>
     <module>examples/simple</module>
     <module>assemble</module>
@@ -84,6 +83,12 @@
     <module>minicluster</module>
     <module>docs</module>
     <module>maven-plugin</module>
+    <module>server/base</module>
+    <module>server/gc</module>
+    <module>server/master</module>
+    <module>server/monitor</module>
+    <module>server/server</module>
+    <module>server/tserver</module>
   </modules>
   <scm>
     <connection>scm:git:git://git.apache.org/accumulo.git</connection>
