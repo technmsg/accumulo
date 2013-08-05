@@ -89,6 +89,7 @@
     <module>server/monitor</module>
     <module>server/server</module>
     <module>server/tserver</module>
+    <module>server/utils</module>
   </modules>
   <scm>
     <connection>scm:git:git://git.apache.org/accumulo.git</connection>
