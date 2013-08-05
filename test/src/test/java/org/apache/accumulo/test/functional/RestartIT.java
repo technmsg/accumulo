@@ -31,10 +31,10 @@ import org.apache.accumulo.core.client.Connector;
 import org.apache.accumulo.core.conf.Property;
 import org.apache.accumulo.core.metadata.MetadataTable;
 import org.apache.accumulo.core.util.UtilWaitThread;
+import org.apache.accumulo.gc.SimpleGarbageCollector;
 import org.apache.accumulo.minicluster.MiniAccumuloConfig;
 import org.apache.accumulo.minicluster.ProcessReference;
 import org.apache.accumulo.minicluster.ServerType;
-import org.apache.accumulo.server.gc.SimpleGarbageCollector;
 import org.apache.accumulo.server.util.Admin;
 import org.apache.accumulo.test.TestIngest;
 import org.apache.accumulo.test.VerifyIngest;
@@ -43,7 +43,7 @@ import org.junit.Test;
 public class RestartIT extends ConfigurableMacIT {
   @Override
   public void configure(MiniAccumuloConfig cfg) {
-    Map<String, String> props = new HashMap<String, String>();
+    Map<String,String> props = new HashMap<String,String>();
     props.put(Property.INSTANCE_ZK_TIMEOUT.getKey(), "5s");
     props.put(Property.GC_CYCLE_DELAY.getKey(), "1s");
     props.put(Property.GC_CYCLE_START.getKey(), "1s");
@@ -54,14 +54,12 @@ public class RestartIT extends ConfigurableMacIT {
   private static final ScannerOpts SOPTS = new ScannerOpts();
   private static final VerifyIngest.Opts VOPTS = new VerifyIngest.Opts();
   private static final BatchWriterOpts BWOPTS = new BatchWriterOpts();
-  
+
   @Test(timeout = 2 * 60 * 1000)
   public void restartMaster() throws Exception {
     Connector c = getConnector();
     c.tableOperations().create("test_ingest");
-    Process ingest = cluster.exec(TestIngest.class, 
-        "-u", "root", "-p", ROOT_PASSWORD, 
-        "-i", cluster.getInstanceName(), "-z", cluster.getZooKeepers());
+    Process ingest = cluster.exec(TestIngest.class, "-u", "root", "-p", ROOT_PASSWORD, "-i", cluster.getInstanceName(), "-z", cluster.getZooKeepers());
     for (ProcessReference master : cluster.getProcesses().get(ServerType.MASTER)) {
       cluster.killProcess(ServerType.MASTER, master);
     }
@@ -70,7 +68,7 @@ public class RestartIT extends ConfigurableMacIT {
     VerifyIngest.verifyIngest(c, VOPTS, SOPTS);
     ingest.destroy();
   }
-  
+
   @Test(timeout = 4 * 60 * 1000)
   public void restartMasterRecovery() throws Exception {
     Connector c = getConnector();
@@ -90,15 +88,13 @@ public class RestartIT extends ConfigurableMacIT {
     cluster.start();
     VerifyIngest.verifyIngest(c, VOPTS, SOPTS);
   }
-  
+
   @Test(timeout = 4 * 60 * 1000)
   public void restartMasterSplit() throws Exception {
     Connector c = getConnector();
     c.tableOperations().create("test_ingest");
     c.tableOperations().setProperty("test_ingest", Property.TABLE_SPLIT_THRESHOLD.getKey(), "5K");
-    Process ingest = cluster.exec(TestIngest.class, 
-        "-u", "root", "-p", ROOT_PASSWORD, 
-        "-i", cluster.getInstanceName(), "-z", cluster.getZooKeepers());
+    Process ingest = cluster.exec(TestIngest.class, "-u", "root", "-p", ROOT_PASSWORD, "-i", cluster.getInstanceName(), "-z", cluster.getZooKeepers());
     for (ProcessReference master : cluster.getProcesses().get(ServerType.MASTER)) {
       cluster.killProcess(ServerType.MASTER, master);
     }
@@ -107,7 +103,7 @@ public class RestartIT extends ConfigurableMacIT {
     VerifyIngest.verifyIngest(c, VOPTS, SOPTS);
     ingest.destroy();
   }
-  
+
   @Test(timeout = 2 * 60 * 1000)
   public void killedTabletServer() throws Exception {
     Connector c = getConnector();
@@ -148,7 +144,7 @@ public class RestartIT extends ConfigurableMacIT {
     cluster.killProcess(ServerType.TABLET_SERVER, procs.get(0));
     assertEquals(0, cluster.exec(Admin.class, "stopAll").waitFor());
   }
-  
+
   @Test(timeout = 2 * 60 * 1000)
   public void shutdownDuringCompactingSplitting() throws Exception {
     Connector c = getConnector();

@@ -23,8 +23,8 @@ import java.util.TreeSet;
 
 import org.apache.accumulo.core.client.Connector;
 import org.apache.accumulo.core.conf.Property;
+import org.apache.accumulo.master.balancer.ChaoticLoadBalancer;
 import org.apache.accumulo.minicluster.MiniAccumuloConfig;
-import org.apache.accumulo.server.master.balancer.ChaoticLoadBalancer;
 import org.apache.accumulo.test.TestIngest;
 import org.apache.accumulo.test.VerifyIngest;
 import org.apache.hadoop.io.Text;

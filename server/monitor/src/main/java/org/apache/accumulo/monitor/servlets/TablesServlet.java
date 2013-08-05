@@ -35,6 +35,8 @@ import org.apache.accumulo.core.master.thrift.TableInfo;
 import org.apache.accumulo.core.master.thrift.TabletServerStatus;
 import org.apache.accumulo.core.metadata.MetadataTable;
 import org.apache.accumulo.core.metadata.RootTable;
+import org.apache.accumulo.master.state.MetaDataTableScanner;
+import org.apache.accumulo.master.state.TabletLocationState;
 import org.apache.accumulo.monitor.Monitor;
 import org.apache.accumulo.monitor.util.Table;
 import org.apache.accumulo.monitor.util.TableRow;
@@ -44,10 +46,9 @@ import org.apache.accumulo.monitor.util.celltypes.NumberType;
 import org.apache.accumulo.monitor.util.celltypes.TableLinkType;
 import org.apache.accumulo.monitor.util.celltypes.TableStateType;
 import org.apache.accumulo.server.client.HdfsZooInstance;
-import org.apache.accumulo.server.master.state.MetaDataTableScanner;
-import org.apache.accumulo.server.master.state.TabletLocationState;
 import org.apache.accumulo.server.security.SystemCredentials;
 import org.apache.accumulo.server.tables.TableManager;
+import org.apache.accumulo.server.util.TableInfoUtil;
 import org.apache.hadoop.io.Text;
 
 public class TablesServlet extends BasicServlet {
@@ -113,7 +114,7 @@ public class TablesServlet extends BasicServlet {
       for (Entry<String,TableInfo> te : Monitor.getMmi().tableMap.entrySet())
         tableStats.put(Tables.getPrintableTableNameFromId(tidToNameMap, te.getKey()), te.getValue());
     
-    Map<String,Double> compactingByTable = Monitor.summarizeTableStats(Monitor.getMmi());
+    Map<String,Double> compactingByTable = TableInfoUtil.summarizeTableStats(Monitor.getMmi());
     TableManager tableManager = TableManager.getInstance();
     
     for (Entry<String,String> tableName_tableId : Tables.getNameToIdMap(HdfsZooInstance.getInstance()).entrySet()) {

@@ -30,6 +30,7 @@ import org.apache.accumulo.core.master.thrift.TableInfo;
 import org.apache.accumulo.core.master.thrift.TabletServerStatus;
 import org.apache.accumulo.monitor.Monitor;
 import org.apache.accumulo.monitor.util.celltypes.TServerLinkType;
+import org.apache.accumulo.server.util.TableInfoUtil;
 
 import com.google.gson.Gson;
 
@@ -74,7 +75,7 @@ public class JSONServlet extends BasicServlet {
     List<Map<String,Object>> servers = new ArrayList<Map<String,Object>>();
     
     for (TabletServerStatus status : Monitor.getMmi().tServerInfo) {
-      TableInfo summary = Monitor.summarizeTableStats(status);
+      TableInfo summary = TableInfoUtil.summarizeTableStats(status);
       servers.add(addServer(status.name, TServerLinkType.displayName(status.name), status.osLoad, summary.ingestRate, summary.queryRate,
           summary.ingestByteRate / 1000000.0, summary.queryByteRate / 1000000.0, summary.scans.running + summary.scans.queued, Monitor.getLookupRate(),
           status.holdTime));

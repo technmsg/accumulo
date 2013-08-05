@@ -34,7 +34,6 @@ import org.apache.accumulo.core.conf.AccumuloConfiguration;
 import org.apache.accumulo.core.conf.Property;
 import org.apache.accumulo.core.gc.thrift.GCMonitorService;
 import org.apache.accumulo.core.gc.thrift.GCStatus;
-import org.apache.accumulo.core.master.thrift.Compacting;
 import org.apache.accumulo.core.master.thrift.MasterClientService;
 import org.apache.accumulo.core.master.thrift.MasterMonitorInfo;
 import org.apache.accumulo.core.master.thrift.TableInfo;
@@ -72,6 +71,7 @@ import org.apache.accumulo.server.fs.VolumeManagerImpl;
 import org.apache.accumulo.server.problems.ProblemReports;
 import org.apache.accumulo.server.problems.ProblemType;
 import org.apache.accumulo.server.security.SystemCredentials;
+import org.apache.accumulo.server.util.TableInfoUtil;
 import org.apache.accumulo.trace.instrument.Tracer;
 import org.apache.log4j.Logger;
 import org.apache.zookeeper.WatchedEvent;
@@ -84,7 +84,7 @@ import org.apache.zookeeper.ZooKeeper;
 public class Monitor {
   private static final Logger log = Logger.getLogger(Monitor.class);
   
-  public static final int REFRESH_TIME = 5;
+  private static final int REFRESH_TIME = 5;
   private static long lastRecalc = 0L;
   private static double totalIngestRate = 0.0;
   private static double totalIngestByteRate = 0.0;
@@ -149,62 +149,6 @@ public class Monitor {
   private static ServerConfiguration config;
   
   private static EmbeddedWebServer server;
-  
-  public static Map<String,Double> summarizeTableStats(MasterMonitorInfo mmi) {
-    Map<String,Double> compactingByTable = new HashMap<String,Double>();
-    if (mmi != null && mmi.tServerInfo != null) {
-      for (TabletServerStatus status : mmi.tServerInfo) {
-        if (status != null && status.tableMap != null) {
-          for (String table : status.tableMap.keySet()) {
-            Double holdTime = compactingByTable.get(table);
-            compactingByTable.put(table, Math.max(holdTime == null ? 0. : holdTime.doubleValue(), status.holdTime));
-          }
-        }
-      }
-    }
-    return compactingByTable;
-  }
-  
-  public static void add(TableInfo total, TableInfo more) {
-    if (total.minors == null)
-      total.minors = new Compacting();
-    if (total.majors == null)
-      total.majors = new Compacting();
-    if (total.scans == null)
-      total.scans = new Compacting();
-    if (more.minors != null) {
-      total.minors.running += more.minors.running;
-      total.minors.queued += more.minors.queued;
-    }
-    if (more.majors != null) {
-      total.majors.running += more.majors.running;
-      total.majors.queued += more.majors.queued;
-    }
-    if (more.scans != null) {
-      total.scans.running += more.scans.running;
-      total.scans.queued += more.scans.queued;
-    }
-    total.onlineTablets += more.onlineTablets;
-    total.recs += more.recs;
-    total.recsInMemory += more.recsInMemory;
-    total.tablets += more.tablets;
-    total.ingestRate += more.ingestRate;
-    total.ingestByteRate += more.ingestByteRate;
-    total.queryRate += more.queryRate;
-    total.queryByteRate += more.queryByteRate;
-    total.scanRate += more.scanRate;
-  }
-  
-  public static TableInfo summarizeTableStats(TabletServerStatus status) {
-    TableInfo summary = new TableInfo();
-    summary.majors = new Compacting();
-    summary.minors = new Compacting();
-    summary.scans = new Compacting();
-    for (TableInfo rates : status.tableMap.values()) {
-      add(summary, rates);
-    }
-    return summary;
-  }
   
   private static class EventCounter {
     
@@ -320,7 +264,7 @@ public class Monitor {
         dataCacheRequestTracker.startingUpdates();
         
         for (TabletServerStatus server : mmi.tServerInfo) {
-          TableInfo summary = Monitor.summarizeTableStats(server);
+          TableInfo summary = TableInfoUtil.summarizeTableStats(server);
           totalIngestRate += summary.ingestRate;
           totalIngestByteRate += summary.ingestByteRate;
           totalQueryRate += summary.queryRate;

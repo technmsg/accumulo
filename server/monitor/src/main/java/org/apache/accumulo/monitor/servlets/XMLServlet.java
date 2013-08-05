@@ -30,10 +30,11 @@ import org.apache.accumulo.core.master.thrift.Compacting;
 import org.apache.accumulo.core.master.thrift.DeadServer;
 import org.apache.accumulo.core.master.thrift.TableInfo;
 import org.apache.accumulo.core.master.thrift.TabletServerStatus;
+import org.apache.accumulo.master.state.TabletServerState;
 import org.apache.accumulo.monitor.Monitor;
 import org.apache.accumulo.monitor.util.celltypes.TServerLinkType;
 import org.apache.accumulo.server.client.HdfsZooInstance;
-import org.apache.accumulo.server.master.state.TabletServerState;
+import org.apache.accumulo.server.util.TableInfoUtil;
 
 public class XMLServlet extends BasicServlet {
   private static final long serialVersionUID = 1L;
@@ -71,7 +72,7 @@ public class XMLServlet extends BasicServlet {
       sb.append("<lastContact>").append(System.currentTimeMillis() - status.lastContact).append("</lastContact>\n");
       sb.append("<osload>").append(status.osLoad).append("</osload>\n");
       
-      TableInfo summary = Monitor.summarizeTableStats(status);
+      TableInfo summary = TableInfoUtil.summarizeTableStats(status);
       sb.append("<compactions>\n");
       sb.append("<major>").append("<running>").append(summary.majors.running).append("</running>").append("<queued>").append(summary.majors.queued)
           .append("</queued>").append("</major>\n");

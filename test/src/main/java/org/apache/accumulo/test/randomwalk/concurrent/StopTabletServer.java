@@ -28,7 +28,7 @@ import org.apache.accumulo.core.client.Instance;
 import org.apache.accumulo.core.util.AddressUtil;
 import org.apache.accumulo.core.zookeeper.ZooUtil;
 import org.apache.accumulo.fate.zookeeper.ZooReader;
-import org.apache.accumulo.server.master.state.TServerInstance;
+import org.apache.accumulo.master.state.TServerInstance;
 import org.apache.accumulo.test.randomwalk.State;
 import org.apache.accumulo.test.randomwalk.Test;
 import org.apache.zookeeper.KeeperException;

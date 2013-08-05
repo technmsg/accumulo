@@ -28,7 +28,9 @@
   <modules>
     <module>base</module>
     <module>gc</module>
+    <module>master</module>
     <module>monitor</module>
     <module>server</module>
+    <module>tserver</module>
   </modules>
 </project>

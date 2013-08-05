@@ -38,6 +38,7 @@ import org.apache.accumulo.core.tabletserver.thrift.TabletStats;
 import org.apache.accumulo.core.util.AddressUtil;
 import org.apache.accumulo.core.util.Duration;
 import org.apache.accumulo.core.util.ThriftUtil;
+import org.apache.accumulo.master.state.TabletServerState;
 import org.apache.accumulo.monitor.Monitor;
 import org.apache.accumulo.monitor.util.Table;
 import org.apache.accumulo.monitor.util.TableRow;
@@ -49,9 +50,9 @@ import org.apache.accumulo.monitor.util.celltypes.PercentageType;
 import org.apache.accumulo.monitor.util.celltypes.ProgressChartType;
 import org.apache.accumulo.monitor.util.celltypes.TServerLinkType;
 import org.apache.accumulo.monitor.util.celltypes.TableLinkType;
-import org.apache.accumulo.server.master.state.TabletServerState;
 import org.apache.accumulo.server.security.SystemCredentials;
 import org.apache.accumulo.server.util.ActionStatsUpdator;
+import org.apache.accumulo.server.util.TableInfoUtil;
 import org.apache.accumulo.trace.instrument.Tracer;
 import org.apache.commons.codec.binary.Base64;
 
@@ -339,7 +340,7 @@ public class TServersServlet extends BasicServlet {
     for (TabletServerStatus status : tservers) {
       if (status == null)
         status = NO_STATUS;
-      TableInfo summary = Monitor.summarizeTableStats(status);
+      TableInfo summary = TableInfoUtil.summarizeTableStats(status);
       if (tableId != null)
         summary = status.tableMap.get(tableId);
       if (summary == null)

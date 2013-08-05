@@ -24,7 +24,7 @@ import org.apache.accumulo.core.data.KeyExtent;
 import org.apache.accumulo.core.data.Value;
 import org.apache.accumulo.core.metadata.schema.MetadataSchema.TabletsSection;
 import org.apache.accumulo.core.util.ColumnFQ;
-import org.apache.accumulo.server.master.state.TServerInstance;
+import org.apache.accumulo.master.state.TServerInstance;
 import org.apache.hadoop.io.Text;
 import org.junit.Assert;
 import org.junit.Test;
