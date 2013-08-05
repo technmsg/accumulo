@@ -18,8 +18,8 @@ package org.apache.accumulo.server.metanalysis;
 
 import java.io.IOException;
 
-import org.apache.accumulo.server.logger.LogFileKey;
-import org.apache.accumulo.server.logger.LogFileValue;
+import org.apache.accumulo.tserver.logger.LogFileKey;
+import org.apache.accumulo.tserver.logger.LogFileValue;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FSDataOutputStream;
 import org.apache.hadoop.fs.FileSystem;
@@ -37,17 +37,13 @@ public class LogFileOutputFormat extends FileOutputFormat<LogFileKey,LogFileValu
     
     private FSDataOutputStream out;
     
-    /**
-     * @param outputPath
-     * @throws IOException
-     */
     public LogFileRecordWriter(Path outputPath) throws IOException {
       Configuration conf = new Configuration();
       FileSystem fs = FileSystem.get(conf);
       
       out = fs.create(outputPath);
     }
-
+    
     @Override
     public void close(TaskAttemptContext arg0) throws IOException, InterruptedException {
       out.close();
@@ -60,7 +56,7 @@ public class LogFileOutputFormat extends FileOutputFormat<LogFileKey,LogFileValu
     }
     
   }
-
+  
   @Override
   public RecordWriter<LogFileKey,LogFileValue> getRecordWriter(TaskAttemptContext context) throws IOException, InterruptedException {
     Path outputPath = getDefaultWorkFile(context, "");

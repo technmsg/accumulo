@@ -18,13 +18,13 @@ package org.apache.accumulo.server.metanalysis;
 
 import java.util.Map.Entry;
 
-import org.apache.accumulo.server.cli.ClientOpts;
 import org.apache.accumulo.core.client.Scanner;
 import org.apache.accumulo.core.data.Key;
 import org.apache.accumulo.core.data.KeyExtent;
 import org.apache.accumulo.core.data.Range;
 import org.apache.accumulo.core.data.Value;
 import org.apache.accumulo.core.util.TextUtil;
+import org.apache.accumulo.server.cli.ClientOpts;
 import org.apache.hadoop.io.Text;
 
 import com.beust.jcommander.Parameter;
@@ -35,10 +35,10 @@ import com.beust.jcommander.Parameter;
 public class FindTablet {
   
   static public class Opts extends ClientOpts {
-    @Parameter(names={"-r", "--row"}, required=true, description="find tablets that contain this row")
+    @Parameter(names = {"-r", "--row"}, required = true, description = "find tablets that contain this row")
     String row = null;
     
-    @Parameter(names="--tableId", required=true, description="table id")
+    @Parameter(names = "--tableId", required = true, description = "table id")
     String tableId = null;
   }
   
@@ -48,19 +48,13 @@ public class FindTablet {
     
     findContainingTablets(opts);
   }
-
-  /**
-   * @param conn
-   * @param tablePrefix
-   * @param tableID
-   * @param option
-   */
+  
   private static void findContainingTablets(Opts opts) throws Exception {
     Range range = new KeyExtent(new Text(opts.tableId), null, null).toMetadataRange();
-
+    
     Scanner scanner = opts.getConnector().createScanner("createEvents", opts.auths);
     scanner.setRange(range);
-
+    
     Text row = new Text(opts.row);
     for (Entry<Key,Value> entry : scanner) {
       KeyExtent ke = new KeyExtent(entry.getKey().getRow(), new Value(TextUtil.getBytes(entry.getKey().getColumnFamily())));

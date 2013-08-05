@@ -14,8 +14,30 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.accumulo.server.constraints;
+package org.apache.accumulo.tserver.constraints;
+
+import java.util.Collections;
+import java.util.List;
 
 import org.apache.accumulo.core.constraints.Constraint;
+import org.apache.accumulo.core.data.Mutation;
 
-public abstract class SystemConstraint implements Constraint {}
+public class UnsatisfiableConstraint implements Constraint {
+  
+  private List<Short> violations;
+  private String vDesc;
+  
+  public UnsatisfiableConstraint(short vcode, String violationDescription) {
+    this.violations = Collections.unmodifiableList(Collections.singletonList(vcode));
+    this.vDesc = violationDescription;
+  }
+  
+  public List<Short> check(Environment env, Mutation mutation) {
+    return violations;
+  }
+  
+  public String getViolationDescription(short violationCode) {
+    return vDesc;
+  }
+  
+}

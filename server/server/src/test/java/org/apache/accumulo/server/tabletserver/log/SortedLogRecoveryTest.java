@@ -16,11 +16,11 @@
  */
 package org.apache.accumulo.server.tabletserver.log;
 
-import static org.apache.accumulo.server.logger.LogEvents.COMPACTION_FINISH;
-import static org.apache.accumulo.server.logger.LogEvents.COMPACTION_START;
-import static org.apache.accumulo.server.logger.LogEvents.DEFINE_TABLET;
-import static org.apache.accumulo.server.logger.LogEvents.MUTATION;
-import static org.apache.accumulo.server.logger.LogEvents.OPEN;
+import static org.apache.accumulo.tserver.logger.LogEvents.COMPACTION_FINISH;
+import static org.apache.accumulo.tserver.logger.LogEvents.COMPACTION_START;
+import static org.apache.accumulo.tserver.logger.LogEvents.DEFINE_TABLET;
+import static org.apache.accumulo.tserver.logger.LogEvents.MUTATION;
+import static org.apache.accumulo.tserver.logger.LogEvents.OPEN;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -39,9 +39,9 @@ import org.apache.accumulo.core.data.Value;
 import org.apache.accumulo.server.data.ServerMutation;
 import org.apache.accumulo.server.fs.VolumeManager;
 import org.apache.accumulo.server.fs.VolumeManagerImpl;
-import org.apache.accumulo.server.logger.LogEvents;
-import org.apache.accumulo.server.logger.LogFileKey;
-import org.apache.accumulo.server.logger.LogFileValue;
+import org.apache.accumulo.tserver.logger.LogEvents;
+import org.apache.accumulo.tserver.logger.LogFileKey;
+import org.apache.accumulo.tserver.logger.LogFileValue;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.io.MapFile;

@@ -33,7 +33,7 @@ import org.apache.accumulo.core.data.Value;
 import org.apache.accumulo.core.metadata.schema.MetadataSchema.TabletsSection;
 import org.apache.accumulo.core.security.Authorizations;
 import org.apache.accumulo.server.cli.ClientOpts;
-import org.apache.accumulo.server.logger.LogFileValue;
+import org.apache.accumulo.tserver.logger.LogFileValue;
 import org.apache.hadoop.io.Text;
 
 import com.beust.jcommander.Parameter;
@@ -52,9 +52,6 @@ public class PrintEvents {
     long time;
   }
   
-  /**
-   * @param args
-   */
   public static void main(String[] args) throws Exception {
     Opts opts = new Opts();
     opts.parseArgs(PrintEvents.class.getName(), args);
@@ -64,13 +61,6 @@ public class PrintEvents {
     printEvents(conn, opts.tableId, opts.endRow, opts.time);
   }
   
-  /**
-   * @param conn
-   * @param tablePrefix
-   * @param tableId
-   * @param endRow
-   * @param time
-   */
   private static void printEvents(Connector conn, String tableId, String endRow, Long time) throws Exception {
     Scanner scanner = conn.createScanner("tabletEvents", new Authorizations());
     String metaRow = tableId + (endRow == null ? "<" : ";" + endRow);

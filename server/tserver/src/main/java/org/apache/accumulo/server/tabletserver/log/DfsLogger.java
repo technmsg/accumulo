@@ -16,11 +16,11 @@
  */
 package org.apache.accumulo.server.tabletserver.log;
 
-import static org.apache.accumulo.server.logger.LogEvents.COMPACTION_FINISH;
-import static org.apache.accumulo.server.logger.LogEvents.COMPACTION_START;
-import static org.apache.accumulo.server.logger.LogEvents.DEFINE_TABLET;
-import static org.apache.accumulo.server.logger.LogEvents.MANY_MUTATIONS;
-import static org.apache.accumulo.server.logger.LogEvents.OPEN;
+import static org.apache.accumulo.tserver.logger.LogEvents.COMPACTION_FINISH;
+import static org.apache.accumulo.tserver.logger.LogEvents.COMPACTION_START;
+import static org.apache.accumulo.tserver.logger.LogEvents.DEFINE_TABLET;
+import static org.apache.accumulo.tserver.logger.LogEvents.MANY_MUTATIONS;
+import static org.apache.accumulo.tserver.logger.LogEvents.OPEN;
 
 import java.io.DataOutputStream;
 import java.io.IOException;
@@ -47,9 +47,9 @@ import org.apache.accumulo.core.util.StringUtil;
 import org.apache.accumulo.master.state.TServerInstance;
 import org.apache.accumulo.server.ServerConstants;
 import org.apache.accumulo.server.fs.VolumeManager;
-import org.apache.accumulo.server.logger.LogFileKey;
-import org.apache.accumulo.server.logger.LogFileValue;
 import org.apache.accumulo.server.tabletserver.TabletMutations;
+import org.apache.accumulo.tserver.logger.LogFileKey;
+import org.apache.accumulo.tserver.logger.LogFileValue;
 import org.apache.hadoop.fs.FSDataInputStream;
 import org.apache.hadoop.fs.FSDataOutputStream;
 import org.apache.hadoop.fs.Path;

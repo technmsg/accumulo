@@ -95,11 +95,10 @@ import org.apache.accumulo.core.util.Pair;
 import org.apache.accumulo.core.util.UtilWaitThread;
 import org.apache.accumulo.fate.zookeeper.IZooReaderWriter;
 import org.apache.accumulo.master.state.TServerInstance;
-import org.apache.accumulo.master.tableOps.CompactRange.CompactionIterators;
+import org.apache.accumulo.master.tableOps.CompactionIterators;
 import org.apache.accumulo.server.ServerConstants;
 import org.apache.accumulo.server.client.HdfsZooInstance;
 import org.apache.accumulo.server.conf.TableConfiguration;
-import org.apache.accumulo.server.constraints.ConstraintChecker;
 import org.apache.accumulo.server.fs.FileRef;
 import org.apache.accumulo.server.fs.VolumeManager;
 import org.apache.accumulo.server.fs.VolumeManagerImpl;
@@ -128,6 +127,7 @@ import org.apache.accumulo.server.zookeeper.ZooReaderWriter;
 import org.apache.accumulo.start.classloader.vfs.AccumuloVFSClassLoader;
 import org.apache.accumulo.trace.instrument.Span;
 import org.apache.accumulo.trace.instrument.Trace;
+import org.apache.accumulo.tserver.constraints.ConstraintChecker;
 import org.apache.commons.codec.DecoderException;
 import org.apache.commons.codec.binary.Hex;
 import org.apache.hadoop.conf.Configuration;
@@ -3338,7 +3338,7 @@ public class Tablet {
         
         majorCompactionInProgress = true;
       }
-    
+      
       majCStats = _majorCompact(reason);
       if (reason == MajorCompactionReason.CHOP) {
         MetadataTableUtil.chopped(getExtent(), this.tabletServer.getLock());

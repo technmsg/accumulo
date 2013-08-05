@@ -16,10 +16,6 @@
  */
 package org.apache.accumulo.master.tableOps;
 
-import java.io.DataInput;
-import java.io.DataOutput;
-import java.io.IOException;
-import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
@@ -56,7 +52,6 @@ import org.apache.accumulo.server.util.MapCounter;
 import org.apache.accumulo.server.zookeeper.ZooReaderWriter;
 import org.apache.commons.codec.binary.Hex;
 import org.apache.hadoop.io.Text;
-import org.apache.hadoop.io.Writable;
 import org.apache.hadoop.io.WritableUtils;
 import org.apache.log4j.Logger;
 import org.apache.thrift.TException;
@@ -200,84 +195,6 @@ public class CompactRange extends MasterRepo {
   private byte[] startRow;
   private byte[] endRow;
   private byte[] iterators;
-  
-  public static class CompactionIterators implements Writable {
-    byte[] startRow;
-    byte[] endRow;
-    List<IteratorSetting> iterators;
-    
-    public CompactionIterators(byte[] startRow, byte[] endRow, List<IteratorSetting> iterators) {
-      this.startRow = startRow;
-      this.endRow = endRow;
-      this.iterators = iterators;
-    }
-    
-    public CompactionIterators() {
-      startRow = null;
-      endRow = null;
-      iterators = Collections.emptyList();
-    }
-    
-    @Override
-    public void write(DataOutput out) throws IOException {
-      out.writeBoolean(startRow != null);
-      if (startRow != null) {
-        out.writeInt(startRow.length);
-        out.write(startRow);
-      }
-      
-      out.writeBoolean(endRow != null);
-      if (endRow != null) {
-        out.writeInt(endRow.length);
-        out.write(endRow);
-      }
-      
-      out.writeInt(iterators.size());
-      for (IteratorSetting is : iterators) {
-        is.write(out);
-      }
-    }
-    
-    @Override
-    public void readFields(DataInput in) throws IOException {
-      if (in.readBoolean()) {
-        startRow = new byte[in.readInt()];
-        in.readFully(startRow);
-      } else {
-        startRow = null;
-      }
-      
-      if (in.readBoolean()) {
-        endRow = new byte[in.readInt()];
-        in.readFully(endRow);
-      } else {
-        endRow = null;
-      }
-      
-      int num = in.readInt();
-      iterators = new ArrayList<IteratorSetting>(num);
-      
-      for (int i = 0; i < num; i++) {
-        iterators.add(new IteratorSetting(in));
-      }
-    }
-    
-    public Text getEndRow() {
-      if (endRow == null)
-        return null;
-      return new Text(endRow);
-    }
-    
-    public Text getStartRow() {
-      if (startRow == null)
-        return null;
-      return new Text(startRow);
-    }
-    
-    public List<IteratorSetting> getIterators() {
-      return iterators;
-    }
-  }
   
   public CompactRange(String tableId, byte[] startRow, byte[] endRow, List<IteratorSetting> iterators) throws ThriftTableOperationException {
     this.tableId = tableId;

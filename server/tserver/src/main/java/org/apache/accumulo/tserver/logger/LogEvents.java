@@ -14,7 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.accumulo.server.logger;
+package org.apache.accumulo.tserver.logger;
 
 public enum LogEvents {
   // DO NOT CHANGE ORDER OF ENUMS, ORDER IS USED IN SERIALIZATION

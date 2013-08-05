@@ -14,13 +14,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.accumulo.server.data;
+package org.apache.accumulo.tserver.data;
 
 import java.util.List;
 
 import org.apache.accumulo.core.client.impl.Translator;
 import org.apache.accumulo.core.data.thrift.TCondition;
 import org.apache.accumulo.core.data.thrift.TConditionalMutation;
+import org.apache.accumulo.server.data.ServerMutation;
 
 /**
  * 
