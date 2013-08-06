@@ -39,11 +39,11 @@ import org.apache.accumulo.core.metadata.schema.MetadataSchema.TabletsSection.Da
 import org.apache.accumulo.core.security.Authorizations;
 import org.apache.accumulo.fate.Repo;
 import org.apache.accumulo.master.Master;
-import org.apache.accumulo.master.state.MetaDataTableScanner;
-import org.apache.accumulo.master.state.TabletLocationState;
-import org.apache.accumulo.master.state.TabletState;
 import org.apache.accumulo.server.ServerConstants;
 import org.apache.accumulo.server.fs.VolumeManager;
+import org.apache.accumulo.server.master.state.MetaDataTableScanner;
+import org.apache.accumulo.server.master.state.TabletLocationState;
+import org.apache.accumulo.server.master.state.TabletState;
 import org.apache.accumulo.server.problems.ProblemReports;
 import org.apache.accumulo.server.security.AuditedSecurityOperation;
 import org.apache.accumulo.server.security.SystemCredentials;

@@ -19,7 +19,7 @@ package org.apache.accumulo.master.state;
 import java.util.HashMap;
 import java.util.Map;
 
-import org.apache.accumulo.master.state.TabletState;
+import org.apache.accumulo.server.master.state.TabletState;
 import org.apache.hadoop.io.Text;
 
 public class TableStats {

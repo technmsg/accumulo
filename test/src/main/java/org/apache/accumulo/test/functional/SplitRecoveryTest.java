@@ -47,20 +47,20 @@ import org.apache.accumulo.fate.zookeeper.IZooReaderWriter;
 import org.apache.accumulo.fate.zookeeper.ZooLock.LockLossReason;
 import org.apache.accumulo.fate.zookeeper.ZooLock.LockWatcher;
 import org.apache.accumulo.fate.zookeeper.ZooUtil.NodeExistsPolicy;
-import org.apache.accumulo.master.state.Assignment;
-import org.apache.accumulo.master.state.TServerInstance;
 import org.apache.accumulo.server.ServerConstants;
 import org.apache.accumulo.server.client.HdfsZooInstance;
 import org.apache.accumulo.server.fs.FileRef;
+import org.apache.accumulo.server.master.state.Assignment;
+import org.apache.accumulo.server.master.state.TServerInstance;
 import org.apache.accumulo.server.security.SystemCredentials;
-import org.apache.accumulo.server.tabletserver.TabletServer;
-import org.apache.accumulo.server.tabletserver.TabletTime;
+import org.apache.accumulo.server.tablets.TabletTime;
 import org.apache.accumulo.server.util.FileUtil;
 import org.apache.accumulo.server.util.MasterMetadataUtil;
 import org.apache.accumulo.server.util.MetadataTableUtil;
 import org.apache.accumulo.server.zookeeper.TransactionWatcher;
 import org.apache.accumulo.server.zookeeper.ZooLock;
 import org.apache.accumulo.server.zookeeper.ZooReaderWriter;
+import org.apache.accumulo.tserver.TabletServer;
 import org.apache.hadoop.io.Text;
 
 public class SplitRecoveryTest extends FunctionalTest {

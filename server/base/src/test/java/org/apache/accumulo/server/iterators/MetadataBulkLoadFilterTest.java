@@ -34,7 +34,7 @@ import org.apache.accumulo.core.metadata.schema.MetadataSchema.TabletsSection;
 import org.apache.accumulo.core.metadata.schema.MetadataSchema.TabletsSection.DataFileColumnFamily;
 import org.apache.accumulo.core.util.ColumnFQ;
 import org.apache.accumulo.fate.zookeeper.TransactionWatcher.Arbitrator;
-import org.apache.accumulo.tserver.iterators.MetadataBulkLoadFilter;
+import org.apache.accumulo.server.iterators.MetadataBulkLoadFilter;
 import org.apache.hadoop.io.Text;
 import org.junit.Assert;
 import org.junit.Test;

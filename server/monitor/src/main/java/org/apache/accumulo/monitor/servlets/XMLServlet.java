@@ -30,10 +30,10 @@ import org.apache.accumulo.core.master.thrift.Compacting;
 import org.apache.accumulo.core.master.thrift.DeadServer;
 import org.apache.accumulo.core.master.thrift.TableInfo;
 import org.apache.accumulo.core.master.thrift.TabletServerStatus;
-import org.apache.accumulo.master.state.TabletServerState;
 import org.apache.accumulo.monitor.Monitor;
 import org.apache.accumulo.monitor.util.celltypes.TServerLinkType;
 import org.apache.accumulo.server.client.HdfsZooInstance;
+import org.apache.accumulo.server.master.state.TabletServerState;
 import org.apache.accumulo.server.util.TableInfoUtil;
 
 public class XMLServlet extends BasicServlet {

@@ -23,7 +23,7 @@
     <version>1.6.0-SNAPSHOT</version>
     <relativePath>../../pom.xml</relativePath>
   </parent>
-  <artifactId>accumulo-server-utils</artifactId>
+  <artifactId>accumulo-utils</artifactId>
   <name>Server Utilities</name>
   <dependencies>
     <dependency>

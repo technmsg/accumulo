@@ -32,14 +32,14 @@ import org.apache.accumulo.core.metadata.MetadataTable;
 import org.apache.accumulo.core.metadata.RootTable;
 import org.apache.accumulo.core.security.Authorizations;
 import org.apache.accumulo.core.zookeeper.ZooUtil;
-import org.apache.accumulo.master.state.CurrentState;
-import org.apache.accumulo.master.state.MergeInfo;
-import org.apache.accumulo.master.state.MergeState;
-import org.apache.accumulo.master.state.MetaDataTableScanner;
-import org.apache.accumulo.master.state.TabletLocationState;
-import org.apache.accumulo.master.state.TabletState;
-import org.apache.accumulo.master.state.TabletLocationState.BadLocationStateException;
 import org.apache.accumulo.server.cli.ClientOpts;
+import org.apache.accumulo.server.master.state.CurrentState;
+import org.apache.accumulo.server.master.state.MergeInfo;
+import org.apache.accumulo.server.master.state.MergeState;
+import org.apache.accumulo.server.master.state.MetaDataTableScanner;
+import org.apache.accumulo.server.master.state.TabletLocationState;
+import org.apache.accumulo.server.master.state.TabletLocationState.BadLocationStateException;
+import org.apache.accumulo.server.master.state.TabletState;
 import org.apache.accumulo.server.zookeeper.ZooReaderWriter;
 import org.apache.hadoop.io.DataInputBuffer;
 import org.apache.hadoop.io.Text;
@@ -254,7 +254,7 @@ public class MergeStats {
         in.reset(data, data.length);
         info.readFields(in);
       }
-      System.out.println(String.format("%25s  %10s %10s %s", table, info.state, info.operation, info.extent));
+      System.out.println(String.format("%25s  %10s %10s %s", table, info.getState(), info.getOperation(), info.getExtent()));
     }
   }
 }

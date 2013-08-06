@@ -17,7 +17,7 @@
 package org.apache.accumulo.master.state;
 
 import org.apache.accumulo.core.data.KeyExtent;
-import org.apache.accumulo.master.state.TServerInstance;
+import org.apache.accumulo.server.master.state.TServerInstance;
 
 public class TabletMigration {
   public KeyExtent tablet;

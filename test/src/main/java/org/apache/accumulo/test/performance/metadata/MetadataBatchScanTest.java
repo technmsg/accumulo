@@ -41,7 +41,7 @@ import org.apache.accumulo.core.metadata.schema.MetadataSchema.TabletsSection.Da
 import org.apache.accumulo.core.security.Authorizations;
 import org.apache.accumulo.core.util.AddressUtil;
 import org.apache.accumulo.core.util.Stat;
-import org.apache.accumulo.master.state.TServerInstance;
+import org.apache.accumulo.server.master.state.TServerInstance;
 import org.apache.accumulo.server.security.SystemCredentials;
 import org.apache.hadoop.io.Text;
 

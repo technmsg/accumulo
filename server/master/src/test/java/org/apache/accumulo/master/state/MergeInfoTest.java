@@ -17,8 +17,8 @@
 package org.apache.accumulo.master.state;
 
 import org.apache.accumulo.core.data.KeyExtent;
-import org.apache.accumulo.master.state.MergeInfo;
-import org.apache.accumulo.master.state.MergeState;
+import org.apache.accumulo.server.master.state.MergeInfo;
+import org.apache.accumulo.server.master.state.MergeState;
 import org.apache.hadoop.io.DataInputBuffer;
 import org.apache.hadoop.io.DataOutputBuffer;
 import org.apache.hadoop.io.Text;
@@ -34,9 +34,9 @@ public class MergeInfoTest {
     in.reset(buffer.getData(), 0, buffer.getLength());
     MergeInfo info2 = new MergeInfo();
     info2.readFields(in);
-    Assert.assertEquals(info.extent, info2.extent);
-    Assert.assertEquals(info.state, info2.state);
-    Assert.assertEquals(info.operation, info2.operation);
+    Assert.assertEquals(info.getExtent(), info2.getExtent());
+    Assert.assertEquals(info.getState(), info2.getState());
+    Assert.assertEquals(info.getOperation(), info2.getOperation());
     return info2;
   }
   

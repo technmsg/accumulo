@@ -30,8 +30,8 @@ import org.apache.accumulo.core.data.KeyExtent;
 import org.apache.accumulo.core.master.thrift.TableInfo;
 import org.apache.accumulo.core.master.thrift.TabletServerStatus;
 import org.apache.accumulo.core.tabletserver.thrift.TabletStats;
-import org.apache.accumulo.master.state.TServerInstance;
 import org.apache.accumulo.master.state.TabletMigration;
+import org.apache.accumulo.server.master.state.TServerInstance;
 import org.apache.log4j.Logger;
 
 public class DefaultLoadBalancer extends TabletBalancer {

@@ -24,9 +24,9 @@ import org.apache.accumulo.core.metadata.RootTable;
 import org.apache.accumulo.core.util.TextUtil;
 import org.apache.accumulo.fate.Repo;
 import org.apache.accumulo.master.Master;
-import org.apache.accumulo.master.state.MergeInfo;
-import org.apache.accumulo.master.state.MergeState;
-import org.apache.accumulo.master.state.MergeInfo.Operation;
+import org.apache.accumulo.server.master.state.MergeInfo;
+import org.apache.accumulo.server.master.state.MergeState;
+import org.apache.accumulo.server.master.state.MergeInfo.Operation;
 import org.apache.hadoop.io.Text;
 
 /**
