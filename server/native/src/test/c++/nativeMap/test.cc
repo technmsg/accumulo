@@ -35,8 +35,6 @@ void runTest(int numRows, int numCf, int numCq, int rowLen, int cfLen, int cqLen
 	cout << " size pair<Field, CMT>    : " << sizeof(std::pair<Field, CMT>) << endl;
 	cout << " size pair<SubKey, Field> : " << sizeof(std::pair<SubKey, Field>) << endl;
 
-//	std::less<Key> comp;
-//	map<Key, Field, std::less<Key>, block_allocator<std::pair<Key, Field> > > oldMap(comp, block_allocator<std::pair<Key, Field> >(&lba));
 	map<Key, Field> oldMap;
 
 	int entries = 0;
@@ -110,22 +108,6 @@ void runTest(int numRows, int numCf, int numCq, int rowLen, int cfLen, int cqLen
 		}
 	}
 
-/*
-
-	int32_t ia[6];
-	Iterator *iter = nm.iterator(ia);
-
-	while(!iter->atEnd()){
-		const Field &row = iter->rowIter->first;
-		const SubKey &sk = iter->colIter->first;
-		const Field &value = iter->colIter->second;
-		cout << row.toString() << " " << sk.toString() << " " << value.toString() <<  endl;	
-	
-		iter->advance(ia);
-	}
-
-	delete(iter);
-*/
 }
 
 int main(int argc, char **argv){

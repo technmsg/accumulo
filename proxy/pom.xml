@@ -43,7 +43,8 @@
     </dependency>
     <dependency>
       <groupId>org.apache.accumulo</groupId>
-      <artifactId>accumulo-server</artifactId>
+      <artifactId>libaccumulo</artifactId>
+      <type>so</type>
     </dependency>
     <dependency>
       <groupId>org.apache.thrift</groupId>

@@ -87,7 +87,7 @@
     <module>server/gc</module>
     <module>server/master</module>
     <module>server/monitor</module>
-    <module>server/server</module>
+    <module>server/native</module>
     <module>server/tserver</module>
     <module>server/utils</module>
   </modules>
@@ -267,11 +267,6 @@
       </dependency>
       <dependency>
         <groupId>org.apache.accumulo</groupId>
-        <artifactId>accumulo-server</artifactId>
-        <version>${project.version}</version>
-      </dependency>
-      <dependency>
-        <groupId>org.apache.accumulo</groupId>
         <artifactId>accumulo-server-base</artifactId>
         <version>${project.version}</version>
       </dependency>
@@ -294,6 +289,12 @@
         <groupId>org.apache.accumulo</groupId>
         <artifactId>accumulo-tserver</artifactId>
         <version>${project.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>org.apache.accumulo</groupId>
+        <artifactId>libaccumulo</artifactId>
+        <version>${project.version}</version>
+        <type>so</type>
       </dependency>
       <dependency>
         <groupId>org.apache.commons</groupId>
@@ -428,6 +429,11 @@
             <sortProperties>true</sortProperties>
             <verifyFail>Stop</verifyFail>
           </configuration>
+        </plugin>
+        <plugin>
+          <groupId>org.codehaus.mojo</groupId>
+          <artifactId>native-maven-plugin</artifactId>
+          <version>1.0-alpha-7</version>
         </plugin>
         <plugin>
           <groupId>org.apache.maven.plugins</groupId>
@@ -597,6 +603,23 @@
                     <versionRange>[1.0,)</versionRange>
                     <goals>
                       <goal>process</goal>
+                    </goals>
+                  </pluginExecutionFilter>
+                  <action>
+                    <ignore />
+                  </action>
+                </pluginExecution>
+                <pluginExecution>
+                  <pluginExecutionFilter>
+                    <groupId>org.codehaus.mojo</groupId>
+                    <artifactId>native-maven-plugin</artifactId>
+                    <versionRange>[1.0-alpha-7,)</versionRange>
+                    <goals>
+                      <goal>compile</goal>
+                      <goal>initialize</goal>
+                      <goal>javah</goal>
+                      <goal>link</goal>
+                      <goal>unzipinc</goal>
                     </goals>
                   </pluginExecutionFilter>
                   <action>

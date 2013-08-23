@@ -31,13 +31,9 @@ public:
 	int32_t colQualifierOffset;
 	int32_t colVisibilityOffset;
 	int32_t totalLen;
-	
 	uint8_t *keyData;	
-	
 	int64_t timestamp;
-
 	int32_t mutationCount;
-
 	bool deleted;
 
 	int compare(const uint8_t *d1, int len1, const uint8_t *d2, int len2) const{
@@ -56,7 +52,6 @@ public:
 	/**
 	 * Constructor for testing purposes
 	 */
-
 	SubKey(LinkedBlockAllocator *lba, const string &cf, const string &cq, const string &cv, int64_t ts, bool del, int32_t mc){
 
 		colQualifierOffset = cf.length();
@@ -132,7 +127,6 @@ public:
 	void clear(LinkedBlockAllocator *lba){
 		lba->deleteLast(keyData);
 	}
-
 
 	int64_t bytesUsed() const{
 		return totalLen + 9;
