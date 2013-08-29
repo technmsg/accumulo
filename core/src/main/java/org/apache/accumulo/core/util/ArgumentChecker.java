@@ -16,6 +16,8 @@
  */
 package org.apache.accumulo.core.util;
 
+import java.util.*;
+
 /**
  * This class provides methods to check arguments of a variable number for null values, or anything else that might be required on a routine basis. These
  * methods should be used for early failures as close to the end user as possible, so things do not fail later on the server side, when they are harder to
@@ -59,5 +61,10 @@ public class ArgumentChecker {
   public static final void strictlyPositive(final int i) {
     if (i <= 0)
       throw new IllegalArgumentException("integer should be > 0, was " + i);
+  }
+
+  public static final void notEmpty(Iterable arg) {
+    if(!arg.iterator ().hasNext ())
+      throw new IllegalArgumentException ("Argument should not be empty");
   }
 }
