@@ -16,26 +16,27 @@
  */
 package org.apache.accumulo.core.client.mapreduce.multi;
 
+import static org.apache.accumulo.core.metadata.schema.MetadataSchema.TabletsSection.TabletColumnFamily.*;
+
 import java.io.*;
 import java.math.*;
 import java.net.*;
-import java.nio.*;
 import java.util.*;
 import java.util.Map.*;
 
-import com.sun.tools.internal.ws.wscompile.*;
 import org.apache.accumulo.core.*;
 import org.apache.accumulo.core.client.*;
 import org.apache.accumulo.core.client.Scanner;
 import org.apache.accumulo.core.client.impl.*;
 import org.apache.accumulo.core.client.mock.*;
+import org.apache.accumulo.core.client.security.tokens.*;
 import org.apache.accumulo.core.data.*;
 import org.apache.accumulo.core.iterators.*;
 import org.apache.accumulo.core.iterators.user.VersioningIterator;
 import org.apache.accumulo.core.master.state.tables.*;
 import org.apache.accumulo.core.metadata.*;
+import org.apache.accumulo.core.metadata.schema.*;
 import org.apache.accumulo.core.security.*;
-import org.apache.accumulo.core.security.thrift.*;
 import org.apache.accumulo.core.util.*;
 import org.apache.commons.codec.binary.*;
 import org.apache.commons.lang.StringUtils;
@@ -758,10 +759,11 @@ public abstract class InputFormatBase<K,V> extends InputFormat<K,V> {
       try {
         log.debug("Creating connector with user: " + user);
         Connector conn = instance.getConnector(user, password);
-        log.debug("Creating scanner for table: " + split.getTableName());
+        log.debug("Creating scanner for table: " + split.getTableName ());
         log.debug("Authorizations are: " + authorizations);
         if (isOfflineScan(conf)) {
-          scanner = new OfflineScanner(instance, new AuthInfo(user, ByteBuffer.wrap(password), instance.getInstanceID()), Tables.getTableId(instance,
+          // TODO: This used AuthInfo before- figure out a better equivalent
+          scanner = new OfflineScanner(instance, new Credentials(user, new PasswordToken(password)), Tables.getTableId(instance,
               split.getTableName()), authorizations);
         } else {
           scanner = conn.createScanner(split.getTableName(), authorizations);
@@ -849,10 +851,11 @@ public abstract class InputFormatBase<K,V> extends InputFormat<K,V> {
       
       Range metadataRange = new Range(new KeyExtent(new Text(tableId), startRow, null).getMetadataEntry(), true, null, false);
       Scanner scanner = conn.createScanner(MetadataTable.NAME, Constants.NO_AUTHS);
-      ColumnFQ.fetch(scanner, MetadataTable.METADATA_PREV_ROW_COLUMN);
-      scanner.fetchColumnFamily(Constants.METADATA_LAST_LOCATION_COLUMN_FAMILY);
-      scanner.fetchColumnFamily(Constants.METADATA_CURRENT_LOCATION_COLUMN_FAMILY);
-      scanner.fetchColumnFamily(Constants.METADATA_FUTURE_LOCATION_COLUMN_FAMILY);
+
+      MetadataSchema.TabletsSection.TabletColumnFamily.PREV_ROW_COLUMN.fetch (scanner);
+      scanner.fetchColumnFamily(MetadataSchema.TabletsSection.LastLocationColumnFamily.NAME);
+      scanner.fetchColumnFamily(MetadataSchema.TabletsSection.CurrentLocationColumnFamily.NAME);
+      scanner.fetchColumnFamily(MetadataSchema.TabletsSection.FutureLocationColumnFamily.NAME);
       scanner.setRange(metadataRange);
       
       RowIterator rowIter = new RowIterator(scanner);
@@ -871,16 +874,16 @@ public abstract class InputFormatBase<K,V> extends InputFormat<K,V> {
           Entry<Key,Value> entry = row.next();
           Key key = entry.getKey();
           
-          if (key.getColumnFamily().equals(Constants.METADATA_LAST_LOCATION_COLUMN_FAMILY)) {
+          if (key.getColumnFamily().equals(MetadataSchema.TabletsSection.LastLocationColumnFamily.NAME)) {
             last = entry.getValue().toString();
           }
           
-          if (key.getColumnFamily().equals(Constants.METADATA_CURRENT_LOCATION_COLUMN_FAMILY)
-              || key.getColumnFamily().equals(Constants.METADATA_FUTURE_LOCATION_COLUMN_FAMILY)) {
+          if (key.getColumnFamily().equals(MetadataSchema.TabletsSection.CurrentLocationColumnFamily.NAME)
+              || key.getColumnFamily().equals(MetadataSchema.TabletsSection.FutureLocationColumnFamily.NAME)) {
             location = entry.getValue().toString();
           }
           
-          if (Constants.METADATA_PREV_ROW_COLUMN.hasColumns(key)) {
+          if (PREV_ROW_COLUMN.hasColumns(key)) {
             extent = new KeyExtent(key.getRow(), entry.getValue());
           }
           
@@ -968,7 +971,8 @@ public abstract class InputFormatBase<K,V> extends InputFormat<K,V> {
           tl = getTabletLocator(conf, tableName);
           // its possible that the cache could contain complete, but old information about a tables tablets... so clear it
           tl.invalidateCache();
-          while (!tl.binRanges(ranges, binnedRanges).isEmpty()) {
+          Credentials creds = new Credentials (getUsername (conf), new PasswordToken(getPassword (conf)));
+          while (!tl.binRanges(creds, ranges, binnedRanges).isEmpty()) {
             if (!(instance instanceof MockInstance)) {
               if (tableId == null)
                 tableId = Tables.getTableId(instance, tableName);

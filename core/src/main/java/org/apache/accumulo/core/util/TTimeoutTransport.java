@@ -16,19 +16,13 @@
  */
 package org.apache.accumulo.core.util;
 
-import java.io.BufferedInputStream;
-import java.io.BufferedOutputStream;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
-import java.lang.reflect.Method;
-import java.net.Socket;
-import java.net.SocketAddress;
-import java.nio.channels.spi.SelectorProvider;
+import java.io.*;
+import java.lang.reflect.*;
+import java.net.*;
+import java.nio.channels.spi.*;
 
-import org.apache.hadoop.net.NetUtils;
-import org.apache.thrift.transport.TIOStreamTransport;
-import org.apache.thrift.transport.TTransport;
+import org.apache.hadoop.net.*;
+import org.apache.thrift.transport.*;
 
 public class TTimeoutTransport {
   

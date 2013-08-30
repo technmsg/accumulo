@@ -16,15 +16,12 @@
  */
 package org.apache.accumulo.core.iterators;
 
-import java.io.IOException;
-import java.util.Iterator;
-import java.util.Map;
-import java.util.NoSuchElementException;
+import java.io.*;
+import java.util.*;
 
-import org.apache.accumulo.core.client.IteratorSetting;
-import org.apache.accumulo.core.data.Key;
-import org.apache.accumulo.core.data.Value;
-import org.apache.accumulo.start.classloader.vfs.AccumuloVFSClassLoader;
+import org.apache.accumulo.core.client.*;
+import org.apache.accumulo.core.data.*;
+import org.apache.accumulo.start.classloader.vfs.*;
 
 /**
  * A Combiner that decodes each Value to type V before reducing, then encodes the result of typedReduce back to Value.
