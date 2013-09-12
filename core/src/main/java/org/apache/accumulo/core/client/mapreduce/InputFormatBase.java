@@ -26,6 +26,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.Iterator;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
@@ -50,7 +51,6 @@ import org.apache.accumulo.core.client.impl.TabletLocator;
 import org.apache.accumulo.core.client.mapreduce.lib.util.InputConfigurator;
 import org.apache.accumulo.core.client.mock.MockInstance;
 import org.apache.accumulo.core.client.security.tokens.AuthenticationToken;
-import org.apache.accumulo.core.client.security.tokens.AuthenticationToken.AuthenticationTokenSerializer;
 import org.apache.accumulo.core.data.ByteSequence;
 import org.apache.accumulo.core.data.Key;
 import org.apache.accumulo.core.data.KeyExtent;
@@ -75,6 +75,8 @@ import org.apache.hadoop.mapreduce.RecordReader;
 import org.apache.hadoop.mapreduce.TaskAttemptContext;
 import org.apache.log4j.Level;
 import org.apache.log4j.Logger;
+
+import static org.apache.accumulo.core.client.security.tokens.AuthenticationToken.AuthenticationTokenSerializer.deserialize;
 
 /**
  * This abstract {@link InputFormat} class allows MapReduce jobs to use Accumulo as the source of K,V pairs.
@@ -272,24 +274,44 @@ public abstract class InputFormatBase<K,V> extends InputFormat<K,V> {
    * @param tableName
    *          the table to use when the tablename is null in the write call
    * @since 1.5.0
+   * @deprecated since 1.6.0
    */
   public static void setInputTableName(Job job, String tableName) {
     InputConfigurator.setInputTableName(CLASS, job.getConfiguration(), tableName);
   }
-  
+
   /**
-   * Gets the table name from the configuration.
-   * 
+   * Sets the name of the input table, over which this job will scan.
+   *
+   * @param job
+   *          the Hadoop job instance to be configured
+   * @param tableNames
+   *          the table to use when the tablename is null in the write call
+   * @since 1.6.0
+   */
+  public static void setInputTableNames(Job job, Collection<String> tableNames) {
+    InputConfigurator.setInputTableNames(CLASS, job.getConfiguration(), tableNames);
+  }
+
+
+  /**
+   * Gets the default table name from the configuration- the first table is used in case of multiple tables
+   * being set.
+   *
    * @param context
    *          the Hadoop context for the configured job
    * @return the table name
    * @since 1.5.0
    * @see #setInputTableName(Job, String)
    */
-  protected static String getInputTableName(JobContext context) {
-    return InputConfigurator.getInputTableName(CLASS, getConfiguration(context));
+  protected static String getDefaultInputTableName(JobContext context) {
+    String[] tableNames = InputConfigurator.getInputTableNames(CLASS, getConfiguration(context));
+    if(tableNames.length > 0)
+      return tableNames[0];
+    else
+      return null;
   }
-  
+
   /**
    * Sets the {@link Authorizations} used to scan. Must be a subset of the user's authorization. Defaults to the empty set.
    * 
@@ -328,7 +350,21 @@ public abstract class InputFormatBase<K,V> extends InputFormat<K,V> {
   public static void setRanges(Job job, Collection<Range> ranges) {
     InputConfigurator.setRanges(CLASS, job.getConfiguration(), ranges);
   }
-  
+
+  /**
+   * Sets the input ranges to scan for this job. If not set, the entire table will be scanned.
+   *
+   * @param job
+   *          the Hadoop job instance to be configured
+   * @param ranges
+   *          the ranges that will be mapped over
+   * @since 1.5.0
+   */
+  public static void setRanges(Job job, Map<String, Collection<Range>> ranges) {
+    InputConfigurator.setRanges(CLASS, job.getConfiguration(), ranges);
+  }
+
+
   /**
    * Gets the ranges to scan over from a job.
    * 
@@ -340,7 +376,7 @@ public abstract class InputFormatBase<K,V> extends InputFormat<K,V> {
    * @since 1.5.0
    * @see #setRanges(Job, Collection)
    */
-  protected static List<Range> getRanges(JobContext context) throws IOException {
+  protected static Map<String, List<Range>> getRanges(JobContext context) throws IOException {
     return InputConfigurator.getRanges(CLASS, getConfiguration(context));
   }
   
@@ -545,8 +581,8 @@ public abstract class InputFormatBase<K,V> extends InputFormat<K,V> {
    *           if the table name set on the configuration doesn't exist
    * @since 1.5.0
    */
-  protected static TabletLocator getTabletLocator(JobContext context) throws TableNotFoundException {
-    return InputConfigurator.getTabletLocator(CLASS, getConfiguration(context));
+  protected static TabletLocator getTabletLocator(JobContext context, String table) throws TableNotFoundException {
+    return InputConfigurator.getTabletLocator(CLASS, getConfiguration(context), table);
   }
   
   // InputFormat doesn't have the equivalent of OutputFormat's checkOutputSpecs(JobContext job)
@@ -611,14 +647,14 @@ public abstract class InputFormatBase<K,V> extends InputFormat<K,V> {
       
       try {
         log.debug("Creating connector with user: " + principal);
-        Connector conn = instance.getConnector(principal, AuthenticationTokenSerializer.deserialize(tokenClass, token));
-        log.debug("Creating scanner for table: " + getInputTableName(attempt));
+        Connector conn = instance.getConnector(principal, deserialize (tokenClass, token));
+        log.debug("Creating scanner for table: " + getDefaultInputTableName (attempt));
         log.debug("Authorizations are: " + authorizations);
         if (isOfflineScan(attempt)) {
-          scanner = new OfflineScanner(instance, new Credentials(principal, AuthenticationTokenSerializer.deserialize(tokenClass, token)), Tables.getTableId(
-              instance, getInputTableName(attempt)), authorizations);
+          scanner = new OfflineScanner(instance, new Credentials(principal, deserialize (tokenClass, token)), Tables.getTableId(
+              instance, getDefaultInputTableName (attempt)), authorizations);
         } else {
-          scanner = conn.createScanner(getInputTableName(attempt), authorizations);
+          scanner = conn.createScanner(getDefaultInputTableName (attempt), authorizations);
         }
         if (isIsolated(attempt)) {
           log.info("Creating isolated scanner");
@@ -684,7 +720,7 @@ public abstract class InputFormatBase<K,V> extends InputFormat<K,V> {
     Map<String,Map<KeyExtent,List<Range>>> binnedRanges = new HashMap<String,Map<KeyExtent,List<Range>>>();
     
     Instance instance = getInstance(context);
-    Connector conn = instance.getConnector(getPrincipal(context), AuthenticationTokenSerializer.deserialize(getTokenClass(context), getToken(context)));
+    Connector conn = instance.getConnector(getPrincipal(context), deserialize (getTokenClass (context), getToken (context)));
     String tableId = Tables.getTableId(instance, tableName);
     
     if (Tables.getTableState(instance, tableId) != TableState.OFFLINE) {
@@ -776,98 +812,194 @@ public abstract class InputFormatBase<K,V> extends InputFormat<K,V> {
     return binnedRanges;
   }
   
-  /**
-   * Read the metadata table to get tablets and match up ranges to them.
-   */
-  @Override
-  public List<InputSplit> getSplits(JobContext context) throws IOException {
-    log.setLevel(getLogLevel(context));
-    validateOptions(context);
-    
-    String tableName = getInputTableName(context);
-    boolean autoAdjust = getAutoAdjustRanges(context);
-    List<Range> ranges = autoAdjust ? Range.mergeOverlapping(getRanges(context)) : getRanges(context);
-    
-    if (ranges.isEmpty()) {
-      ranges = new ArrayList<Range>(1);
-      ranges.add(new Range());
-    }
-    
-    // get the metadata information for these ranges
-    Map<String,Map<KeyExtent,List<Range>>> binnedRanges = new HashMap<String,Map<KeyExtent,List<Range>>>();
-    TabletLocator tl;
-    try {
-      if (isOfflineScan(context)) {
-        binnedRanges = binOfflineTable(context, tableName, ranges);
-        while (binnedRanges == null) {
-          // Some tablets were still online, try again
-          UtilWaitThread.sleep(100 + (int) (Math.random() * 100)); // sleep randomly between 100 and 200 ms
-          binnedRanges = binOfflineTable(context, tableName, ranges);
-        }
-      } else {
-        Instance instance = getInstance(context);
-        String tableId = null;
-        tl = getTabletLocator(context);
-        // its possible that the cache could contain complete, but old information about a tables tablets... so clear it
-        tl.invalidateCache();
-        while (!tl.binRanges(new Credentials(getPrincipal(context), AuthenticationTokenSerializer.deserialize(getTokenClass(context), getToken(context))),
-            ranges, binnedRanges).isEmpty()) {
-          if (!(instance instanceof MockInstance)) {
-            if (tableId == null)
-              tableId = Tables.getTableId(instance, tableName);
-            if (!Tables.exists(instance, tableId))
-              throw new TableDeletedException(tableId);
-            if (Tables.getTableState(instance, tableId) == TableState.OFFLINE)
-              throw new TableOfflineException(instance, tableId);
+//  /**
+//   * Read the metadata table to get tablets and match up ranges to them.
+//   */
+//  @Override
+//  public List<InputSplit> getSplits(JobContext context) throws IOException {
+//    log.setLevel(getLogLevel(context));
+//    validateOptions(context);
+//
+//    boolean autoAdjust = getAutoAdjustRanges(context);
+//    String tableName = getDefaultInputTableName(context);
+//    List<Range> ranges = autoAdjust ? Range.mergeOverlapping(getRanges(context)) : getRanges(context);
+//
+//    if (ranges.isEmpty()) {
+//      ranges = new ArrayList<Range>(1);
+//      ranges.add(new Range());
+//    }
+//
+//    // get the metadata information for these ranges
+//    Map<String,Map<KeyExtent,List<Range>>> binnedRanges = new HashMap<String,Map<KeyExtent,List<Range>>>();
+//    TabletLocator tl;
+//    try {
+//      if (isOfflineScan(context)) {
+//        binnedRanges = binOfflineTable(context, tableName, ranges);
+//        while (binnedRanges == null) {
+//          // Some tablets were still online, try again
+//          UtilWaitThread.sleep(100 + (int) (Math.random() * 100)); // sleep randomly between 100 and 200 ms
+//          binnedRanges = binOfflineTable(context, tableName, ranges);
+//        }
+//      } else {
+//        Instance instance = getInstance(context);
+//        String tableId = null;
+//        tl = getTabletLocator(context);
+//        // its possible that the cache could contain complete, but old information about a tables tablets... so clear it
+//        tl.invalidateCache();
+//        while (!tl.binRanges(new Credentials(getPrincipal(context), AuthenticationTokenSerializer.deserialize(getTokenClass(context), getToken(context))),
+//            ranges, binnedRanges).isEmpty()) {
+//          if (!(instance instanceof MockInstance)) {
+//            if (tableId == null)
+//              tableId = Tables.getTableId(instance, tableName);
+//            if (!Tables.exists(instance, tableId))
+//              throw new TableDeletedException(tableId);
+//            if (Tables.getTableState(instance, tableId) == TableState.OFFLINE)
+//              throw new TableOfflineException(instance, tableId);
+//          }
+//          binnedRanges.clear();
+//          log.warn("Unable to locate bins for specified ranges. Retrying.");
+//          UtilWaitThread.sleep(100 + (int) (Math.random() * 100)); // sleep randomly between 100 and 200 ms
+//          tl.invalidateCache();
+//        }
+//      }
+//    } catch (Exception e) {
+//      throw new IOException(e);
+//    }
+//
+//    ArrayList<InputSplit> splits = new ArrayList<InputSplit>(ranges.size());
+//    HashMap<Range,ArrayList<String>> splitsToAdd = null;
+//
+//    if (!autoAdjust)
+//      splitsToAdd = new HashMap<Range,ArrayList<String>>();
+//
+//    HashMap<String,String> hostNameCache = new HashMap<String,String>();
+//
+//    for (Entry<String,Map<KeyExtent,List<Range>>> tserverBin : binnedRanges.entrySet()) {
+//      String ip = tserverBin.getKey().split(":", 2)[0];
+//      String location = hostNameCache.get(ip);
+//      if (location == null) {
+//        InetAddress inetAddress = InetAddress.getByName(ip);
+//        location = inetAddress.getHostName();
+//        hostNameCache.put(ip, location);
+//      }
+//
+//      for (Entry<KeyExtent,List<Range>> extentRanges : tserverBin.getValue().entrySet()) {
+//        Range ke = extentRanges.getKey().toDataRange();
+//        for (Range r : extentRanges.getValue()) {
+//          if (autoAdjust) {
+//            // divide ranges into smaller ranges, based on the tablets
+//            splits.add(new RangeInputSplit(tableName, ke.clip(r), new String[] {location}));
+//          } else {
+//            // don't divide ranges
+//            ArrayList<String> locations = splitsToAdd.get(r);
+//            if (locations == null)
+//              locations = new ArrayList<String>(1);
+//            locations.add(location);
+//            splitsToAdd.put(r, locations);
+//          }
+//        }
+//      }
+//    }
+//
+//    if (!autoAdjust)
+//      for (Entry<Range,ArrayList<String>> entry : splitsToAdd.entrySet())
+//        splits.add(new RangeInputSplit(tableName, entry.getKey(), entry.getValue().toArray(new String[0])));
+//    return splits;
+//  }
+
+  public List<InputSplit> getSplits(JobContext conf) throws IOException {
+    log.setLevel(getLogLevel(conf));
+    validateOptions(conf);
+
+    boolean autoAdjust = getAutoAdjustRanges(conf);
+    Map<String,List<Range>> tablesRanges = getRanges(conf);
+    LinkedList<InputSplit> splits = new LinkedList<InputSplit>();
+
+    for (Entry<String,List<Range>> tableRanges : tablesRanges.entrySet()) {
+      String tableName = tableRanges.getKey();
+      List<Range> ranges = autoAdjust ? Range.mergeOverlapping(tableRanges.getValue()) : tableRanges.getValue();
+
+      if (ranges.isEmpty()) {
+        ranges = new ArrayList<Range>(1);
+        ranges.add(new Range());
+      }
+
+      // get the metadata information for these ranges
+      Map<String,Map<KeyExtent,List<Range>>> binnedRanges = new HashMap<String,Map<KeyExtent,List<Range>>>();
+      TabletLocator tl;
+      try {
+        if (isOfflineScan(conf)) {
+          binnedRanges = binOfflineTable(conf, tableName, ranges);
+          while (binnedRanges == null) {
+            // Some tablets were still online, try again
+            UtilWaitThread.sleep(100 + (int) (Math.random() * 100)); // sleep randomly between 100 and 200 ms
+            binnedRanges = binOfflineTable(conf, tableName, ranges);
           }
-          binnedRanges.clear();
-          log.warn("Unable to locate bins for specified ranges. Retrying.");
-          UtilWaitThread.sleep(100 + (int) (Math.random() * 100)); // sleep randomly between 100 and 200 ms
+        } else {
+          Instance instance = getInstance(conf);
+          String tableId = null;
+          tl = getTabletLocator(conf, tableName);
+          // its possible that the cache could contain complete, but old information about a tables tablets... so clear it
           tl.invalidateCache();
+          Credentials creds = new Credentials(getPrincipal(conf),deserialize (getTokenClass (conf), getToken (conf)));
+
+          while (!tl.binRanges(creds, ranges, binnedRanges).isEmpty()) {
+            if (!(instance instanceof MockInstance)) {
+              if (tableId == null)
+                tableId = Tables.getTableId(instance, tableName);
+              if (!Tables.exists(instance, tableId))
+                throw new TableDeletedException(tableId);
+              if (Tables.getTableState(instance, tableId) == TableState.OFFLINE)
+                throw new TableOfflineException(instance, tableId);
+            }
+            binnedRanges.clear();
+            log.warn("Unable to locate bins for specified ranges. Retrying.");
+            UtilWaitThread.sleep(100 + (int) (Math.random() * 100)); // sleep randomly between 100 and 200 ms
+            tl.invalidateCache();
+          }
         }
+      } catch (Exception e) {
+        throw new IOException(e);
       }
-    } catch (Exception e) {
-      throw new IOException(e);
-    }
-    
-    ArrayList<InputSplit> splits = new ArrayList<InputSplit>(ranges.size());
-    HashMap<Range,ArrayList<String>> splitsToAdd = null;
-    
-    if (!autoAdjust)
-      splitsToAdd = new HashMap<Range,ArrayList<String>>();
-    
-    HashMap<String,String> hostNameCache = new HashMap<String,String>();
-    
-    for (Entry<String,Map<KeyExtent,List<Range>>> tserverBin : binnedRanges.entrySet()) {
-      String ip = tserverBin.getKey().split(":", 2)[0];
-      String location = hostNameCache.get(ip);
-      if (location == null) {
-        InetAddress inetAddress = InetAddress.getByName(ip);
-        location = inetAddress.getHostName();
-        hostNameCache.put(ip, location);
-      }
-      
-      for (Entry<KeyExtent,List<Range>> extentRanges : tserverBin.getValue().entrySet()) {
-        Range ke = extentRanges.getKey().toDataRange();
-        for (Range r : extentRanges.getValue()) {
-          if (autoAdjust) {
-            // divide ranges into smaller ranges, based on the tablets
-            splits.add(new RangeInputSplit(tableName, ke.clip(r), new String[] {location}));
-          } else {
-            // don't divide ranges
-            ArrayList<String> locations = splitsToAdd.get(r);
-            if (locations == null)
-              locations = new ArrayList<String>(1);
-            locations.add(location);
-            splitsToAdd.put(r, locations);
+
+      HashMap<Range,ArrayList<String>> splitsToAdd = null;
+
+      if (!autoAdjust)
+        splitsToAdd = new HashMap<Range,ArrayList<String>>();
+
+      HashMap<String,String> hostNameCache = new HashMap<String,String>();
+
+      for (Entry<String,Map<KeyExtent,List<Range>>> tserverBin : binnedRanges.entrySet()) {
+        String ip = tserverBin.getKey().split(":", 2)[0];
+        String location = hostNameCache.get(ip);
+        if (location == null) {
+          InetAddress inetAddress = InetAddress.getByName(ip);
+          location = inetAddress.getHostName();
+          hostNameCache.put(ip, location);
+        }
+
+        for (Entry<KeyExtent,List<Range>> extentRanges : tserverBin.getValue().entrySet()) {
+          Range ke = extentRanges.getKey().toDataRange();
+          for (Range r : extentRanges.getValue()) {
+            if (autoAdjust) {
+              // divide ranges into smaller ranges, based on the tablets
+              splits.add(new RangeInputSplit(tableName, ke.clip(r), new String[] {location}));
+            } else {
+              // don't divide ranges
+              ArrayList<String> locations = splitsToAdd.get(r);
+              if (locations == null)
+                locations = new ArrayList<String>(1);
+              locations.add(location);
+              splitsToAdd.put(r, locations);
+            }
           }
         }
       }
+
+      if (!autoAdjust)
+        for (Entry<Range,ArrayList<String>> entry : splitsToAdd.entrySet())
+          splits.add(new RangeInputSplit(tableName, entry.getKey(), entry.getValue().toArray(new String[0])));
     }
-    
-    if (!autoAdjust)
-      for (Entry<Range,ArrayList<String>> entry : splitsToAdd.entrySet())
-        splits.add(new RangeInputSplit(tableName, entry.getKey(), entry.getValue().toArray(new String[0])));
     return splits;
   }
   

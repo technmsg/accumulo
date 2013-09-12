@@ -22,11 +22,14 @@ import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.StringTokenizer;
+import java.util.TreeMap;
 
 import org.apache.accumulo.core.Constants;
 import org.apache.accumulo.core.client.AccumuloException;
@@ -40,6 +43,7 @@ import org.apache.accumulo.core.client.Scanner;
 import org.apache.accumulo.core.client.TableNotFoundException;
 import org.apache.accumulo.core.client.impl.Tables;
 import org.apache.accumulo.core.client.impl.TabletLocator;
+import org.apache.accumulo.core.client.mapreduce.lib.support.TableRange;
 import org.apache.accumulo.core.client.mock.MockTabletLocator;
 import org.apache.accumulo.core.client.security.tokens.AuthenticationToken.AuthenticationTokenSerializer;
 import org.apache.accumulo.core.data.Range;
@@ -53,6 +57,11 @@ import org.apache.commons.codec.binary.Base64;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.util.StringUtils;
+
+import static org.apache.accumulo.core.util.ArgumentChecker.notNull;
+import static org.apache.commons.codec.binary.Base64.encodeBase64;
+import static org.apache.hadoop.util.StringUtils.join;
+import static org.apache.hadoop.util.StringUtils.split;
 
 /**
  * @since 1.5.0
@@ -87,12 +96,30 @@ public class InputConfigurator extends ConfiguratorBase {
    * @param tableName
    *          the table to use when the tablename is null in the write call
    * @since 1.5.0
+   * @deprecated since 1.6.0
    */
   public static void setInputTableName(Class<?> implementingClass, Configuration conf, String tableName) {
-    ArgumentChecker.notNull(tableName);
+    notNull (tableName);
     conf.set(enumToConfKey(implementingClass, ScanOpts.TABLE_NAME), tableName);
   }
-  
+
+  /**
+   * Sets the name of the input table, over which this job will scan.
+   *
+   * @param implementingClass
+   *          the class whose name will be used as a prefix for the property configuration key
+   * @param conf
+   *          the Hadoop configuration object to configure
+   * @param tableNames
+   *          the tables to use when the tablename is null in the write call
+   * @since 1.6.0
+   */
+  public static void setInputTableNames(Class<?> implementingClass, Configuration conf, Collection<String> tableNames) {
+    notNull (tableNames);
+    conf.set (enumToConfKey (implementingClass, ScanOpts.TABLE_NAME), join (",", tableNames));    //TODO: Should this change to be TABLE_NAMES?
+  }
+
+
   /**
    * Gets the table name from the configuration.
    * 
@@ -104,8 +131,8 @@ public class InputConfigurator extends ConfiguratorBase {
    * @since 1.5.0
    * @see #setInputTableName(Class, Configuration, String)
    */
-  public static String getInputTableName(Class<?> implementingClass, Configuration conf) {
-    return conf.get(enumToConfKey(implementingClass, ScanOpts.TABLE_NAME));
+  public static String[] getInputTableNames(Class<?> implementingClass, Configuration conf) {
+    return split (conf.get (enumToConfKey (implementingClass, ScanOpts.TABLE_NAME), ","));
   }
   
   /**
@@ -150,22 +177,67 @@ public class InputConfigurator extends ConfiguratorBase {
    * @param ranges
    *          the ranges that will be mapped over
    * @since 1.5.0
+   * @deprecated since 1.6.0
    */
   public static void setRanges(Class<?> implementingClass, Configuration conf, Collection<Range> ranges) {
-    ArgumentChecker.notNull(ranges);
-    ArrayList<String> rangeStrings = new ArrayList<String>(ranges.size());
-    try {
-      for (Range r : ranges) {
-        ByteArrayOutputStream baos = new ByteArrayOutputStream();
-        r.write(new DataOutputStream(baos));
-        rangeStrings.add(new String(Base64.encodeBase64(baos.toByteArray()), Constants.UTF8));
+    notNull (ranges);
+    notNull(ranges);
+
+    String[] tableNames = getInputTableNames (implementingClass, conf);
+    if(tableNames.length > 0) {
+
+      String tableName = tableNames[0];
+
+      ArrayList<String> rangeStrings = new ArrayList<String>(ranges.size());
+      try {
+        for (Range r : ranges) {
+          TableRange tblRange = new TableRange(tableName, r);
+          ByteArrayOutputStream baos = new ByteArrayOutputStream();
+          tblRange.write(new DataOutputStream(baos));
+          rangeStrings.add(new String(encodeBase64 (baos.toByteArray ())));
+        }
+      } catch (IOException ex) {
+        throw new IllegalArgumentException("Unable to encode ranges to Base64", ex);
       }
-    } catch (IOException ex) {
-      throw new IllegalArgumentException("Unable to encode ranges to Base64", ex);
+      conf.setStrings(enumToConfKey(implementingClass, ScanOpts.RANGES), rangeStrings.toArray(new String[0]));
+    } else {
+      throw new IllegalStateException ("Ranges can't be added until a table is set.");
+    }
+
+  }
+
+  /**
+   * Sets the input ranges to scan for this job. If not set, the entire table will be scanned.
+   *
+   * @param implementingClass
+   *          the class whose name will be used as a prefix for the property configuration key
+   * @param conf
+   *          the Hadoop configuration object to configure
+   * @param ranges
+   *          the ranges that will be mapped over. key=tablename and value=ranges
+   * @since 1.6.0
+   */
+  public static void setRanges(Class<?> implementingClass, Configuration conf, Map<String, Collection<Range>> ranges) {
+    notNull(ranges);
+
+    ArrayList<String> rangeStrings = new ArrayList<String>(ranges.size());
+    for (Map.Entry<String,Collection<Range>> pair : ranges.entrySet()) {
+      try {
+        String tableName = pair.getKey();
+        for (Range r : pair.getValue()) {
+          TableRange tblRange = new TableRange(tableName, r);
+          ByteArrayOutputStream baos = new ByteArrayOutputStream();
+          tblRange.write(new DataOutputStream(baos));
+          rangeStrings.add(new String(encodeBase64 (baos.toByteArray ())));
+        }
+      } catch (IOException ex) {
+        throw new IllegalArgumentException("Unable to encode ranges to Base64", ex);
+      }
     }
     conf.setStrings(enumToConfKey(implementingClass, ScanOpts.RANGES), rangeStrings.toArray(new String[0]));
   }
-  
+
+
   /**
    * Gets the ranges to scan over from a job.
    * 
@@ -179,14 +251,22 @@ public class InputConfigurator extends ConfiguratorBase {
    * @since 1.5.0
    * @see #setRanges(Class, Configuration, Collection)
    */
-  public static List<Range> getRanges(Class<?> implementingClass, Configuration conf) throws IOException {
-    ArrayList<Range> ranges = new ArrayList<Range>();
-    for (String rangeString : conf.getStringCollection(enumToConfKey(implementingClass, ScanOpts.RANGES))) {
-      ByteArrayInputStream bais = new ByteArrayInputStream(Base64.decodeBase64(rangeString.getBytes(Constants.UTF8)));
-      Range range = new Range();
-      range.readFields(new DataInputStream(bais));
-      ranges.add(range);
+  public static Map<String, List<Range>> getRanges(Class<?> implementingClass, Configuration conf) throws IOException {
+    TreeMap<String,List<Range>> ranges = new TreeMap<String,List<Range>>();
+
+    // create collections for each table
+    for (String table : getInputTableNames (implementingClass, conf)) {
+      ranges.put(table, new ArrayList<Range>());
     }
+
+    // parse out the ranges and add them to table's bucket
+    for (String rangeString : conf.getStringCollection(enumToConfKey(implementingClass, ScanOpts.RANGES))) {
+      ByteArrayInputStream bais = new ByteArrayInputStream(Base64.decodeBase64(rangeString.getBytes()));
+      TableRange range = new TableRange ();
+      range.readFields(new DataInputStream(bais));
+      ranges.get(range.tableName()).add(range.range());
+    }
+
     return ranges;
   }
   
@@ -203,15 +283,15 @@ public class InputConfigurator extends ConfiguratorBase {
    * @since 1.5.0
    */
   public static void fetchColumns(Class<?> implementingClass, Configuration conf, Collection<Pair<Text,Text>> columnFamilyColumnQualifierPairs) {
-    ArgumentChecker.notNull(columnFamilyColumnQualifierPairs);
+    notNull (columnFamilyColumnQualifierPairs);
     ArrayList<String> columnStrings = new ArrayList<String>(columnFamilyColumnQualifierPairs.size());
     for (Pair<Text,Text> column : columnFamilyColumnQualifierPairs) {
       if (column.getFirst() == null)
         throw new IllegalArgumentException("Column family can not be null");
       
-      String col = new String(Base64.encodeBase64(TextUtil.getBytes(column.getFirst())), Constants.UTF8);
+      String col = new String(encodeBase64 (TextUtil.getBytes (column.getFirst ())), Constants.UTF8);
       if (column.getSecond() != null)
-        col += ":" + new String(Base64.encodeBase64(TextUtil.getBytes(column.getSecond())), Constants.UTF8);
+        col += ":" + new String(encodeBase64 (TextUtil.getBytes (column.getSecond ())), Constants.UTF8);
       columnStrings.add(col);
     }
     conf.setStrings(enumToConfKey(implementingClass, ScanOpts.COLUMNS), columnStrings.toArray(new String[0]));
@@ -255,7 +335,7 @@ public class InputConfigurator extends ConfiguratorBase {
     String newIter;
     try {
       cfg.write(new DataOutputStream(baos));
-      newIter = new String(Base64.encodeBase64(baos.toByteArray()), Constants.UTF8);
+      newIter = new String(encodeBase64 (baos.toByteArray ()), Constants.UTF8);
       baos.close();
     } catch (IOException e) {
       throw new IllegalArgumentException("unable to serialize IteratorSetting");
@@ -473,13 +553,13 @@ public class InputConfigurator extends ConfiguratorBase {
    *           if the table name set on the configuration doesn't exist
    * @since 1.5.0
    */
-  public static TabletLocator getTabletLocator(Class<?> implementingClass, Configuration conf) throws TableNotFoundException {
+  public static TabletLocator getTabletLocator(Class<?> implementingClass, Configuration conf, String tableName)
+          throws TableNotFoundException {
     String instanceType = conf.get(enumToConfKey(implementingClass, InstanceOpts.TYPE));
     if ("MockInstance".equals(instanceType))
       return new MockTabletLocator();
     Instance instance = getInstance(implementingClass, conf);
-    String tableName = getInputTableName(implementingClass, conf);
-    return TabletLocator.getLocator(instance, new Text(Tables.getTableId(instance, tableName)));
+    return TabletLocator.getLocator (instance, new Text (Tables.getTableId (instance, tableName)));
   }
   
   // InputFormat doesn't have the equivalent of OutputFormat's checkOutputSpecs(JobContext job)
@@ -503,18 +583,24 @@ public class InputConfigurator extends ConfiguratorBase {
     // validate that we can connect as configured
     try {
       Connector c = getInstance(implementingClass, conf).getConnector(getPrincipal(implementingClass, conf),
-          AuthenticationTokenSerializer.deserialize(getTokenClass(implementingClass, conf), getToken(implementingClass, conf)));
+          AuthenticationTokenSerializer.deserialize (getTokenClass (implementingClass, conf), getToken (implementingClass, conf)));
       if (!c.securityOperations().authenticateUser(getPrincipal(implementingClass, conf),
-          AuthenticationTokenSerializer.deserialize(getTokenClass(implementingClass, conf), getToken(implementingClass, conf))))
+          AuthenticationTokenSerializer.deserialize (getTokenClass (implementingClass, conf), getToken (implementingClass, conf))))
         throw new IOException("Unable to authenticate user");
-      if (!c.securityOperations().hasTablePermission(getPrincipal(implementingClass, conf), getInputTableName(implementingClass, conf), TablePermission.READ))
-        throw new IOException("Unable to access table");
-      
+
+      for(String tableName : getInputTableNames(implementingClass, conf)) {
+        if (!c.securityOperations().hasTablePermission(getPrincipal(implementingClass, conf), tableName, TablePermission.READ))
+          throw new IOException("Unable to access table");
+      }
+
       if (!conf.getBoolean(enumToConfKey(implementingClass, Features.USE_LOCAL_ITERATORS), false)) {
         // validate that any scan-time iterators can be loaded by the the tablet servers
-        for (IteratorSetting iter : getIterators(implementingClass, conf)) {
-          if (!c.tableOperations().testClassLoad(getInputTableName(implementingClass, conf), iter.getIteratorClass(), SortedKeyValueIterator.class.getName()))
-            throw new AccumuloException("Servers are unable to load " + iter.getIteratorClass() + " as a " + SortedKeyValueIterator.class.getName());
+        for (IteratorSetting iter : getIterators(implementingClass, conf)) {    // TODO: These iterators need to be separated by table
+          for(String tableName : getInputTableNames (implementingClass, conf)) {
+            if (!c.tableOperations().testClassLoad(tableName, iter.getIteratorClass(), SortedKeyValueIterator.class.getName()))
+              throw new AccumuloException("Servers are unable to load " + iter.getIteratorClass() + " as a " + SortedKeyValueIterator.class.getName());
+
+          }
         }
       }
       
