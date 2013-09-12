@@ -615,7 +615,8 @@ public abstract class InputFormatBase<K,V> extends InputFormat<K,V> {
     protected long numKeysRead;
     protected Iterator<Entry<Key,Value>> scannerIterator;
     protected RangeInputSplit split;
-    
+
+
     /**
      * Apply the configured iterators from the configuration to the scanner.
      * 
@@ -1009,7 +1010,9 @@ public abstract class InputFormatBase<K,V> extends InputFormat<K,V> {
   public static class RangeInputSplit extends InputSplit implements Writable {
     private Range range;
     private String[] locations;
-    
+    private String tableName;
+
+
     public RangeInputSplit() {
       range = new Range();
       locations = new String[0];
@@ -1023,6 +1026,7 @@ public abstract class InputFormatBase<K,V> extends InputFormat<K,V> {
     protected RangeInputSplit(String table, Range range, String[] locations) {
       this.range = range;
       this.locations = locations;
+      this.tableName = table;
     }
     
     public Range getRange() {
@@ -1031,6 +1035,10 @@ public abstract class InputFormatBase<K,V> extends InputFormat<K,V> {
     
     public void setRange(Range range) {
       this.range = range;
+    }
+
+    public String getTableName() {
+      return this.tableName;
     }
     
     private static byte[] extractBytes(ByteSequence seq, int numBytes) {
