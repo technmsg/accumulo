@@ -1,8 +1,10 @@
 package org.apache.accumulo.core.client.mapreduce;
 
+import static org.apache.accumulo.core.client.mapreduce.InputFormatBase.getRanges;
 import static org.apache.accumulo.core.client.mapreduce.InputFormatBase.setConnectorInfo;
 import static org.apache.accumulo.core.client.mapreduce.InputFormatBase.setInputTableNames;
 import static org.apache.accumulo.core.client.mapreduce.InputFormatBase.setMockInstance;
+import static org.apache.accumulo.core.client.mapreduce.InputFormatBase.setRanges;
 import static org.apache.accumulo.core.client.mapreduce.InputFormatBase.setScanAuthorizations;
 import static org.apache.accumulo.core.client.mapreduce.multi.ContextFactory.createMapContext;
 import static org.apache.accumulo.core.client.mapreduce.multi.ContextFactory.createTaskAttemptContext;
@@ -93,7 +95,7 @@ public class MultiTableInputFormatTest {
     job.setInputFormatClass (AccumuloInputFormat.class);
     job.setMapperClass (TestMapper.class);
     job.setNumReduceTasks (0);
-    setConnectorInfo (job, "root", new PasswordToken ("".getBytes ()));
+    setConnectorInfo (job, "root", new PasswordToken (new byte[0]));
     setInputTableNames (job, tablesList);
     setScanAuthorizations (job, new Authorizations ());
     setMockInstance (job, "testmapinstance");
@@ -123,7 +125,7 @@ public class MultiTableInputFormatTest {
     job.setInputFormatClass(AccumuloInputFormat.class);
     job.setMapperClass (TestMapper.class);
     job.setNumReduceTasks (0);
-    setConnectorInfo (job, "root", new PasswordToken ("".getBytes ()));
+    setConnectorInfo (job, "root", new PasswordToken (new byte[0]));
     setInputTableNames (job, tables);
     setScanAuthorizations (job, new Authorizations ());
     setMockInstance (job, "testmapinstance");
@@ -137,8 +139,8 @@ public class MultiTableInputFormatTest {
       tblRanges.put(tbl, ranges);
     }
     
-    AccumuloInputFormat.setRanges (job, tblRanges);
-    Map<String, List<Range>> configuredRanges = AccumuloInputFormat.getRanges (job);
+    setRanges (job, tblRanges);
+    Map<String, List<Range>> configuredRanges = getRanges (job);
     
     for(Entry<String, List<Range>> cfgRange : configuredRanges.entrySet()) {
       String tbl = cfgRange.getKey();

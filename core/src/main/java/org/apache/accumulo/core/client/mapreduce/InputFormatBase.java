@@ -16,6 +16,8 @@
  */
 package org.apache.accumulo.core.client.mapreduce;
 
+import static org.apache.accumulo.core.client.security.tokens.AuthenticationToken.AuthenticationTokenSerializer.deserialize;
+
 import java.io.DataInput;
 import java.io.DataOutput;
 import java.io.IOException;
@@ -51,6 +53,7 @@ import org.apache.accumulo.core.client.impl.TabletLocator;
 import org.apache.accumulo.core.client.mapreduce.lib.util.InputConfigurator;
 import org.apache.accumulo.core.client.mock.MockInstance;
 import org.apache.accumulo.core.client.security.tokens.AuthenticationToken;
+import org.apache.accumulo.core.client.security.tokens.PasswordToken;
 import org.apache.accumulo.core.data.ByteSequence;
 import org.apache.accumulo.core.data.Key;
 import org.apache.accumulo.core.data.KeyExtent;
@@ -75,8 +78,6 @@ import org.apache.hadoop.mapreduce.RecordReader;
 import org.apache.hadoop.mapreduce.TaskAttemptContext;
 import org.apache.log4j.Level;
 import org.apache.log4j.Logger;
-
-import static org.apache.accumulo.core.client.security.tokens.AuthenticationToken.AuthenticationTokenSerializer.deserialize;
 
 /**
  * This abstract {@link InputFormat} class allows MapReduce jobs to use Accumulo as the source of K,V pairs.
@@ -403,8 +404,8 @@ public abstract class InputFormatBase<K,V> extends InputFormat<K,V> {
    * @since 1.5.0
    * @see #fetchColumns(Job, Collection)
    */
-  protected static Set<Pair<Text,Text>> getFetchedColumns(JobContext context) {
-    return InputConfigurator.getFetchedColumns(CLASS, getConfiguration(context));
+  protected static Set<Pair<Text,Text>> getFetchedColumns(JobContext context, String table) {
+    return InputConfigurator.getFetchedColumns(CLASS, getConfiguration(context), table);
   }
   
   /**
@@ -625,18 +626,20 @@ public abstract class InputFormatBase<K,V> extends InputFormat<K,V> {
      * @param scanner
      *          the scanner to configure
      */
-    protected void setupIterators(TaskAttemptContext context, Scanner scanner) {
+    protected void setupIterators(TaskAttemptContext context, Scanner scanner, String tableName) {
       List<IteratorSetting> iterators = getIterators(context);
       for (IteratorSetting iterator : iterators) {
         scanner.addScanIterator(iterator);
       }
     }
-    
+
+
     /**
      * Initialize a scanner over the given input split using this task attempt configuration.
      */
     @Override
     public void initialize(InputSplit inSplit, TaskAttemptContext attempt) throws IOException {
+
       Scanner scanner;
       split = (RangeInputSplit) inSplit;
       log.debug("Initializing input split: " + split.range);
@@ -644,18 +647,19 @@ public abstract class InputFormatBase<K,V> extends InputFormat<K,V> {
       String principal = getPrincipal(attempt);
       String tokenClass = getTokenClass(attempt);
       byte[] token = getToken(attempt);
-      Authorizations authorizations = getScanAuthorizations(attempt);
-      
+      Authorizations authorizations = getScanAuthorizations (attempt);
+
       try {
         log.debug("Creating connector with user: " + principal);
         Connector conn = instance.getConnector(principal, deserialize (tokenClass, token));
-        log.debug("Creating scanner for table: " + getDefaultInputTableName (attempt));
+        log.debug("Creating scanner for table: " + split.getTableName ());
         log.debug("Authorizations are: " + authorizations);
         if (isOfflineScan(attempt)) {
-          scanner = new OfflineScanner(instance, new Credentials(principal, deserialize (tokenClass, token)), Tables.getTableId(
-              instance, getDefaultInputTableName (attempt)), authorizations);
+          // TODO: This used AuthInfo before- figure out a better equivalent
+          scanner = new OfflineScanner(instance, new Credentials(principal, deserialize (tokenClass, token)), Tables.getTableId(instance,
+                  split.getTableName()), authorizations);
         } else {
-          scanner = conn.createScanner(getDefaultInputTableName (attempt), authorizations);
+          scanner = conn.createScanner(split.getTableName(), authorizations);
         }
         if (isIsolated(attempt)) {
           log.info("Creating isolated scanner");
@@ -665,13 +669,13 @@ public abstract class InputFormatBase<K,V> extends InputFormat<K,V> {
           log.info("Using local iterators");
           scanner = new ClientSideIteratorScanner(scanner);
         }
-        setupIterators(attempt, scanner);
+        setupIterators(attempt, scanner, split.getTableName());
       } catch (Exception e) {
         throw new IOException(e);
       }
-      
+
       // setup a scanner within the bounds of this split
-      for (Pair<Text,Text> c : getFetchedColumns(attempt)) {
+      for (Pair<Text,Text> c : getFetchedColumns(attempt, split.getTableName())) {
         if (c.getSecond() != null) {
           log.debug("Fetching column " + c.getFirst() + ":" + c.getSecond());
           scanner.fetchColumn(c.getFirst(), c.getSecond());
@@ -680,13 +684,14 @@ public abstract class InputFormatBase<K,V> extends InputFormat<K,V> {
           scanner.fetchColumnFamily(c.getFirst());
         }
       }
-      
-      scanner.setRange(split.range);
-      
+
+      scanner.setRange(split.getRange());
+
       numKeysRead = 0;
-      
+
       // do this last after setting all scanner options
       scannerIterator = scanner.iterator();
+
     }
     
     @Override
@@ -1016,11 +1021,13 @@ public abstract class InputFormatBase<K,V> extends InputFormat<K,V> {
     public RangeInputSplit() {
       range = new Range();
       locations = new String[0];
+      tableName = "";
     }
     
     public RangeInputSplit(RangeInputSplit split) throws IOException {
       this.setRange(split.getRange());
       this.setLocations(split.getLocations());
+      this.setTableName(split.getTableName ());
     }
     
     protected RangeInputSplit(String table, Range range, String[] locations) {
@@ -1039,6 +1046,10 @@ public abstract class InputFormatBase<K,V> extends InputFormat<K,V> {
 
     public String getTableName() {
       return this.tableName;
+    }
+
+    public void setTableName(String tableName) {
+      this.tableName = tableName;
     }
     
     private static byte[] extractBytes(ByteSequence seq, int numBytes) {
@@ -1115,6 +1126,7 @@ public abstract class InputFormatBase<K,V> extends InputFormat<K,V> {
     @Override
     public void readFields(DataInput in) throws IOException {
       range.readFields(in);
+      tableName = in.readUTF ();
       int numLocs = in.readInt();
       locations = new String[numLocs];
       for (int i = 0; i < numLocs; ++i)
@@ -1124,6 +1136,7 @@ public abstract class InputFormatBase<K,V> extends InputFormat<K,V> {
     @Override
     public void write(DataOutput out) throws IOException {
       range.write(out);
+      out.writeUTF (tableName);
       out.writeInt(locations.length);
       for (int i = 0; i < locations.length; ++i)
         out.writeUTF(locations[i]);

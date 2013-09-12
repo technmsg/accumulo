@@ -16,6 +16,7 @@
  */
 package org.apache.accumulo.core.client.mapreduce;
 
+import static java.util.Collections.singleton;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNull;
@@ -24,6 +25,7 @@ import static org.junit.Assert.assertTrue;
 import java.io.File;
 import java.io.IOException;
 import java.io.PrintStream;
+import java.util.Collections;
 import java.util.Iterator;
 import java.util.Map.Entry;
 
@@ -102,7 +104,7 @@ public class TokenFileTest {
       job.setInputFormatClass(AccumuloInputFormat.class);
       
       AccumuloInputFormat.setConnectorInfo(job, user, tokenFile);
-      AccumuloInputFormat.setInputTableName(job, table1);
+      AccumuloInputFormat.setInputTableNames (job, singleton (table1));
       AccumuloInputFormat.setMockInstance(job, INSTANCE_NAME);
       
       job.setMapperClass(TestMapper.class);
@@ -116,7 +118,9 @@ public class TokenFileTest {
       AccumuloOutputFormat.setCreateTables(job, false);
       AccumuloOutputFormat.setDefaultTableName(job, table2);
       AccumuloOutputFormat.setMockInstance(job, INSTANCE_NAME);
-      
+
+      System.out.println(job.getConfiguration ());
+
       job.setNumReduceTasks(0);
       
       job.waitForCompletion(true);
@@ -125,14 +129,14 @@ public class TokenFileTest {
     }
     
     public static void main(String[] args) throws Exception {
-      assertEquals(0, ToolRunner.run(CachedConfiguration.getInstance(), new MRTokenFileTester(), args));
+        assertEquals(0, ToolRunner.run(CachedConfiguration.getInstance(), new MRTokenFileTester(), args));
     }
   }
   
   @Test
   public void testMR() throws Exception {
     MockInstance mockInstance = new MockInstance(INSTANCE_NAME);
-    Connector c = mockInstance.getConnector("root", new PasswordToken(""));
+    Connector c = mockInstance.getConnector("root", new PasswordToken(new byte[0]));
     c.tableOperations().create(TEST_TABLE_1);
     c.tableOperations().create(TEST_TABLE_2);
     BatchWriter bw = c.createBatchWriter(TEST_TABLE_1, new BatchWriterConfig());

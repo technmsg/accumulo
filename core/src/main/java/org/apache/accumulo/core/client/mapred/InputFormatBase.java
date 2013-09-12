@@ -368,9 +368,9 @@ public abstract class InputFormatBase<K,V> implements InputFormat<K,V> {
    * @see #fetchColumns(JobConf, Collection)
    */
   protected static Set<Pair<Text,Text>> getFetchedColumns(JobConf job) {
-    return InputConfigurator.getFetchedColumns(CLASS, job);
+    return InputConfigurator.getFetchedColumns(CLASS, job, getInputTableName (job));
   }
-  
+
   /**
    * Encode an iterator on the input for this job.
    * 

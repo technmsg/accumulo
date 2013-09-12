@@ -58,8 +58,16 @@ import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.util.StringUtils;
 
+import static java.lang.String.format;
+import static org.apache.accumulo.core.Constants.UTF8;
+import static org.apache.accumulo.core.Constants.ZTABLE_NAME;
+import static org.apache.accumulo.core.client.mapreduce.lib.util.InputConfigurator.ScanOpts.COLUMNS;
+import static org.apache.accumulo.core.client.mapreduce.lib.util.InputConfigurator.ScanOpts.ITERATORS;
 import static org.apache.accumulo.core.util.ArgumentChecker.notNull;
+import static org.apache.accumulo.core.util.TextUtil.getBytes;
+import static org.apache.commons.codec.binary.Base64.decodeBase64;
 import static org.apache.commons.codec.binary.Base64.encodeBase64;
+import static org.apache.hadoop.util.StringUtils.COMMA_STR;
 import static org.apache.hadoop.util.StringUtils.join;
 import static org.apache.hadoop.util.StringUtils.split;
 
@@ -218,7 +226,7 @@ public class InputConfigurator extends ConfiguratorBase {
    * @since 1.6.0
    */
   public static void setRanges(Class<?> implementingClass, Configuration conf, Map<String, Collection<Range>> ranges) {
-    notNull(ranges);
+    notNull (ranges);
 
     ArrayList<String> rangeStrings = new ArrayList<String>(ranges.size());
     for (Map.Entry<String,Collection<Range>> pair : ranges.entrySet()) {
@@ -261,7 +269,7 @@ public class InputConfigurator extends ConfiguratorBase {
 
     // parse out the ranges and add them to table's bucket
     for (String rangeString : conf.getStringCollection(enumToConfKey(implementingClass, ScanOpts.RANGES))) {
-      ByteArrayInputStream bais = new ByteArrayInputStream(Base64.decodeBase64(rangeString.getBytes()));
+      ByteArrayInputStream bais = new ByteArrayInputStream(decodeBase64 (rangeString.getBytes ()));
       TableRange range = new TableRange ();
       range.readFields(new DataInputStream(bais));
       ranges.get(range.tableName()).add(range.range());
@@ -271,7 +279,8 @@ public class InputConfigurator extends ConfiguratorBase {
   }
   
   /**
-   * Restricts the columns that will be mapped over for this job.
+   * Restricts the columns that will be mapped over for this job. This provides backwards compatibility when single
+   * tables
    * 
    * @param implementingClass
    *          the class whose name will be used as a prefix for the property configuration key
@@ -289,14 +298,55 @@ public class InputConfigurator extends ConfiguratorBase {
       if (column.getFirst() == null)
         throw new IllegalArgumentException("Column family can not be null");
       
-      String col = new String(encodeBase64 (TextUtil.getBytes (column.getFirst ())), Constants.UTF8);
+      String col = new String(encodeBase64 (getBytes (column.getFirst ())), UTF8);
       if (column.getSecond() != null)
-        col += ":" + new String(encodeBase64 (TextUtil.getBytes (column.getSecond ())), Constants.UTF8);
+        col += ":" + new String(encodeBase64 (getBytes (column.getSecond ())), UTF8);
       columnStrings.add(col);
     }
-    conf.setStrings(enumToConfKey(implementingClass, ScanOpts.COLUMNS), columnStrings.toArray(new String[0]));
+
+    String[] tables = getInputTableNames (implementingClass, conf);
+    if(tables.length > 0)
+      conf.setStrings(format ("%s.%s", enumToConfKey (implementingClass, COLUMNS), tables[0]),
+              columnStrings.toArray (new String[0]));
+    else
+      throw new IllegalStateException ("Input tables must be set before setting fetched columns");
   }
-  
+
+  /**
+   * Restricts the columns that will be mapped over for this job.
+   *
+   * @param implementingClass
+   *          the class whose name will be used as a prefix for the property configuration key
+   * @param conf
+   *          the Hadoop configuration object to configure
+   * @param columnFamilyColumnQualifierPairs
+   *          a map keyed by the table name corresponding to a pair of {@link Text} objects corresponding to column
+   *          family and column qualifier. If the column qualifier is null, the entire column family is
+   *          selected. An empty set is the default and is equivalent to scanning the all columns.
+   * @since 1.5.0
+   */
+  public static void fetchColumns(Class<?> implementingClass, Configuration conf, Map<String, Collection<Pair<Text,Text>>> columnFamilyColumnQualifierPairs) {
+    notNull (columnFamilyColumnQualifierPairs);
+    ArrayList<String> columnStrings = new ArrayList<String>(columnFamilyColumnQualifierPairs.size());
+    for (Map.Entry<String, Collection<Pair<Text,Text>>> tableColumns : columnFamilyColumnQualifierPairs.entrySet()) {
+
+      String tableName = tableColumns.getKey();
+      for(Pair<Text,Text> column : tableColumns.getValue()) {
+
+        if (column.getFirst() == null)
+          throw new IllegalArgumentException("Column family can not be null");
+
+        String col = new String(encodeBase64 (getBytes (column.getFirst ())), UTF8);
+        if (column.getSecond() != null)
+          col += ":" + new String(encodeBase64 (getBytes (column.getSecond ())), UTF8);
+        columnStrings.add(col);
+      }
+      conf.setStrings (format ("%s.%s", enumToConfKey (implementingClass, COLUMNS), tableName),
+              columnStrings.toArray (new String[0]));
+    }
+  }
+
+
   /**
    * Gets the columns to be mapped over from this job.
    * 
@@ -308,19 +358,19 @@ public class InputConfigurator extends ConfiguratorBase {
    * @since 1.5.0
    * @see #fetchColumns(Class, Configuration, Collection)
    */
-  public static Set<Pair<Text,Text>> getFetchedColumns(Class<?> implementingClass, Configuration conf) {
+  public static Set<Pair<Text,Text>> getFetchedColumns(Class<?> implementingClass, Configuration conf, String table) {
     Set<Pair<Text,Text>> columns = new HashSet<Pair<Text,Text>>();
-    for (String col : conf.getStringCollection(enumToConfKey(implementingClass, ScanOpts.COLUMNS))) {
+    for (String col : conf.getStringCollection(format ("%s.%s", enumToConfKey (implementingClass, COLUMNS), table))) {
       int idx = col.indexOf(":");
-      Text cf = new Text(idx < 0 ? Base64.decodeBase64(col.getBytes(Constants.UTF8)) : Base64.decodeBase64(col.substring(0, idx).getBytes(Constants.UTF8)));
-      Text cq = idx < 0 ? null : new Text(Base64.decodeBase64(col.substring(idx + 1).getBytes()));
+      Text cf = new Text(idx < 0 ? decodeBase64 (col.getBytes (UTF8)) : decodeBase64 (col.substring (0, idx).getBytes (UTF8)));
+      Text cq = idx < 0 ? null : new Text(decodeBase64 (col.substring (idx + 1).getBytes ()));
       columns.add(new Pair<Text,Text>(cf, cq));
     }
     return columns;
   }
   
   /**
-   * Encode an iterator on the input for this job.
+   * Encode an iterator on the default input table for this job.
    * 
    * @param implementingClass
    *          the class whose name will be used as a prefix for the property configuration key
@@ -329,30 +379,67 @@ public class InputConfigurator extends ConfiguratorBase {
    * @param cfg
    *          the configuration of the iterator
    * @since 1.5.0
+   * @deprecated since 1.6.0 in favor of addIterators();
    */
   public static void addIterator(Class<?> implementingClass, Configuration conf, IteratorSetting cfg) {
     ByteArrayOutputStream baos = new ByteArrayOutputStream();
     String newIter;
     try {
       cfg.write(new DataOutputStream(baos));
-      newIter = new String(encodeBase64 (baos.toByteArray ()), Constants.UTF8);
+      newIter = new String(encodeBase64 (baos.toByteArray ()), UTF8);
       baos.close();
     } catch (IOException e) {
       throw new IllegalArgumentException("unable to serialize IteratorSetting");
     }
     
-    String iterators = conf.get(enumToConfKey(implementingClass, ScanOpts.ITERATORS));
+    String iterators = conf.get(enumToConfKey(implementingClass, ITERATORS));
     // No iterators specified yet, create a new string
     if (iterators == null || iterators.isEmpty()) {
       iterators = newIter;
     } else {
       // append the next iterator & reset
-      iterators = iterators.concat(StringUtils.COMMA_STR + newIter);
+      iterators = iterators.concat(COMMA_STR + newIter);
     }
     // Store the iterators w/ the job
-    conf.set(enumToConfKey(implementingClass, ScanOpts.ITERATORS), iterators);
+    conf.set (enumToConfKey (implementingClass, ITERATORS), iterators);
   }
-  
+
+  /**
+   * Encode an iterator on the input for this job.
+   *
+   * @param implementingClass
+   *          the class whose name will be used as a prefix for the property configuration key
+   * @param conf
+   *          the Hadoop configuration object to configure
+   * @param cfg
+   *          the configuration of the iterator
+   * @since 1.5.0
+   * @deprecated since 1.6.0 in favor of addIterators();
+   */
+  public static void addIterator(Class<?> implementingClass, Configuration conf, String tableName, IteratorSetting cfg) {
+    ByteArrayOutputStream baos = new ByteArrayOutputStream();
+    String newIter;
+    try {
+      cfg.write(new DataOutputStream(baos));
+      newIter = new String(encodeBase64 (baos.toByteArray ()), UTF8);
+      baos.close();
+    } catch (IOException e) {
+      throw new IllegalArgumentException("unable to serialize IteratorSetting");
+    }
+
+    String iterators = conf.get(enumToConfKey(implementingClass, ITERATORS));
+    // No iterators specified yet, create a new string
+    if (iterators == null || iterators.isEmpty()) {
+      iterators = newIter;
+    } else {
+      // append the next iterator & reset
+      iterators = iterators.concat(COMMA_STR + newIter);
+    }
+    // Store the iterators w/ the job
+    conf.set(enumToConfKey(implementingClass, ITERATORS), iterators);
+  }
+
+
   /**
    * Gets a list of the iterator settings (for iterators to apply to a scanner) from this configuration.
    * 
@@ -365,19 +452,19 @@ public class InputConfigurator extends ConfiguratorBase {
    * @see #addIterator(Class, Configuration, IteratorSetting)
    */
   public static List<IteratorSetting> getIterators(Class<?> implementingClass, Configuration conf) {
-    String iterators = conf.get(enumToConfKey(implementingClass, ScanOpts.ITERATORS));
+    String iterators = conf.get(enumToConfKey(implementingClass, ITERATORS));
     
     // If no iterators are present, return an empty list
     if (iterators == null || iterators.isEmpty())
       return new ArrayList<IteratorSetting>();
     
     // Compose the set of iterators encoded in the job configuration
-    StringTokenizer tokens = new StringTokenizer(iterators, StringUtils.COMMA_STR);
+    StringTokenizer tokens = new StringTokenizer(iterators, COMMA_STR);
     List<IteratorSetting> list = new ArrayList<IteratorSetting>();
     try {
       while (tokens.hasMoreTokens()) {
         String itstring = tokens.nextToken();
-        ByteArrayInputStream bais = new ByteArrayInputStream(Base64.decodeBase64(itstring.getBytes()));
+        ByteArrayInputStream bais = new ByteArrayInputStream(decodeBase64 (itstring.getBytes ()));
         list.add(new IteratorSetting(new DataInputStream(bais)));
         bais.close();
       }

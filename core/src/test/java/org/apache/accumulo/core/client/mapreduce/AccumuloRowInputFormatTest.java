@@ -165,7 +165,11 @@ public class AccumuloRowInputFormatTest {
       job.setMapOutputKeyClass(Key.class);
       job.setMapOutputValueClass(Value.class);
       job.setOutputFormatClass(NullOutputFormat.class);
-      
+
+      for(Entry<String, String> entry : job.getConfiguration ()) {
+        System.out.println(entry);
+      }
+
       job.setNumReduceTasks(0);
       
       job.waitForCompletion(true);
