@@ -16,6 +16,7 @@
  */
 package org.apache.accumulo.core.client.mapred;
 
+import static org.apache.commons.codec.binary.Base64.encodeBase64;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
@@ -64,19 +65,18 @@ public class AccumuloInputFormatTest {
   @Test
   public void testSetIterator() throws IOException {
     JobConf job = new JobConf();
-    
     IteratorSetting is = new IteratorSetting(1, "WholeRow", "org.apache.accumulo.core.iterators.WholeRowIterator");
     AccumuloInputFormat.addIterator(job, is);
     ByteArrayOutputStream baos = new ByteArrayOutputStream();
     is.write(new DataOutputStream(baos));
     String iterators = job.get("AccumuloInputFormat.ScanOpts.Iterators");
-    assertEquals(new String(Base64.encodeBase64(baos.toByteArray())), iterators);
+    assertEquals(new String(encodeBase64 (baos.toByteArray ())), iterators);
   }
   
   @Test
   public void testAddIterator() throws IOException {
     JobConf job = new JobConf();
-    
+
     AccumuloInputFormat.addIterator(job, new IteratorSetting(1, "WholeRow", WholeRowIterator.class));
     AccumuloInputFormat.addIterator(job, new IteratorSetting(2, "Versions", "org.apache.accumulo.core.iterators.VersioningIterator"));
     IteratorSetting iter = new IteratorSetting(3, "Count", "org.apache.accumulo.core.iterators.CountingIterator");
@@ -152,7 +152,7 @@ public class AccumuloInputFormatTest {
   @Test
   public void testGetIteratorSettings() throws IOException {
     JobConf job = new JobConf();
-    
+
     AccumuloInputFormat.addIterator(job, new IteratorSetting(1, "WholeRow", "org.apache.accumulo.core.iterators.WholeRowIterator"));
     AccumuloInputFormat.addIterator(job, new IteratorSetting(2, "Versions", "org.apache.accumulo.core.iterators.VersioningIterator"));
     AccumuloInputFormat.addIterator(job, new IteratorSetting(3, "Count", "org.apache.accumulo.core.iterators.CountingIterator"));
@@ -185,7 +185,7 @@ public class AccumuloInputFormatTest {
     JobConf job = new JobConf();
     
     String regex = ">\"*%<>\'\\";
-    
+
     IteratorSetting is = new IteratorSetting(50, regex, RegExFilter.class);
     RegExFilter.setRegexs(is, regex, null, null, null, false);
     AccumuloInputFormat.addIterator(job, is);

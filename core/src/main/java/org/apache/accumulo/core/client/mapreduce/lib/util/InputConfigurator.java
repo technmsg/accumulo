@@ -59,6 +59,7 @@ import org.apache.hadoop.io.Text;
 import org.apache.hadoop.util.StringUtils;
 
 import static java.lang.String.format;
+import static java.util.Arrays.asList;
 import static org.apache.accumulo.core.Constants.UTF8;
 import static org.apache.accumulo.core.Constants.ZTABLE_NAME;
 import static org.apache.accumulo.core.client.mapreduce.lib.util.InputConfigurator.ScanOpts.COLUMNS;
@@ -368,41 +369,6 @@ public class InputConfigurator extends ConfiguratorBase {
     }
     return columns;
   }
-  
-  /**
-   * Encode an iterator on the default input table for this job.
-   * 
-   * @param implementingClass
-   *          the class whose name will be used as a prefix for the property configuration key
-   * @param conf
-   *          the Hadoop configuration object to configure
-   * @param cfg
-   *          the configuration of the iterator
-   * @since 1.5.0
-   * @deprecated since 1.6.0 in favor of addIterators();
-   */
-  public static void addIterator(Class<?> implementingClass, Configuration conf, IteratorSetting cfg) {
-    ByteArrayOutputStream baos = new ByteArrayOutputStream();
-    String newIter;
-    try {
-      cfg.write(new DataOutputStream(baos));
-      newIter = new String(encodeBase64 (baos.toByteArray ()), UTF8);
-      baos.close();
-    } catch (IOException e) {
-      throw new IllegalArgumentException("unable to serialize IteratorSetting");
-    }
-    
-    String iterators = conf.get(enumToConfKey(implementingClass, ITERATORS));
-    // No iterators specified yet, create a new string
-    if (iterators == null || iterators.isEmpty()) {
-      iterators = newIter;
-    } else {
-      // append the next iterator & reset
-      iterators = iterators.concat(COMMA_STR + newIter);
-    }
-    // Store the iterators w/ the job
-    conf.set (enumToConfKey (implementingClass, ITERATORS), iterators);
-  }
 
   /**
    * Encode an iterator on the input for this job.
@@ -414,9 +380,43 @@ public class InputConfigurator extends ConfiguratorBase {
    * @param cfg
    *          the configuration of the iterator
    * @since 1.5.0
-   * @deprecated since 1.6.0 in favor of addIterators();
    */
   public static void addIterator(Class<?> implementingClass, Configuration conf, String tableName, IteratorSetting cfg) {
+      ByteArrayOutputStream baos = new ByteArrayOutputStream();
+      String newIter;
+      try {
+        cfg.write(new DataOutputStream(baos));
+        newIter = new String(encodeBase64 (baos.toByteArray ()), UTF8);
+        baos.close();
+      } catch (IOException e) {
+        throw new IllegalArgumentException("unable to serialize IteratorSetting");
+      }
+
+      String confKey = format("%s.%s", enumToConfKey(implementingClass, ITERATORS), tableName);
+      String iterators = conf.get(confKey);
+      // No iterators specified yet, create a new string
+      if (iterators == null || iterators.isEmpty()) {
+        iterators = newIter;
+      } else {
+        // append the next iterator & reset
+        iterators = iterators.concat(COMMA_STR + newIter);
+      }
+      // Store the iterators w/ the job
+      conf.set(confKey, iterators);
+  }
+
+  /**
+   * Encode an iterator on the input for all tables associated with this job.
+   *
+   * @param implementingClass
+   *          the class whose name will be used as a prefix for the property configuration key
+   * @param conf
+   *          the Hadoop configuration object to configure
+   * @param cfg
+   *          the configuration of the iterator
+   * @since 1.5.0
+   */
+  public static void addIterator(Class<?> implementingClass, Configuration conf, IteratorSetting cfg) {
     ByteArrayOutputStream baos = new ByteArrayOutputStream();
     String newIter;
     try {
@@ -427,7 +427,8 @@ public class InputConfigurator extends ConfiguratorBase {
       throw new IllegalArgumentException("unable to serialize IteratorSetting");
     }
 
-    String iterators = conf.get(enumToConfKey(implementingClass, ITERATORS));
+    String confKey = enumToConfKey(implementingClass, ITERATORS);
+    String iterators = conf.get(confKey);
     // No iterators specified yet, create a new string
     if (iterators == null || iterators.isEmpty()) {
       iterators = newIter;
@@ -436,8 +437,9 @@ public class InputConfigurator extends ConfiguratorBase {
       iterators = iterators.concat(COMMA_STR + newIter);
     }
     // Store the iterators w/ the job
-    conf.set(enumToConfKey(implementingClass, ITERATORS), iterators);
+    conf.set(confKey, iterators);
   }
+
 
 
   /**
@@ -449,10 +451,11 @@ public class InputConfigurator extends ConfiguratorBase {
    *          the Hadoop configuration object to configure
    * @return a list of iterators
    * @since 1.5.0
-   * @see #addIterator(Class, Configuration, IteratorSetting)
+   * @see #addIterator(Class, Configuration, String, IteratorSetting)
    */
-  public static List<IteratorSetting> getIterators(Class<?> implementingClass, Configuration conf) {
-    String iterators = conf.get(enumToConfKey(implementingClass, ITERATORS));
+  public static List<IteratorSetting> getIterators(Class<?> implementingClass, Configuration conf, String table) {
+
+    String iterators = conf.get(format ("%s.%s", enumToConfKey (implementingClass, ITERATORS), table));
     
     // If no iterators are present, return an empty list
     if (iterators == null || iterators.isEmpty())
@@ -473,7 +476,44 @@ public class InputConfigurator extends ConfiguratorBase {
     }
     return list;
   }
-  
+
+  /**
+   * Gets a list of the iterator settings (for iterators to apply to a scanner) from this configuration.
+   *
+   * @param implementingClass
+   *          the class whose name will be used as a prefix for the property configuration key
+   * @param conf
+   *          the Hadoop configuration object to configure
+   * @return a list of iterators
+   * @since 1.5.0
+   * @see #addIterator(Class, Configuration, String, IteratorSetting)
+   */
+  public static List<IteratorSetting> getDefaultIterators(Class<?> implementingClass, Configuration conf) {
+
+    String iterators = conf.get(enumToConfKey (implementingClass, ITERATORS));
+
+    // If no iterators are present, return an empty list
+    if (iterators == null || iterators.isEmpty())
+      return new ArrayList<IteratorSetting>();
+
+    // Compose the set of iterators encoded in the job configuration
+    StringTokenizer tokens = new StringTokenizer(iterators, COMMA_STR);
+    List<IteratorSetting> list = new ArrayList<IteratorSetting>();
+    try {
+      while (tokens.hasMoreTokens()) {
+        String itstring = tokens.nextToken();
+        ByteArrayInputStream bais = new ByteArrayInputStream(decodeBase64 (itstring.getBytes ()));
+        list.add(new IteratorSetting(new DataInputStream(bais)));
+        bais.close();
+      }
+    } catch (IOException e) {
+      throw new IllegalArgumentException("couldn't decode iterator settings");
+    }
+    return list;
+  }
+
+
+
   /**
    * Controls the automatic adjustment of ranges for this job. This feature merges overlapping ranges, then splits them to align with tablet boundaries.
    * Disabling this feature will cause exactly one Map task to be created for each specified range. The default setting is enabled. *
@@ -682,8 +722,8 @@ public class InputConfigurator extends ConfiguratorBase {
 
       if (!conf.getBoolean(enumToConfKey(implementingClass, Features.USE_LOCAL_ITERATORS), false)) {
         // validate that any scan-time iterators can be loaded by the the tablet servers
-        for (IteratorSetting iter : getIterators(implementingClass, conf)) {    // TODO: These iterators need to be separated by table
-          for(String tableName : getInputTableNames (implementingClass, conf)) {
+        for(String tableName : getInputTableNames (implementingClass, conf)) {
+          for (IteratorSetting iter : getIterators(implementingClass, conf, tableName)) {    // TODO: These iterators need to be separated by table
             if (!c.tableOperations().testClassLoad(tableName, iter.getIteratorClass(), SortedKeyValueIterator.class.getName()))
               throw new AccumuloException("Servers are unable to load " + iter.getIteratorClass() + " as a " + SortedKeyValueIterator.class.getName());
 

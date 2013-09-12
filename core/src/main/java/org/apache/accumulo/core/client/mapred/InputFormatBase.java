@@ -394,7 +394,7 @@ public abstract class InputFormatBase<K,V> implements InputFormat<K,V> {
    * @see #addIterator(JobConf, IteratorSetting)
    */
   protected static List<IteratorSetting> getIterators(JobConf job) {
-    return InputConfigurator.getIterators(CLASS, job);
+    return InputConfigurator.getDefaultIterators(CLASS, job);
   }
   
   /**

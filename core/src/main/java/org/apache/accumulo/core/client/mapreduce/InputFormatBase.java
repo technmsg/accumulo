@@ -409,18 +409,35 @@ public abstract class InputFormatBase<K,V> extends InputFormat<K,V> {
   }
   
   /**
-   * Encode an iterator on the input for this job.
+   * Encode an iterator on the default input table for this job.
    * 
    * @param job
    *          the Hadoop job instance to be configured
    * @param cfg
    *          the configuration of the iterator
    * @since 1.5.0
+   * @deprecated since 1.6.0
    */
+  @Deprecated
   public static void addIterator(Job job, IteratorSetting cfg) {
-    InputConfigurator.addIterator(CLASS, job.getConfiguration(), cfg);
+      InputConfigurator.addIterator(CLASS, job.getConfiguration(), cfg);
   }
-  
+
+  /**
+   * Encode an iterator on the input for this job for the specified table.
+   *
+   * @param job
+   *          the Hadoop job instance to be configured
+   * @param cfg
+   *          the configuration of the iterator
+   * @since 1.6.0
+   */
+  @Deprecated
+  public static void addIterator(Job job, IteratorSetting cfg, String table) {
+    InputConfigurator.addIterator(CLASS, job.getConfiguration(), table, cfg);
+  }
+
+
   /**
    * Gets a list of the iterator settings (for iterators to apply to a scanner) from this configuration.
    * 
@@ -430,8 +447,21 @@ public abstract class InputFormatBase<K,V> extends InputFormat<K,V> {
    * @since 1.5.0
    * @see #addIterator(Job, IteratorSetting)
    */
+  protected static List<IteratorSetting> getIterators(JobContext context, String table) {
+    return InputConfigurator.getIterators(CLASS, getConfiguration(context), table);
+  }
+
+  /**
+   * Gets a list of the iterator settings (for iterators to apply to a scanner) from this configuration.
+   *
+   * @param context
+   *          the Hadoop context for the configured job
+   * @return a list of iterators
+   * @since 1.5.0
+   * @see #addIterator(Job, IteratorSetting)
+   */
   protected static List<IteratorSetting> getIterators(JobContext context) {
-    return InputConfigurator.getIterators(CLASS, getConfiguration(context));
+    return InputConfigurator.getDefaultIterators (CLASS, getConfiguration(context));
   }
   
   /**
@@ -627,10 +657,10 @@ public abstract class InputFormatBase<K,V> extends InputFormat<K,V> {
      *          the scanner to configure
      */
     protected void setupIterators(TaskAttemptContext context, Scanner scanner, String tableName) {
-      List<IteratorSetting> iterators = getIterators(context);
-      for (IteratorSetting iterator : iterators) {
+      List<IteratorSetting> iterators = getIterators(context, tableName);
+      iterators.addAll (getIterators (context));
+      for (IteratorSetting iterator : iterators)
         scanner.addScanIterator(iterator);
-      }
     }
 
 
@@ -818,101 +848,6 @@ public abstract class InputFormatBase<K,V> extends InputFormat<K,V> {
     return binnedRanges;
   }
   
-//  /**
-//   * Read the metadata table to get tablets and match up ranges to them.
-//   */
-//  @Override
-//  public List<InputSplit> getSplits(JobContext context) throws IOException {
-//    log.setLevel(getLogLevel(context));
-//    validateOptions(context);
-//
-//    boolean autoAdjust = getAutoAdjustRanges(context);
-//    String tableName = getDefaultInputTableName(context);
-//    List<Range> ranges = autoAdjust ? Range.mergeOverlapping(getRanges(context)) : getRanges(context);
-//
-//    if (ranges.isEmpty()) {
-//      ranges = new ArrayList<Range>(1);
-//      ranges.add(new Range());
-//    }
-//
-//    // get the metadata information for these ranges
-//    Map<String,Map<KeyExtent,List<Range>>> binnedRanges = new HashMap<String,Map<KeyExtent,List<Range>>>();
-//    TabletLocator tl;
-//    try {
-//      if (isOfflineScan(context)) {
-//        binnedRanges = binOfflineTable(context, tableName, ranges);
-//        while (binnedRanges == null) {
-//          // Some tablets were still online, try again
-//          UtilWaitThread.sleep(100 + (int) (Math.random() * 100)); // sleep randomly between 100 and 200 ms
-//          binnedRanges = binOfflineTable(context, tableName, ranges);
-//        }
-//      } else {
-//        Instance instance = getInstance(context);
-//        String tableId = null;
-//        tl = getTabletLocator(context);
-//        // its possible that the cache could contain complete, but old information about a tables tablets... so clear it
-//        tl.invalidateCache();
-//        while (!tl.binRanges(new Credentials(getPrincipal(context), AuthenticationTokenSerializer.deserialize(getTokenClass(context), getToken(context))),
-//            ranges, binnedRanges).isEmpty()) {
-//          if (!(instance instanceof MockInstance)) {
-//            if (tableId == null)
-//              tableId = Tables.getTableId(instance, tableName);
-//            if (!Tables.exists(instance, tableId))
-//              throw new TableDeletedException(tableId);
-//            if (Tables.getTableState(instance, tableId) == TableState.OFFLINE)
-//              throw new TableOfflineException(instance, tableId);
-//          }
-//          binnedRanges.clear();
-//          log.warn("Unable to locate bins for specified ranges. Retrying.");
-//          UtilWaitThread.sleep(100 + (int) (Math.random() * 100)); // sleep randomly between 100 and 200 ms
-//          tl.invalidateCache();
-//        }
-//      }
-//    } catch (Exception e) {
-//      throw new IOException(e);
-//    }
-//
-//    ArrayList<InputSplit> splits = new ArrayList<InputSplit>(ranges.size());
-//    HashMap<Range,ArrayList<String>> splitsToAdd = null;
-//
-//    if (!autoAdjust)
-//      splitsToAdd = new HashMap<Range,ArrayList<String>>();
-//
-//    HashMap<String,String> hostNameCache = new HashMap<String,String>();
-//
-//    for (Entry<String,Map<KeyExtent,List<Range>>> tserverBin : binnedRanges.entrySet()) {
-//      String ip = tserverBin.getKey().split(":", 2)[0];
-//      String location = hostNameCache.get(ip);
-//      if (location == null) {
-//        InetAddress inetAddress = InetAddress.getByName(ip);
-//        location = inetAddress.getHostName();
-//        hostNameCache.put(ip, location);
-//      }
-//
-//      for (Entry<KeyExtent,List<Range>> extentRanges : tserverBin.getValue().entrySet()) {
-//        Range ke = extentRanges.getKey().toDataRange();
-//        for (Range r : extentRanges.getValue()) {
-//          if (autoAdjust) {
-//            // divide ranges into smaller ranges, based on the tablets
-//            splits.add(new RangeInputSplit(tableName, ke.clip(r), new String[] {location}));
-//          } else {
-//            // don't divide ranges
-//            ArrayList<String> locations = splitsToAdd.get(r);
-//            if (locations == null)
-//              locations = new ArrayList<String>(1);
-//            locations.add(location);
-//            splitsToAdd.put(r, locations);
-//          }
-//        }
-//      }
-//    }
-//
-//    if (!autoAdjust)
-//      for (Entry<Range,ArrayList<String>> entry : splitsToAdd.entrySet())
-//        splits.add(new RangeInputSplit(tableName, entry.getKey(), entry.getValue().toArray(new String[0])));
-//    return splits;
-//  }
-
   public List<InputSplit> getSplits(JobContext conf) throws IOException {
     log.setLevel(getLogLevel(conf));
     validateOptions(conf);

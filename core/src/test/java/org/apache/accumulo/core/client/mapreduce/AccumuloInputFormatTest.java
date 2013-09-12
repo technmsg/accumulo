@@ -62,7 +62,7 @@ public class AccumuloInputFormatTest {
   @Test
   public void testSetIterator() throws IOException {
     Job job = new Job();
-    
+
     IteratorSetting is = new IteratorSetting(1, "WholeRow", "org.apache.accumulo.core.iterators.WholeRowIterator");
     AccumuloInputFormat.addIterator(job, is);
     Configuration conf = job.getConfiguration();
@@ -75,7 +75,7 @@ public class AccumuloInputFormatTest {
   @Test
   public void testAddIterator() throws IOException {
     Job job = new Job();
-    
+
     AccumuloInputFormat.addIterator(job, new IteratorSetting(1, "WholeRow", WholeRowIterator.class));
     AccumuloInputFormat.addIterator(job, new IteratorSetting(2, "Versions", "org.apache.accumulo.core.iterators.VersioningIterator"));
     IteratorSetting iter = new IteratorSetting(3, "Count", "org.apache.accumulo.core.iterators.CountingIterator");
@@ -151,7 +151,7 @@ public class AccumuloInputFormatTest {
   @Test
   public void testGetIteratorSettings() throws IOException {
     Job job = new Job();
-    
+
     AccumuloInputFormat.addIterator(job, new IteratorSetting(1, "WholeRow", "org.apache.accumulo.core.iterators.WholeRowIterator"));
     AccumuloInputFormat.addIterator(job, new IteratorSetting(2, "Versions", "org.apache.accumulo.core.iterators.VersioningIterator"));
     AccumuloInputFormat.addIterator(job, new IteratorSetting(3, "Count", "org.apache.accumulo.core.iterators.CountingIterator"));
@@ -182,7 +182,7 @@ public class AccumuloInputFormatTest {
   @Test
   public void testSetRegex() throws IOException {
     Job job = new Job();
-    
+
     String regex = ">\"*%<>\'\\";
     
     IteratorSetting is = new IteratorSetting(50, regex, RegExFilter.class);
