@@ -394,7 +394,23 @@ public abstract class InputFormatBase<K,V> extends InputFormat<K,V> {
   public static void fetchColumns(Job job, Collection<Pair<Text,Text>> columnFamilyColumnQualifierPairs) {
     InputConfigurator.fetchColumns(CLASS, job.getConfiguration(), columnFamilyColumnQualifierPairs);
   }
-  
+
+  /**
+   * Restricts the columns that will be mapped over for this job.
+   *
+   * @param job
+   *          the Hadoop job instance to be configured
+   * @param columnFamilyColumnQualifierPairs
+   *          a pair of {@link Text} objects corresponding to column family and column qualifier. If the column qualifier is null, the entire column family is
+   *          selected. An empty set is the default and is equivalent to scanning the all columns.
+   * @since 1.5.0
+   */
+  public static void fetchColumns(Job job, Map<String, Collection<Pair<Text,Text>>> columnFamilyColumnQualifierPairs) {
+    InputConfigurator.fetchColumns(CLASS, job.getConfiguration(), columnFamilyColumnQualifierPairs);
+  }
+
+
+
   /**
    * Gets the columns to be mapped over from this job.
    * 
@@ -416,9 +432,7 @@ public abstract class InputFormatBase<K,V> extends InputFormat<K,V> {
    * @param cfg
    *          the configuration of the iterator
    * @since 1.5.0
-   * @deprecated since 1.6.0
    */
-  @Deprecated
   public static void addIterator(Job job, IteratorSetting cfg) {
       InputConfigurator.addIterator(CLASS, job.getConfiguration(), cfg);
   }
@@ -432,7 +446,6 @@ public abstract class InputFormatBase<K,V> extends InputFormat<K,V> {
    *          the configuration of the iterator
    * @since 1.6.0
    */
-  @Deprecated
   public static void addIterator(Job job, IteratorSetting cfg, String table) {
     InputConfigurator.addIterator(CLASS, job.getConfiguration(), table, cfg);
   }

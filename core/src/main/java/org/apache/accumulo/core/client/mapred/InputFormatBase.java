@@ -82,17 +82,17 @@ import static org.apache.accumulo.core.client.security.tokens.AuthenticationToke
  * See {@link AccumuloInputFormat} for an example implementation.
  */
 public abstract class InputFormatBase<K,V> implements InputFormat<K,V> {
-  
+
   private static final Class<?> CLASS = AccumuloInputFormat.class;
   protected static final Logger log = Logger.getLogger(CLASS);
-  
+
   /**
    * Sets the connector information needed to communicate with Accumulo in this job.
-   * 
+   *
    * <p>
    * <b>WARNING:</b> The serialized token is stored in the configuration and shared with all MapReduce tasks. It is BASE64 encoded to provide a charset safe
    * conversion to a string, and is not intended to be secure.
-   * 
+   *
    * @param job
    *          the Hadoop job instance to be configured
    * @param principal
@@ -105,13 +105,13 @@ public abstract class InputFormatBase<K,V> implements InputFormat<K,V> {
   public static void setConnectorInfo(JobConf job, String principal, AuthenticationToken token) throws AccumuloSecurityException {
     InputConfigurator.setConnectorInfo(CLASS, job, principal, token);
   }
-  
+
   /**
    * Sets the connector information needed to communicate with Accumulo in this job.
-   * 
+   *
    * <p>
    * Stores the password in a file in HDFS and pulls that into the Distributed Cache in an attempt to be more secure than storing it in the Configuration.
-   * 
+   *
    * @param job
    *          the Hadoop job instance to be configured
    * @param principal
@@ -124,10 +124,10 @@ public abstract class InputFormatBase<K,V> implements InputFormat<K,V> {
   public static void setConnectorInfo(JobConf job, String principal, String tokenFile) throws AccumuloSecurityException {
     InputConfigurator.setConnectorInfo(CLASS, job, principal, tokenFile);
   }
-  
+
   /**
    * Determines if the connector has been configured.
-   * 
+   *
    * @param job
    *          the Hadoop context for the configured job
    * @return true if the connector has been configured, false otherwise
@@ -137,10 +137,10 @@ public abstract class InputFormatBase<K,V> implements InputFormat<K,V> {
   protected static Boolean isConnectorInfoSet(JobConf job) {
     return InputConfigurator.isConnectorInfoSet(CLASS, job);
   }
-  
+
   /**
    * Gets the user name from the configuration.
-   * 
+   *
    * @param job
    *          the Hadoop context for the configured job
    * @return the user name
@@ -150,10 +150,10 @@ public abstract class InputFormatBase<K,V> implements InputFormat<K,V> {
   protected static String getPrincipal(JobConf job) {
     return InputConfigurator.getPrincipal(CLASS, job);
   }
-  
+
   /**
    * Gets the serialized token class from the configuration.
-   * 
+   *
    * @param job
    *          the Hadoop context for the configured job
    * @return the user name
@@ -163,11 +163,11 @@ public abstract class InputFormatBase<K,V> implements InputFormat<K,V> {
   protected static String getTokenClass(JobConf job) {
     return InputConfigurator.getTokenClass(CLASS, job);
   }
-  
+
   /**
    * Gets the password from the configuration. WARNING: The password is stored in the Configuration and shared with all MapReduce tasks; It is BASE64 encoded to
    * provide a charset safe conversion to a string, and is not intended to be secure.
-   * 
+   *
    * @param job
    *          the Hadoop context for the configured job
    * @return the decoded user password
@@ -177,11 +177,11 @@ public abstract class InputFormatBase<K,V> implements InputFormat<K,V> {
   protected static byte[] getToken(JobConf job) {
     return InputConfigurator.getToken(CLASS, job);
   }
-  
+
   /**
    * Gets the password file from the configuration. It is BASE64 encoded to provide a charset safe conversion to a string, and is not intended to be secure. If
    * specified, the password will be stored in a file rather than in the Configuration.
-   * 
+   *
    * @param job
    *          the Hadoop context for the configured job
    * @return path to the password file as a String
@@ -191,10 +191,10 @@ public abstract class InputFormatBase<K,V> implements InputFormat<K,V> {
   protected static String getTokenFile(JobConf job) {
     return InputConfigurator.getTokenFile(CLASS, job);
   }
-  
+
   /**
    * Configures a {@link ZooKeeperInstance} for this job.
-   * 
+   *
    * @param job
    *          the Hadoop job instance to be configured
    * @param instanceName
@@ -206,10 +206,10 @@ public abstract class InputFormatBase<K,V> implements InputFormat<K,V> {
   public static void setZooKeeperInstance(JobConf job, String instanceName, String zooKeepers) {
     InputConfigurator.setZooKeeperInstance(CLASS, job, instanceName, zooKeepers);
   }
-  
+
   /**
    * Configures a {@link MockInstance} for this job.
-   * 
+   *
    * @param job
    *          the Hadoop job instance to be configured
    * @param instanceName
@@ -219,10 +219,10 @@ public abstract class InputFormatBase<K,V> implements InputFormat<K,V> {
   public static void setMockInstance(JobConf job, String instanceName) {
     InputConfigurator.setMockInstance(CLASS, job, instanceName);
   }
-  
+
   /**
    * Initializes an Accumulo {@link Instance} based on the configuration.
-   * 
+   *
    * @param job
    *          the Hadoop context for the configured job
    * @return an Accumulo instance
@@ -233,10 +233,10 @@ public abstract class InputFormatBase<K,V> implements InputFormat<K,V> {
   protected static Instance getInstance(JobConf job) {
     return InputConfigurator.getInstance(CLASS, job);
   }
-  
+
   /**
    * Sets the log level for this job.
-   * 
+   *
    * @param job
    *          the Hadoop job instance to be configured
    * @param level
@@ -246,10 +246,10 @@ public abstract class InputFormatBase<K,V> implements InputFormat<K,V> {
   public static void setLogLevel(JobConf job, Level level) {
     InputConfigurator.setLogLevel(CLASS, job, level);
   }
-  
+
   /**
    * Gets the log level from this configuration.
-   * 
+   *
    * @param job
    *          the Hadoop context for the configured job
    * @return the log level
@@ -259,10 +259,10 @@ public abstract class InputFormatBase<K,V> implements InputFormat<K,V> {
   protected static Level getLogLevel(JobConf job) {
     return InputConfigurator.getLogLevel(CLASS, job);
   }
-  
+
   /**
    * Sets the name of the input table, over which this job will scan.
-   * 
+   *
    * @param job
    *          the Hadoop job instance to be configured
    * @param tableName
@@ -272,10 +272,10 @@ public abstract class InputFormatBase<K,V> implements InputFormat<K,V> {
   public static void setInputTableName(JobConf job, String tableName) {
     InputConfigurator.setInputTableName(CLASS, job, tableName);
   }
-  
+
   /**
    * Gets the table name from the configuration.
-   * 
+   *
    * @param job
    *          the Hadoop context for the configured job
    * @return the table name
@@ -289,10 +289,10 @@ public abstract class InputFormatBase<K,V> implements InputFormat<K,V> {
     else
       return null;
   }
-  
+
   /**
    * Sets the {@link Authorizations} used to scan. Must be a subset of the user's authorization. Defaults to the empty set.
-   * 
+   *
    * @param job
    *          the Hadoop job instance to be configured
    * @param auths
@@ -302,10 +302,10 @@ public abstract class InputFormatBase<K,V> implements InputFormat<K,V> {
   public static void setScanAuthorizations(JobConf job, Authorizations auths) {
     InputConfigurator.setScanAuthorizations(CLASS, job, auths);
   }
-  
+
   /**
    * Gets the authorizations to set for the scans from the configuration.
-   * 
+   *
    * @param job
    *          the Hadoop context for the configured job
    * @return the Accumulo scan authorizations
@@ -315,10 +315,10 @@ public abstract class InputFormatBase<K,V> implements InputFormat<K,V> {
   protected static Authorizations getScanAuthorizations(JobConf job) {
     return InputConfigurator.getScanAuthorizations(CLASS, job);
   }
-  
+
   /**
    * Sets the input ranges to scan for this job. If not set, the entire table will be scanned.
-   * 
+   *
    * @param job
    *          the Hadoop job instance to be configured
    * @param ranges
@@ -328,10 +328,10 @@ public abstract class InputFormatBase<K,V> implements InputFormat<K,V> {
   public static void setRanges(JobConf job, Collection<Range> ranges) {
     InputConfigurator.setRanges(CLASS, job, ranges);
   }
-  
+
   /**
    * Gets the ranges to scan over from a job.
-   * 
+   *
    * @param job
    *          the Hadoop context for the configured job
    * @return the ranges
@@ -343,10 +343,10 @@ public abstract class InputFormatBase<K,V> implements InputFormat<K,V> {
   protected static Map<String, List<Range>> getRanges(JobConf job) throws IOException {
     return InputConfigurator.getRanges(CLASS, job);
   }
-  
+
   /**
    * Restricts the columns that will be mapped over for this job.
-   * 
+   *
    * @param job
    *          the Hadoop job instance to be configured
    * @param columnFamilyColumnQualifierPairs
@@ -357,10 +357,10 @@ public abstract class InputFormatBase<K,V> implements InputFormat<K,V> {
   public static void fetchColumns(JobConf job, Collection<Pair<Text,Text>> columnFamilyColumnQualifierPairs) {
     InputConfigurator.fetchColumns(CLASS, job, columnFamilyColumnQualifierPairs);
   }
-  
+
   /**
    * Gets the columns to be mapped over from this job.
-   * 
+   *
    * @param job
    *          the Hadoop context for the configured job
    * @return a set of columns
@@ -373,7 +373,7 @@ public abstract class InputFormatBase<K,V> implements InputFormat<K,V> {
 
   /**
    * Encode an iterator on the input for this job.
-   * 
+   *
    * @param job
    *          the Hadoop job instance to be configured
    * @param cfg
@@ -383,10 +383,10 @@ public abstract class InputFormatBase<K,V> implements InputFormat<K,V> {
   public static void addIterator(JobConf job, IteratorSetting cfg) {
     InputConfigurator.addIterator(CLASS, job, cfg);
   }
-  
+
   /**
    * Gets a list of the iterator settings (for iterators to apply to a scanner) from this configuration.
-   * 
+   *
    * @param job
    *          the Hadoop context for the configured job
    * @return a list of iterators
@@ -396,14 +396,14 @@ public abstract class InputFormatBase<K,V> implements InputFormat<K,V> {
   protected static List<IteratorSetting> getIterators(JobConf job) {
     return InputConfigurator.getDefaultIterators(CLASS, job);
   }
-  
+
   /**
    * Controls the automatic adjustment of ranges for this job. This feature merges overlapping ranges, then splits them to align with tablet boundaries.
    * Disabling this feature will cause exactly one Map task to be created for each specified range. The default setting is enabled. *
-   * 
+   *
    * <p>
    * By default, this feature is <b>enabled</b>.
-   * 
+   *
    * @param job
    *          the Hadoop job instance to be configured
    * @param enableFeature
@@ -414,10 +414,10 @@ public abstract class InputFormatBase<K,V> implements InputFormat<K,V> {
   public static void setAutoAdjustRanges(JobConf job, boolean enableFeature) {
     InputConfigurator.setAutoAdjustRanges(CLASS, job, enableFeature);
   }
-  
+
   /**
    * Determines whether a configuration has auto-adjust ranges enabled.
-   * 
+   *
    * @param job
    *          the Hadoop context for the configured job
    * @return false if the feature is disabled, true otherwise
@@ -427,13 +427,13 @@ public abstract class InputFormatBase<K,V> implements InputFormat<K,V> {
   protected static boolean getAutoAdjustRanges(JobConf job) {
     return InputConfigurator.getAutoAdjustRanges(CLASS, job);
   }
-  
+
   /**
    * Controls the use of the {@link IsolatedScanner} in this job.
-   * 
+   *
    * <p>
    * By default, this feature is <b>disabled</b>.
-   * 
+   *
    * @param job
    *          the Hadoop job instance to be configured
    * @param enableFeature
@@ -443,10 +443,10 @@ public abstract class InputFormatBase<K,V> implements InputFormat<K,V> {
   public static void setScanIsolation(JobConf job, boolean enableFeature) {
     InputConfigurator.setScanIsolation(CLASS, job, enableFeature);
   }
-  
+
   /**
    * Determines whether a configuration has isolation enabled.
-   * 
+   *
    * @param job
    *          the Hadoop context for the configured job
    * @return true if the feature is enabled, false otherwise
@@ -456,14 +456,14 @@ public abstract class InputFormatBase<K,V> implements InputFormat<K,V> {
   protected static boolean isIsolated(JobConf job) {
     return InputConfigurator.isIsolated(CLASS, job);
   }
-  
+
   /**
    * Controls the use of the {@link ClientSideIteratorScanner} in this job. Enabling this feature will cause the iterator stack to be constructed within the Map
    * task, rather than within the Accumulo TServer. To use this feature, all classes needed for those iterators must be available on the classpath for the task.
-   * 
+   *
    * <p>
    * By default, this feature is <b>disabled</b>.
-   * 
+   *
    * @param job
    *          the Hadoop job instance to be configured
    * @param enableFeature
@@ -473,10 +473,10 @@ public abstract class InputFormatBase<K,V> implements InputFormat<K,V> {
   public static void setLocalIterators(JobConf job, boolean enableFeature) {
     InputConfigurator.setLocalIterators(CLASS, job, enableFeature);
   }
-  
+
   /**
    * Determines whether a configuration uses local iterators.
-   * 
+   *
    * @param job
    *          the Hadoop context for the configured job
    * @return true if the feature is enabled, false otherwise
@@ -486,32 +486,32 @@ public abstract class InputFormatBase<K,V> implements InputFormat<K,V> {
   protected static boolean usesLocalIterators(JobConf job) {
     return InputConfigurator.usesLocalIterators(CLASS, job);
   }
-  
+
   /**
    * <p>
    * Enable reading offline tables. By default, this feature is disabled and only online tables are scanned. This will make the map reduce job directly read the
    * table's files. If the table is not offline, then the job will fail. If the table comes online during the map reduce job, it is likely that the job will
    * fail.
-   * 
+   *
    * <p>
    * To use this option, the map reduce user will need access to read the Accumulo directory in HDFS.
-   * 
+   *
    * <p>
    * Reading the offline table will create the scan time iterator stack in the map process. So any iterators that are configured for the table will need to be
    * on the mapper's classpath. The accumulo-site.xml may need to be on the mapper's classpath if HDFS or the Accumulo directory in HDFS are non-standard.
-   * 
+   *
    * <p>
    * One way to use this feature is to clone a table, take the clone offline, and use the clone as the input table for a map reduce job. If you plan to map
    * reduce over the data many times, it may be better to the compact the table, clone it, take it offline, and use the clone for all map reduce jobs. The
    * reason to do this is that compaction will reduce each tablet in the table to one file, and it is faster to read from one file.
-   * 
+   *
    * <p>
    * There are two possible advantages to reading a tables file directly out of HDFS. First, you may see better read performance. Second, it will support
    * speculative execution better. When reading an online table speculative execution can put more load on an already slow tablet server.
-   * 
+   *
    * <p>
    * By default, this feature is <b>disabled</b>.
-   * 
+   *
    * @param job
    *          the Hadoop job instance to be configured
    * @param enableFeature
@@ -521,10 +521,10 @@ public abstract class InputFormatBase<K,V> implements InputFormat<K,V> {
   public static void setOfflineTableScan(JobConf job, boolean enableFeature) {
     InputConfigurator.setOfflineTableScan(CLASS, job, enableFeature);
   }
-  
+
   /**
    * Determines whether a configuration has the offline table scan feature enabled.
-   * 
+   *
    * @param job
    *          the Hadoop context for the configured job
    * @return true if the feature is enabled, false otherwise
@@ -534,10 +534,10 @@ public abstract class InputFormatBase<K,V> implements InputFormat<K,V> {
   protected static boolean isOfflineScan(JobConf job) {
     return InputConfigurator.isOfflineScan(CLASS, job);
   }
-  
+
   /**
    * Initializes an Accumulo {@link TabletLocator} based on the configuration.
-   * 
+   *
    * @param job
    *          the Hadoop context for the configured job
    * @return an Accumulo tablet locator
@@ -548,11 +548,11 @@ public abstract class InputFormatBase<K,V> implements InputFormat<K,V> {
   protected static TabletLocator getTabletLocator(JobConf job, String tableName) throws TableNotFoundException {
     return InputConfigurator.getTabletLocator(CLASS, job, tableName);
   }
-  
+
   // InputFormat doesn't have the equivalent of OutputFormat's checkOutputSpecs(JobContext job)
   /**
    * Check whether a configuration is fully configured to be used with an Accumulo {@link org.apache.hadoop.mapreduce.InputFormat}.
-   * 
+   *
    * @param job
    *          the Hadoop context for the configured job
    * @throws IOException
@@ -562,11 +562,11 @@ public abstract class InputFormatBase<K,V> implements InputFormat<K,V> {
   protected static void validateOptions(JobConf job) throws IOException {
     InputConfigurator.validateOptions(CLASS, job);
   }
-  
+
   /**
    * An abstract base class to be used to create {@link RecordReader} instances that convert from Accumulo {@link Key}/{@link Value} pairs to the user's K/V
    * types.
-   * 
+   *
    * Subclasses must implement {@link #next(Object, Object)} to update key and value, and also to update the following variables:
    * <ul>
    * <li>Key {@link #currentKey} (used for progress reporting)</li>
@@ -577,10 +577,10 @@ public abstract class InputFormatBase<K,V> implements InputFormat<K,V> {
     protected long numKeysRead;
     protected Iterator<Entry<Key,Value>> scannerIterator;
     protected RangeInputSplit split;
-    
+
     /**
      * Apply the configured iterators from the configuration to the scanner.
-     * 
+     *
      * @param job
      *          the Hadoop context for the configured job
      * @param scanner
@@ -592,7 +592,7 @@ public abstract class InputFormatBase<K,V> implements InputFormat<K,V> {
         scanner.addScanIterator(iterator);
       }
     }
-    
+
     /**
      * Initialize a scanner over the given input split using this task attempt configuration.
      */
@@ -605,7 +605,7 @@ public abstract class InputFormatBase<K,V> implements InputFormat<K,V> {
       String tokenClass = getTokenClass(job);
       byte[] password = getToken(job);
       Authorizations authorizations = getScanAuthorizations(job);
-      
+
       try {
         log.debug("Creating connector with user: " + user);
         Connector conn = instance.getConnector(user, AuthenticationTokenSerializer.deserialize(tokenClass, password));
@@ -629,7 +629,7 @@ public abstract class InputFormatBase<K,V> implements InputFormat<K,V> {
       } catch (Exception e) {
         throw new IOException(e);
       }
-      
+
       // setup a scanner within the bounds of this split
       for (Pair<Text,Text> c : getFetchedColumns(job)) {
         if (c.getSecond() != null) {
@@ -640,58 +640,58 @@ public abstract class InputFormatBase<K,V> implements InputFormat<K,V> {
           scanner.fetchColumnFamily(c.getFirst());
         }
       }
-      
+
       scanner.setRange(split.getRange());
-      
+
       numKeysRead = 0;
-      
+
       // do this last after setting all scanner options
       scannerIterator = scanner.iterator();
     }
-    
+
     @Override
     public void close() {}
-    
+
     @Override
     public long getPos() throws IOException {
       return numKeysRead;
     }
-    
+
     @Override
     public float getProgress() throws IOException {
       if (numKeysRead > 0 && currentKey == null)
         return 1.0f;
       return split.getProgress(currentKey);
     }
-    
+
     protected Key currentKey = null;
-    
+
   }
-  
+
   Map<String,Map<KeyExtent,List<Range>>> binOfflineTable(JobConf job, String tableName, List<Range> ranges) throws TableNotFoundException, AccumuloException,
       AccumuloSecurityException {
-    
+
     Map<String,Map<KeyExtent,List<Range>>> binnedRanges = new HashMap<String,Map<KeyExtent,List<Range>>>();
-    
+
     Instance instance = getInstance(job);
     Connector conn = instance.getConnector(getPrincipal(job), AuthenticationTokenSerializer.deserialize(getTokenClass(job), getToken(job)));
     String tableId = Tables.getTableId(instance, tableName);
-    
+
     if (Tables.getTableState(instance, tableId) != TableState.OFFLINE) {
       Tables.clearCache(instance);
       if (Tables.getTableState(instance, tableId) != TableState.OFFLINE) {
         throw new AccumuloException("Table is online " + tableName + "(" + tableId + ") cannot scan table in offline mode ");
       }
     }
-    
+
     for (Range range : ranges) {
       Text startRow;
-      
+
       if (range.getStartKey() != null)
         startRow = range.getStartKey().getRow();
       else
         startRow = new Text();
-      
+
       Range metadataRange = new Range(new KeyExtent(new Text(tableId), startRow, null).getMetadataEntry(), true, null, false);
       Scanner scanner = conn.createScanner(MetadataTable.NAME, Authorizations.EMPTY);
       TabletsSection.TabletColumnFamily.PREV_ROW_COLUMN.fetch(scanner);
@@ -699,73 +699,73 @@ public abstract class InputFormatBase<K,V> implements InputFormat<K,V> {
       scanner.fetchColumnFamily(TabletsSection.CurrentLocationColumnFamily.NAME);
       scanner.fetchColumnFamily(TabletsSection.FutureLocationColumnFamily.NAME);
       scanner.setRange(metadataRange);
-      
+
       RowIterator rowIter = new RowIterator(scanner);
-      
+
       KeyExtent lastExtent = null;
-      
+
       while (rowIter.hasNext()) {
         Iterator<Entry<Key,Value>> row = rowIter.next();
         String last = "";
         KeyExtent extent = null;
         String location = null;
-        
+
         while (row.hasNext()) {
           Entry<Key,Value> entry = row.next();
           Key key = entry.getKey();
-          
+
           if (key.getColumnFamily().equals(TabletsSection.LastLocationColumnFamily.NAME)) {
             last = entry.getValue().toString();
           }
-          
+
           if (key.getColumnFamily().equals(TabletsSection.CurrentLocationColumnFamily.NAME)
               || key.getColumnFamily().equals(TabletsSection.FutureLocationColumnFamily.NAME)) {
             location = entry.getValue().toString();
           }
-          
+
           if (TabletsSection.TabletColumnFamily.PREV_ROW_COLUMN.hasColumns(key)) {
             extent = new KeyExtent(key.getRow(), entry.getValue());
           }
-          
+
         }
-        
+
         if (location != null)
           return null;
-        
+
         if (!extent.getTableId().toString().equals(tableId)) {
           throw new AccumuloException("Saw unexpected table Id " + tableId + " " + extent);
         }
-        
+
         if (lastExtent != null && !extent.isPreviousExtent(lastExtent)) {
           throw new AccumuloException(" " + lastExtent + " is not previous extent " + extent);
         }
-        
+
         Map<KeyExtent,List<Range>> tabletRanges = binnedRanges.get(last);
         if (tabletRanges == null) {
           tabletRanges = new HashMap<KeyExtent,List<Range>>();
           binnedRanges.put(last, tabletRanges);
         }
-        
+
         List<Range> rangeList = tabletRanges.get(extent);
         if (rangeList == null) {
           rangeList = new ArrayList<Range>();
           tabletRanges.put(extent, rangeList);
         }
-        
+
         rangeList.add(range);
-        
+
         if (extent.getEndRow() == null || range.afterEndKey(new Key(extent.getEndRow()).followingKey(PartialKey.ROW))) {
           break;
         }
-        
+
         lastExtent = extent;
       }
-      
+
     }
-    
+
     return binnedRanges;
   }
-  
+
   /**
    * Read the metadata table to get tablets and match up ranges to them.
    */
@@ -871,19 +871,19 @@ public abstract class InputFormatBase<K,V> implements InputFormat<K,V> {
    * The Class RangeInputSplit. Encapsulates an Accumulo range for use in Map Reduce jobs.
    */
   public static class RangeInputSplit extends org.apache.accumulo.core.client.mapreduce.InputFormatBase.RangeInputSplit implements InputSplit {
-    
+
     public RangeInputSplit() {
       super();
     }
-    
+
     public RangeInputSplit(RangeInputSplit split) throws IOException {
       super(split);
     }
-    
+
     protected RangeInputSplit(String table, Range range, String[] locations) {
       super(table, range, locations);
     }
-    
+
   }
-  
+
 }

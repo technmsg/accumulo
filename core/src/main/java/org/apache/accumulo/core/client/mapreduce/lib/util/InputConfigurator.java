@@ -24,6 +24,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -177,7 +178,7 @@ public class InputConfigurator extends ConfiguratorBase {
   }
   
   /**
-   * Sets the input ranges to scan for this job. If not set, the entire table will be scanned.
+   * Sets the input ranges to scan on all input tables for this job. If not set, the entire table will be scanned.
    * 
    * @param implementingClass
    *          the class whose name will be used as a prefix for the property configuration key
@@ -190,33 +191,18 @@ public class InputConfigurator extends ConfiguratorBase {
    */
   public static void setRanges(Class<?> implementingClass, Configuration conf, Collection<Range> ranges) {
     notNull (ranges);
-    notNull(ranges);
 
     String[] tableNames = getInputTableNames (implementingClass, conf);
-    if(tableNames.length > 0) {
+    Map<String, Collection<Range>> tableRanges = new HashMap<String, Collection<Range>>();
+    for(String table : tableNames)
+      tableRanges.put(table, ranges);
 
-      String tableName = tableNames[0];
-
-      ArrayList<String> rangeStrings = new ArrayList<String>(ranges.size());
-      try {
-        for (Range r : ranges) {
-          TableRange tblRange = new TableRange(tableName, r);
-          ByteArrayOutputStream baos = new ByteArrayOutputStream();
-          tblRange.write(new DataOutputStream(baos));
-          rangeStrings.add(new String(encodeBase64 (baos.toByteArray ())));
-        }
-      } catch (IOException ex) {
-        throw new IllegalArgumentException("Unable to encode ranges to Base64", ex);
-      }
-      conf.setStrings(enumToConfKey(implementingClass, ScanOpts.RANGES), rangeStrings.toArray(new String[0]));
-    } else {
-      throw new IllegalStateException ("Ranges can't be added until a table is set.");
-    }
-
+    setRanges (implementingClass, conf, tableRanges);
   }
 
   /**
-   * Sets the input ranges to scan for this job. If not set, the entire table will be scanned.
+   * Sets the input ranges to scan for specific tables of this job. If any ranges are not set on an input table, that
+   * whole table will be scanned.
    *
    * @param implementingClass
    *          the class whose name will be used as a prefix for the property configuration key
@@ -280,8 +266,8 @@ public class InputConfigurator extends ConfiguratorBase {
   }
   
   /**
-   * Restricts the columns that will be mapped over for this job. This provides backwards compatibility when single
-   * tables
+   * Restricts the columns that will be mapped over for this job. This applies the columns to all tables that have been
+   * set on the job.
    * 
    * @param implementingClass
    *          the class whose name will be used as a prefix for the property configuration key
@@ -294,23 +280,12 @@ public class InputConfigurator extends ConfiguratorBase {
    */
   public static void fetchColumns(Class<?> implementingClass, Configuration conf, Collection<Pair<Text,Text>> columnFamilyColumnQualifierPairs) {
     notNull (columnFamilyColumnQualifierPairs);
-    ArrayList<String> columnStrings = new ArrayList<String>(columnFamilyColumnQualifierPairs.size());
-    for (Pair<Text,Text> column : columnFamilyColumnQualifierPairs) {
-      if (column.getFirst() == null)
-        throw new IllegalArgumentException("Column family can not be null");
-      
-      String col = new String(encodeBase64 (getBytes (column.getFirst ())), UTF8);
-      if (column.getSecond() != null)
-        col += ":" + new String(encodeBase64 (getBytes (column.getSecond ())), UTF8);
-      columnStrings.add(col);
-    }
-
     String[] tables = getInputTableNames (implementingClass, conf);
-    if(tables.length > 0)
-      conf.setStrings(format ("%s.%s", enumToConfKey (implementingClass, COLUMNS), tables[0]),
-              columnStrings.toArray (new String[0]));
-    else
-      throw new IllegalStateException ("Input tables must be set before setting fetched columns");
+    Map<String, Collection<Pair<Text,Text>>> columnTablePairs = new HashMap<String, Collection<Pair<Text,Text>>>();
+    for(String table : tables) {
+      columnTablePairs.put (table, columnFamilyColumnQualifierPairs);
+    }
+    fetchColumns (implementingClass, conf, columnTablePairs);
   }
 
   /**
@@ -328,9 +303,8 @@ public class InputConfigurator extends ConfiguratorBase {
    */
   public static void fetchColumns(Class<?> implementingClass, Configuration conf, Map<String, Collection<Pair<Text,Text>>> columnFamilyColumnQualifierPairs) {
     notNull (columnFamilyColumnQualifierPairs);
-    ArrayList<String> columnStrings = new ArrayList<String>(columnFamilyColumnQualifierPairs.size());
     for (Map.Entry<String, Collection<Pair<Text,Text>>> tableColumns : columnFamilyColumnQualifierPairs.entrySet()) {
-
+      ArrayList<String> columnStrings = new ArrayList<String>();
       String tableName = tableColumns.getKey();
       for(Pair<Text,Text> column : tableColumns.getValue()) {
 
@@ -456,7 +430,7 @@ public class InputConfigurator extends ConfiguratorBase {
   public static List<IteratorSetting> getIterators(Class<?> implementingClass, Configuration conf, String table) {
 
     String iterators = conf.get(format ("%s.%s", enumToConfKey (implementingClass, ITERATORS), table));
-    
+
     // If no iterators are present, return an empty list
     if (iterators == null || iterators.isEmpty())
       return new ArrayList<IteratorSetting>();
