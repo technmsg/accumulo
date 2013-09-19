@@ -17,6 +17,7 @@
 package org.apache.accumulo.core.client.mapreduce;
 
 import static java.util.Arrays.asList;
+import static java.util.Collections.singleton;
 import static org.apache.accumulo.core.client.mapreduce.InputFormatBase.addIterator;
 import static org.apache.accumulo.core.client.mapreduce.InputFormatBase.fetchColumns;
 import static org.apache.accumulo.core.client.mapreduce.InputFormatBase.getFetchedColumns;
@@ -37,6 +38,7 @@ import java.io.ByteArrayOutputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -285,6 +287,11 @@ public class AccumuloInputFormatTest {
       assertEquals(0, ToolRunner.run(CachedConfiguration.getInstance(), new MRTester(), args));
     }
   }
+
+  /**
+   * Generate incrementing counts and attach table name to the key/value so that order and multi-table data can be
+   * verified.
+   */
   @Test
   public void testMap() throws Exception {
     MockInstance mockInstance = new MockInstance(INSTANCE_NAME);
@@ -334,12 +341,17 @@ public class AccumuloInputFormatTest {
       tblRanges.put(tbl, ranges);
     }
 
+    Range defaultRange = new Range("0", "1");
+
+    // set a default range
+    setRanges (job, singleton (defaultRange));
     setRanges (job, tblRanges);
     Map<String, List<Range>> configuredRanges = getRanges (job);
 
     for(Map.Entry<String, List<Range>> cfgRange : configuredRanges.entrySet()) {
       String tbl = cfgRange.getKey();
       HashSet<Range> originalRanges = new HashSet<Range>(tblRanges.remove(tbl));
+      originalRanges.add(defaultRange);
       HashSet<Range> retrievedRanges = new HashSet<Range>(cfgRange.getValue());
       assertEquals (originalRanges.size (), retrievedRanges.size ());
       assertTrue (originalRanges.containsAll (retrievedRanges));
@@ -363,17 +375,21 @@ public class AccumuloInputFormatTest {
 
     // create + set iterators on configuration and build expected reference set
     IteratorSetting isetting1 = new IteratorSetting(1, "name1", "class1");
-    IteratorSetting isetting2 = new IteratorSetting(2, "name2", "class3");
+    IteratorSetting isetting2 = new IteratorSetting(2, "name2", "class2");
+    IteratorSetting isetting3 = new IteratorSetting(2, "name3", "class3");
 
     addIterator (job, isetting1, "t1");
     addIterator (job, isetting2, "t2");
+    addIterator (job, isetting3);
 
     // verify per-table iterators
     List<IteratorSetting> t1iters = getIterators (job, "t1");
     List<IteratorSetting> t2iters = getIterators (job, "t2");
     assertFalse (t1iters.isEmpty ());
-    assertEquals(isetting1, t1iters.get(0));
-    assertEquals (isetting2, t2iters.get (0));
+    assertEquals(isetting1, t1iters.get(1));
+    assertEquals(isetting3, t1iters.get(0));
+    assertEquals (isetting2, t2iters.get (1));
+    assertEquals (isetting3, t2iters.get (0));
   }
 
   @Test
@@ -395,7 +411,13 @@ public class AccumuloInputFormatTest {
     columns.put("t1", t1cols);
     columns.put("t2", t2cols);
 
+    Pair<Text, Text> defaultColumn = new Pair(new Text("c"), new Text("d"));
+
+    fetchColumns (job, singleton (defaultColumn));
     fetchColumns (job, columns);
+
+    columns.get("t1").add (defaultColumn);
+    columns.get("t2").add (defaultColumn);
 
     Collection<Pair<Text,Text>> t1actual = getFetchedColumns (job, "t1");
     assertEquals(columns.get("t1"), t1actual);

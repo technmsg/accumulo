@@ -16,15 +16,25 @@
  */
 package org.apache.accumulo.core.client.mapreduce.lib.util;
 
+import static java.lang.String.format;
+import static org.apache.accumulo.core.Constants.UTF8;
+import static org.apache.accumulo.core.client.mapreduce.lib.util.InputConfigurator.ScanOpts.COLUMNS;
+import static org.apache.accumulo.core.client.mapreduce.lib.util.InputConfigurator.ScanOpts.ITERATORS;
+import static org.apache.accumulo.core.util.ArgumentChecker.notNull;
+import static org.apache.accumulo.core.util.TextUtil.getBytes;
+import static org.apache.commons.codec.binary.Base64.decodeBase64;
+import static org.apache.commons.codec.binary.Base64.encodeBase64;
+import static org.apache.hadoop.util.StringUtils.COMMA_STR;
+import static org.apache.hadoop.util.StringUtils.join;
+import static org.apache.hadoop.util.StringUtils.split;
+
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collection;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -32,7 +42,6 @@ import java.util.Set;
 import java.util.StringTokenizer;
 import java.util.TreeMap;
 
-import org.apache.accumulo.core.Constants;
 import org.apache.accumulo.core.client.AccumuloException;
 import org.apache.accumulo.core.client.AccumuloSecurityException;
 import org.apache.accumulo.core.client.ClientSideIteratorScanner;
@@ -44,34 +53,15 @@ import org.apache.accumulo.core.client.Scanner;
 import org.apache.accumulo.core.client.TableNotFoundException;
 import org.apache.accumulo.core.client.impl.Tables;
 import org.apache.accumulo.core.client.impl.TabletLocator;
-import org.apache.accumulo.core.client.mapreduce.lib.support.TableRange;
 import org.apache.accumulo.core.client.mock.MockTabletLocator;
 import org.apache.accumulo.core.client.security.tokens.AuthenticationToken.AuthenticationTokenSerializer;
 import org.apache.accumulo.core.data.Range;
 import org.apache.accumulo.core.iterators.SortedKeyValueIterator;
 import org.apache.accumulo.core.security.Authorizations;
 import org.apache.accumulo.core.security.TablePermission;
-import org.apache.accumulo.core.util.ArgumentChecker;
 import org.apache.accumulo.core.util.Pair;
-import org.apache.accumulo.core.util.TextUtil;
-import org.apache.commons.codec.binary.Base64;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.io.Text;
-import org.apache.hadoop.util.StringUtils;
-
-import static java.lang.String.format;
-import static java.util.Arrays.asList;
-import static org.apache.accumulo.core.Constants.UTF8;
-import static org.apache.accumulo.core.Constants.ZTABLE_NAME;
-import static org.apache.accumulo.core.client.mapreduce.lib.util.InputConfigurator.ScanOpts.COLUMNS;
-import static org.apache.accumulo.core.client.mapreduce.lib.util.InputConfigurator.ScanOpts.ITERATORS;
-import static org.apache.accumulo.core.util.ArgumentChecker.notNull;
-import static org.apache.accumulo.core.util.TextUtil.getBytes;
-import static org.apache.commons.codec.binary.Base64.decodeBase64;
-import static org.apache.commons.codec.binary.Base64.encodeBase64;
-import static org.apache.hadoop.util.StringUtils.COMMA_STR;
-import static org.apache.hadoop.util.StringUtils.join;
-import static org.apache.hadoop.util.StringUtils.split;
 
 /**
  * @since 1.5.0
@@ -187,17 +177,21 @@ public class InputConfigurator extends ConfiguratorBase {
    * @param ranges
    *          the ranges that will be mapped over
    * @since 1.5.0
-   * @deprecated since 1.6.0
    */
   public static void setRanges(Class<?> implementingClass, Configuration conf, Collection<Range> ranges) {
     notNull (ranges);
 
-    String[] tableNames = getInputTableNames (implementingClass, conf);
-    Map<String, Collection<Range>> tableRanges = new HashMap<String, Collection<Range>>();
-    for(String table : tableNames)
-      tableRanges.put(table, ranges);
-
-    setRanges (implementingClass, conf, tableRanges);
+    ArrayList<String> rangeStrings = new ArrayList<String>(ranges.size());
+    try {
+      for (Range r : ranges) {
+        ByteArrayOutputStream baos = new ByteArrayOutputStream();
+        r.write (new DataOutputStream (baos));
+        rangeStrings.add(new String(encodeBase64 (baos.toByteArray ())));
+      }
+      conf.setStrings(enumToConfKey (implementingClass, ScanOpts.RANGES), rangeStrings.toArray(new String[0]));
+    } catch (IOException ex) {
+      throw new IllegalArgumentException("Unable to encode ranges to Base64", ex);
+    }
   }
 
   /**
@@ -220,16 +214,15 @@ public class InputConfigurator extends ConfiguratorBase {
       try {
         String tableName = pair.getKey();
         for (Range r : pair.getValue()) {
-          TableRange tblRange = new TableRange(tableName, r);
           ByteArrayOutputStream baos = new ByteArrayOutputStream();
-          tblRange.write(new DataOutputStream(baos));
-          rangeStrings.add(new String(encodeBase64 (baos.toByteArray ())));
+          r.write (new DataOutputStream (baos));
+          rangeStrings.add (new String (encodeBase64 (baos.toByteArray ())));
         }
+        conf.setStrings(format("%s.%s", enumToConfKey(implementingClass, ScanOpts.RANGES), tableName), rangeStrings.toArray(new String[0]));
       } catch (IOException ex) {
         throw new IllegalArgumentException("Unable to encode ranges to Base64", ex);
       }
     }
-    conf.setStrings(enumToConfKey(implementingClass, ScanOpts.RANGES), rangeStrings.toArray(new String[0]));
   }
 
 
@@ -247,19 +240,27 @@ public class InputConfigurator extends ConfiguratorBase {
    * @see #setRanges(Class, Configuration, Collection)
    */
   public static Map<String, List<Range>> getRanges(Class<?> implementingClass, Configuration conf) throws IOException {
+
+    Collection<String> encodedRanges = conf.getStringCollection(enumToConfKey(implementingClass, ScanOpts.RANGES));
+
     TreeMap<String,List<Range>> ranges = new TreeMap<String,List<Range>>();
 
     // create collections for each table
     for (String table : getInputTableNames (implementingClass, conf)) {
-      ranges.put(table, new ArrayList<Range>());
-    }
+      List<Range> tableRanges = new ArrayList<Range>();
+      Collection<String> confRanges = conf.getStringCollection(
+        format("%s.%s", enumToConfKey(implementingClass, ScanOpts.RANGES), table)
+      );
+      confRanges.addAll (encodedRanges);
+      // parse out the ranges and add them to table's bucket
+      for (String rangeString : confRanges) {
+        ByteArrayInputStream bais = new ByteArrayInputStream(decodeBase64 (rangeString.getBytes ()));
+        Range range = new Range ();
+        range.readFields(new DataInputStream(bais));
+        tableRanges.add(range);
+      }
 
-    // parse out the ranges and add them to table's bucket
-    for (String rangeString : conf.getStringCollection(enumToConfKey(implementingClass, ScanOpts.RANGES))) {
-      ByteArrayInputStream bais = new ByteArrayInputStream(decodeBase64 (rangeString.getBytes ()));
-      TableRange range = new TableRange ();
-      range.readFields(new DataInputStream(bais));
-      ranges.get(range.tableName()).add(range.range());
+      ranges.put(table, tableRanges);
     }
 
     return ranges;
@@ -280,12 +281,19 @@ public class InputConfigurator extends ConfiguratorBase {
    */
   public static void fetchColumns(Class<?> implementingClass, Configuration conf, Collection<Pair<Text,Text>> columnFamilyColumnQualifierPairs) {
     notNull (columnFamilyColumnQualifierPairs);
-    String[] tables = getInputTableNames (implementingClass, conf);
-    Map<String, Collection<Pair<Text,Text>>> columnTablePairs = new HashMap<String, Collection<Pair<Text,Text>>>();
-    for(String table : tables) {
-      columnTablePairs.put (table, columnFamilyColumnQualifierPairs);
+    ArrayList<String> columnStrings = new ArrayList<String>();
+
+    for(Pair<Text,Text> column : columnFamilyColumnQualifierPairs) {
+
+      if (column.getFirst() == null)
+        throw new IllegalArgumentException("Column family can not be null");
+
+      String col = new String(encodeBase64 (getBytes (column.getFirst ())), UTF8);
+      if (column.getSecond() != null)
+        col += ":" + new String(encodeBase64 (getBytes (column.getSecond ())), UTF8);
+      columnStrings.add(col);
     }
-    fetchColumns (implementingClass, conf, columnTablePairs);
+    conf.setStrings (enumToConfKey (implementingClass, COLUMNS), columnStrings.toArray (new String[0]));
   }
 
   /**
@@ -335,7 +343,10 @@ public class InputConfigurator extends ConfiguratorBase {
    */
   public static Set<Pair<Text,Text>> getFetchedColumns(Class<?> implementingClass, Configuration conf, String table) {
     Set<Pair<Text,Text>> columns = new HashSet<Pair<Text,Text>>();
-    for (String col : conf.getStringCollection(format ("%s.%s", enumToConfKey (implementingClass, COLUMNS), table))) {
+    
+    Collection<String> encodedColumns = conf.getStringCollection (enumToConfKey (implementingClass, COLUMNS));
+    encodedColumns.addAll (conf.getStringCollection(format ("%s.%s", enumToConfKey (implementingClass, COLUMNS), table)));
+    for (String col : encodedColumns) {
       int idx = col.indexOf(":");
       Text cf = new Text(idx < 0 ? decodeBase64 (col.getBytes (UTF8)) : decodeBase64 (col.substring (0, idx).getBytes (UTF8)));
       Text cq = idx < 0 ? null : new Text(decodeBase64 (col.substring (idx + 1).getBytes ()));
@@ -429,26 +440,26 @@ public class InputConfigurator extends ConfiguratorBase {
    */
   public static List<IteratorSetting> getIterators(Class<?> implementingClass, Configuration conf, String table) {
 
+    List<IteratorSetting> defaultIterators = getDefaultIterators (implementingClass, conf);
     String iterators = conf.get(format ("%s.%s", enumToConfKey (implementingClass, ITERATORS), table));
 
     // If no iterators are present, return an empty list
     if (iterators == null || iterators.isEmpty())
-      return new ArrayList<IteratorSetting>();
+      return defaultIterators;
     
     // Compose the set of iterators encoded in the job configuration
     StringTokenizer tokens = new StringTokenizer(iterators, COMMA_STR);
-    List<IteratorSetting> list = new ArrayList<IteratorSetting>();
     try {
       while (tokens.hasMoreTokens()) {
         String itstring = tokens.nextToken();
         ByteArrayInputStream bais = new ByteArrayInputStream(decodeBase64 (itstring.getBytes ()));
-        list.add(new IteratorSetting(new DataInputStream(bais)));
+        defaultIterators.add(new IteratorSetting(new DataInputStream(bais)));
         bais.close();
       }
     } catch (IOException e) {
       throw new IllegalArgumentException("couldn't decode iterator settings");
     }
-    return list;
+    return defaultIterators;
   }
 
   /**

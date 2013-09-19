@@ -268,8 +268,9 @@ public abstract class InputFormatBase<K,V> extends InputFormat<K,V> {
   }
   
   /**
-   * Sets the name of the input table, over which this job will scan.
-   * 
+   * Sets the name of the input table, over which this job will scan. This method has been deprecated in favor of
+   * {@link InputFormatBase#setInputTableNames(org.apache.hadoop.mapreduce.Job, java.util.Collection)}
+   *
    * @param job
    *          the Hadoop job instance to be configured
    * @param tableName
@@ -277,12 +278,13 @@ public abstract class InputFormatBase<K,V> extends InputFormat<K,V> {
    * @since 1.5.0
    * @deprecated since 1.6.0
    */
+  @Deprecated
   public static void setInputTableName(Job job, String tableName) {
     InputConfigurator.setInputTableName(CLASS, job.getConfiguration(), tableName);
   }
 
   /**
-   * Sets the name of the input table, over which this job will scan.
+   * Sets the names of the input tables over which this job will scan.
    *
    * @param job
    *          the Hadoop job instance to be configured
@@ -292,25 +294,6 @@ public abstract class InputFormatBase<K,V> extends InputFormat<K,V> {
    */
   public static void setInputTableNames(Job job, Collection<String> tableNames) {
     InputConfigurator.setInputTableNames(CLASS, job.getConfiguration(), tableNames);
-  }
-
-
-  /**
-   * Gets the default table name from the configuration- the first table is used in case of multiple tables
-   * being set.
-   *
-   * @param context
-   *          the Hadoop context for the configured job
-   * @return the table name
-   * @since 1.5.0
-   * @see #setInputTableName(Job, String)
-   */
-  protected static String getDefaultInputTableName(JobContext context) {
-    String[] tableNames = InputConfigurator.getInputTableNames(CLASS, getConfiguration(context));
-    if(tableNames.length > 0)
-      return tableNames[0];
-    else
-      return null;
   }
 
   /**
@@ -340,7 +323,8 @@ public abstract class InputFormatBase<K,V> extends InputFormat<K,V> {
   }
   
   /**
-   * Sets the input ranges to scan for this job. If not set, the entire table will be scanned.
+   * Sets the input ranges to scan for all tables associated with this job. This will be added to any per-table
+   * ranges that have been set using {@link #setRanges(org.apache.hadoop.mapreduce.Job, java.util.Map)}
    * 
    * @param job
    *          the Hadoop job instance to be configured
@@ -353,7 +337,7 @@ public abstract class InputFormatBase<K,V> extends InputFormat<K,V> {
   }
 
   /**
-   * Sets the input ranges to scan for this job. If not set, the entire table will be scanned.
+   * Sets the input ranges to scan per-table for this job.
    *
    * @param job
    *          the Hadoop job instance to be configured
@@ -376,13 +360,15 @@ public abstract class InputFormatBase<K,V> extends InputFormat<K,V> {
    *           if the ranges have been encoded improperly
    * @since 1.5.0
    * @see #setRanges(Job, Collection)
+   * @see #setRanges(org.apache.hadoop.mapreduce.Job, java.util.Map)
    */
   protected static Map<String, List<Range>> getRanges(JobContext context) throws IOException {
     return InputConfigurator.getRanges(CLASS, getConfiguration(context));
   }
   
   /**
-   * Restricts the columns that will be mapped over for this job.
+   * Restricts the columns that will be mapped over for this job for all tables. These columns will be added to any
+   * per-table columns set with {@link #fetchColumns(org.apache.hadoop.mapreduce.Job, java.util.Map)}.
    * 
    * @param job
    *          the Hadoop job instance to be configured
@@ -396,23 +382,23 @@ public abstract class InputFormatBase<K,V> extends InputFormat<K,V> {
   }
 
   /**
-   * Restricts the columns that will be mapped over for this job.
+   * Restricts the columns that will be mapped over for this job per table..
    *
    * @param job
    *          the Hadoop job instance to be configured
    * @param columnFamilyColumnQualifierPairs
-   *          a pair of {@link Text} objects corresponding to column family and column qualifier. If the column qualifier is null, the entire column family is
-   *          selected. An empty set is the default and is equivalent to scanning the all columns.
+   *          A map keyed by table name where the value is a pair of {@link Text} objects corresponding to column family
+   *          and column qualifier. If the column qualifier is null, the entire column family is selected. An empty set
+   *          is the default and is equivalent to scanning the all columns.
    * @since 1.5.0
    */
   public static void fetchColumns(Job job, Map<String, Collection<Pair<Text,Text>>> columnFamilyColumnQualifierPairs) {
     InputConfigurator.fetchColumns(CLASS, job.getConfiguration(), columnFamilyColumnQualifierPairs);
   }
 
-
-
   /**
-   * Gets the columns to be mapped over from this job.
+   * Gets the columns to be mapped over from this job. Any default columns as well as per-table columns will be
+   * returned.
    * 
    * @param context
    *          the Hadoop context for the configured job
@@ -425,7 +411,7 @@ public abstract class InputFormatBase<K,V> extends InputFormat<K,V> {
   }
   
   /**
-   * Encode an iterator on the default input table for this job.
+   * Encode an iterator on the default all tables for this job.
    * 
    * @param job
    *          the Hadoop job instance to be configured
@@ -452,20 +438,22 @@ public abstract class InputFormatBase<K,V> extends InputFormat<K,V> {
 
 
   /**
-   * Gets a list of the iterator settings (for iterators to apply to a scanner) from this configuration.
+   * Gets a list of the iterator settings (for iterators to apply to a scanner) from this configuration for the specific
+   * table. Any default iterators will be included in the return.
    * 
    * @param context
    *          the Hadoop context for the configured job
    * @return a list of iterators
    * @since 1.5.0
-   * @see #addIterator(Job, IteratorSetting)
+   * @see #addIterator(Job, IteratorSetting, String)
    */
   protected static List<IteratorSetting> getIterators(JobContext context, String table) {
     return InputConfigurator.getIterators(CLASS, getConfiguration(context), table);
   }
 
   /**
-   * Gets a list of the iterator settings (for iterators to apply to a scanner) from this configuration.
+   * Gets a list of the iterator settings (for iterators to apply to a scanner) from this configuration. This will only
+   * return iterators that have not been set for a specific table.
    *
    * @param context
    *          the Hadoop context for the configured job
@@ -670,8 +658,7 @@ public abstract class InputFormatBase<K,V> extends InputFormat<K,V> {
      *          the scanner to configure
      */
     protected void setupIterators(TaskAttemptContext context, Scanner scanner, String tableName) {
-      List<IteratorSetting> iterators = getIterators(context, tableName);
-      iterators.addAll (getIterators (context));
+      List<IteratorSetting> iterators = getIterators(context, tableName);  // default iterators will be included
       for (IteratorSetting iterator : iterators)
         scanner.addScanIterator(iterator);
     }
